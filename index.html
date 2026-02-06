@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Sapphire</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <header class="app-bar">
+        <div class="app-brand">
+          <div class="logo">◆</div>
+          <div>
+            <div class="brand-title">Sapphire</div>
+            <div class="brand-sub">Made by neonxsl</div>
+          </div>
+        </div>
+        <nav class="app-nav">
+          <button class="nav-item is-active" data-tab="dashboard" type="button">Dashboard</button>
+          <button class="nav-item" data-tab="analytics" type="button">Analytics</button>
+        </nav>
+        <div class="app-actions">
+          <button id="theme-open" class="ghost-button" type="button">Themes</button>
+          <button id="reset-data" class="ghost-button" type="button">Reset</button>
+        </div>
+      </header>
+
+      <main class="main">
+        <header class="page-header">
+          <div>
+            <div class="section-eyebrow">Welcome back</div>
+            <div class="page-title">Sapphire Gradebook</div>
+          </div>
+          <div class="topbar-meta">Private • Stored on this device</div>
+        </header>
+
+        <section class="view is-active" data-view="dashboard">
+          <section class="hero-grid">
+            <div class="card overall-card glow-soft">
+              <div class="overall-header">
+                <div>
+                  <div class="section-eyebrow">Overall performance</div>
+                  <h1 class="section-title">Your Semester Snapshot</h1>
+                </div>
+                <div class="status-pill">Live</div>
+              </div>
+              <div class="overall-body">
+                <div class="grade-square" id="overall-grade-square">
+                  <span id="overall-letter">--</span>
+                </div>
+                <div class="overall-stats">
+                  <div class="stat-label">Average</div>
+                  <div class="stat-value">
+                    <span id="overall-percent">--</span><span class="stat-suffix">%</span>
+                  </div>
+                  <div class="stat-sub" id="overall-sub">Add your first assessment to begin.</div>
+                </div>
+              </div>
+              <div class="overall-footer">
+                <div class="mini-stat">
+                  <span class="mini-label">Subjects</span>
+                  <span class="mini-value" id="overall-subjects">0</span>
+                </div>
+                <div class="mini-stat">
+                  <span class="mini-label">Assessments</span>
+                  <span class="mini-value" id="overall-assessments">0</span>
+                </div>
+                <div class="mini-stat">
+                  <span class="mini-label">Top Grade</span>
+                  <span class="mini-value" id="overall-best">--</span>
+                </div>
+              </div>
+            </div>
+            <div class="hero-side">
+              <div class="card top-subject-card glow-soft">
+                <div class="top-subject-header">
+                  <div class="subject-icon" id="top-subject-icon">★</div>
+                  <div>
+                    <div class="section-eyebrow">Top Subject</div>
+                    <div class="top-subject-name" id="top-subject-name">No data yet</div>
+                    <div class="top-subject-grade" id="top-subject-grade">--</div>
+                  </div>
+                </div>
+                <div class="top-subject-footer" id="top-subject-footer">Add assessments to see your leading subject.</div>
+              </div>
+              <div class="card latest-card glow-soft">
+                <div class="section-eyebrow">Latest assessment</div>
+                <div class="latest-name" id="latest-name">Nothing logged</div>
+                <div class="latest-score" id="latest-score">--</div>
+                <div class="latest-meta" id="latest-meta">Once you add an assessment, it will appear here.</div>
+              </div>
+            </div>
+          </section>
+
+          <section class="subjects-section">
+            <div class="section-header">
+              <div>
+                <div class="section-eyebrow">Subjects</div>
+                <h2 class="section-title">Track every class</h2>
+              </div>
+              <div class="section-meta">Add assessments inside each subject card.</div>
+            </div>
+            <div class="card subject-card subject-add glow-soft">
+              <div class="section-eyebrow">New Subject</div>
+              <h3 class="section-title">Add a subject</h3>
+              <form id="subject-form" autocomplete="off">
+                <label class="field">
+                  <span>Subject name</span>
+                  <input name="subjectName" list="subject-list" placeholder="e.g. Mathematics Advanced" required />
+                </label>
+                <div class="form-actions">
+                  <button class="primary-button" type="submit">Add Subject</button>
+                  <span class="form-message" id="subject-message" aria-live="polite"></span>
+                </div>
+              </form>
+            </div>
+            <div id="subjects-grid" class="subjects-grid"></div>
+          </section>
+        </section>
+
+        <section class="view" data-view="analytics">
+          <section class="analytics-grid">
+            <div class="card progress-card glow-soft">
+              <div class="section-eyebrow">Progress</div>
+              <h2 class="section-title">Weighted trend</h2>
+              <p class="muted">Your overall average after each assessment, plotted over time.</p>
+              <div class="chart-wrap">
+                <canvas id="overall-chart" height="200"></canvas>
+              </div>
+              <div class="progress-legend" id="progress-legend">No data yet.</div>
+            </div>
+            <div class="card insights-card glow-soft">
+              <div class="section-eyebrow">Insights</div>
+              <h2 class="section-title">Performance highlights</h2>
+              <div class="insight-list" id="insight-list"></div>
+            </div>
+          </section>
+
+          <section class="card progress-card glow-soft subjects-chart-section">
+            <div class="section-eyebrow">Subjects</div>
+            <h2 class="section-title">Subject score lines</h2>
+            <p class="muted">Each subject plotted with its own color for quick comparison.</p>
+            <div class="chart-wrap">
+              <canvas id="subjects-chart" height="220"></canvas>
+            </div>
+            <div class="progress-legend" id="subjects-legend">No subject data yet.</div>
+            <div class="chart-key" id="subjects-key"></div>
+          </section>
+
+          <section class="card assessment-card glow-soft">
+            <div class="section-eyebrow">All assessments</div>
+            <h2 class="section-title">Detailed breakdown</h2>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Subject</th>
+                    <th>Assessment</th>
+                    <th>Score</th>
+                    <th>Weight</th>
+                    <th>Percent</th>
+                    <th>Grade</th>
+                    <th>Date</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="assessment-table"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <datalist id="subject-list">
+
+    </datalist>
+
+    <div class="modal" id="subject-modal" aria-hidden="true">
+      <div class="modal-backdrop" data-action="close-subject"></div>
+      <div class="modal-panel modal-panel--large" role="dialog" aria-modal="true" aria-labelledby="subject-modal-title">
+        <div class="modal-header">
+          <div>
+            <div class="section-eyebrow">Subject details</div>
+            <h2 class="section-title" id="subject-modal-title">Subject</h2>
+            <div class="modal-meta" id="subject-modal-meta"></div>
+          </div>
+          <button class="icon-button" type="button" data-action="close-subject" id="subject-modal-close">✕</button>
+        </div>
+        <div class="modal-body" id="subject-modal-body"></div>
+      </div>
+    </div>
+
+    <div class="modal" id="assessment-modal" aria-hidden="true">
+      <div class="modal-backdrop" data-action="close-assessment"></div>
+      <div class="modal-panel modal-panel--small" role="dialog" aria-modal="true" aria-labelledby="assessment-modal-title">
+        <div class="modal-header">
+          <div>
+            <div class="section-eyebrow">Add assessment</div>
+            <h2 class="section-title" id="assessment-modal-title">New Result</h2>
+            <div class="modal-meta" id="assessment-subject-name"></div>
+          </div>
+          <button class="icon-button" type="button" data-action="close-assessment" id="assessment-modal-close">✕</button>
+        </div>
+        <form id="assessment-form" class="modal-body" autocomplete="off">
+          <input type="hidden" name="subjectId" id="assessment-subject-id" />
+          <label class="field">
+            <span>Assessment name</span>
+            <input name="assessment" placeholder="e.g. Topic Test 1" required />
+          </label>
+          <label class="field">
+            <span>Achieved mark</span>
+            <input name="score" type="number" min="0" step="0.1" placeholder="18" required />
+          </label>
+          <label class="field">
+            <span>Total mark</span>
+            <input name="total" type="number" min="1" step="0.1" placeholder="20" required />
+          </label>
+          <label class="field">
+            <span>Weighting</span>
+            <input name="weight" type="number" min="0" step="0.1" placeholder="20" />
+            <small>Leave blank for equal weighting.</small>
+          </label>
+          <label class="field">
+            <span>Date</span>
+            <input name="date" type="date" />
+          </label>
+          <div class="form-actions">
+            <button class="primary-button" type="submit">Save Assessment</button>
+            <span class="form-message" id="assessment-message" aria-live="polite"></span>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal" id="theme-modal" aria-hidden="true">
+      <div class="modal-backdrop" data-action="close-themes"></div>
+      <div class="modal-panel modal-panel--small" role="dialog" aria-modal="true" aria-labelledby="theme-modal-title">
+        <div class="modal-header">
+          <div>
+            <div class="section-eyebrow">Themes</div>
+            <h2 class="section-title" id="theme-modal-title">Pick a look</h2>
+            <div class="modal-meta">4 light and 4 dark palettes.</div>
+          </div>
+          <button class="icon-button" type="button" data-action="close-themes">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="theme-grid">
+            <button class="theme-button" type="button" data-theme-mode="light" data-theme-variant="pearl">
+              <span class="theme-swatch" style="--swatch:#0a84ff"></span>
+              Pearl
+            </button>
+            <button class="theme-button" type="button" data-theme-mode="light" data-theme-variant="mint">
+              <span class="theme-swatch" style="--swatch:#34c759"></span>
+              Mint
+            </button>
+            <button class="theme-button" type="button" data-theme-mode="light" data-theme-variant="sunrise">
+              <span class="theme-swatch" style="--swatch:#ff9f0a"></span>
+              Sunrise
+            </button>
+            <button class="theme-button" type="button" data-theme-mode="light" data-theme-variant="sky">
+              <span class="theme-swatch" style="--swatch:#64d2ff"></span>
+              Sky
+            </button>
+            <button class="theme-button" type="button" data-theme-mode="dark" data-theme-variant="midnight">
+              <span class="theme-swatch" style="--swatch:#2aa9ff"></span>
+              Midnight
+            </button>
+            <button class="theme-button" type="button" data-theme-mode="dark" data-theme-variant="aurora">
+              <span class="theme-swatch" style="--swatch:#5ae3a1"></span>
+              Aurora
+            </button>
+            <button class="theme-button" type="button" data-theme-mode="dark" data-theme-variant="cosmic">
+              <span class="theme-swatch" style="--swatch:#c77dff"></span>
+              Cosmic
+            </button>
+            <button class="theme-button" type="button" data-theme-mode="dark" data-theme-variant="sapphire">
+              <span class="theme-swatch" style="--swatch:#1f7aff"></span>
+              Sapphire
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="chart-tooltip" class="chart-tooltip" role="status" aria-hidden="true"></div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
