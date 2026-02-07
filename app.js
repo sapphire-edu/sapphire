@@ -2,14 +2,42 @@ const STORAGE_KEY = 'nsw-grade-tracker-v1';
 const THEME_KEY = 'nsw-grade-theme';
 const THEME_VARIANT_KEY = 'sapphire-theme-variant';
 const TAB_KEY = 'sapphire-active-tab';
+const GRAPH_SMOOTHNESS_KEY = 'sapphire-graph-smoothness';
 
 const palette = ['#2aa9ff', '#5ae3a1', '#f6b96e', '#c78bff', '#ff8b8b', '#56d2d2', '#ffb347', '#4dd4a8'];
 const LIGHT_THEMES = ['pearl', 'mint', 'sunrise', 'sky'];
 const DARK_THEMES = ['midnight', 'aurora', 'cosmic', 'sapphire'];
 
+function safeGetItem(key) {
+  try {
+    return localStorage.getItem(key);
+  } catch (error) {
+    // no-op
+  }
+  try {
+    return sessionStorage.getItem(key);
+  } catch (error) {
+    return null;
+  }
+}
+
+function safeSetItem(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch (error) {
+    // no-op
+  }
+  try {
+    sessionStorage.setItem(key, value);
+  } catch (error) {
+    // no-op
+  }
+}
+
 const state = {
   data: loadData(),
   theme: loadThemeSettings(),
+  graphSmoothness: loadGraphSmoothness(),
 };
 
 const elements = {
@@ -27,6 +55,8 @@ const elements = {
   latestName: document.getElementById('latest-name'),
   latestScore: document.getElementById('latest-score'),
   latestMeta: document.getElementById('latest-meta'),
+  upcomingList: document.getElementById('upcoming-list'),
+  upcomingAdd: document.getElementById('upcoming-add'),
   subjectGrid: document.getElementById('subjects-grid'),
   assessmentTable: document.getElementById('assessment-table'),
   overallChart: document.getElementById('overall-chart'),
@@ -49,10 +79,28 @@ const elements = {
   assessmentMessage: document.getElementById('assessment-message'),
   assessmentSubjectName: document.getElementById('assessment-subject-name'),
   assessmentSubjectId: document.getElementById('assessment-subject-id'),
+  upcomingModal: document.getElementById('upcoming-modal'),
+  upcomingForm: document.getElementById('upcoming-form'),
+  upcomingMessage: document.getElementById('upcoming-message'),
+  upcomingSubjectSelect: document.getElementById('upcoming-subject-select'),
   chartTooltip: document.getElementById('chart-tooltip'),
   themeButtons: document.querySelectorAll('[data-theme-variant]'),
   navItems: document.querySelectorAll('[data-tab]'),
   views: document.querySelectorAll('[data-view]'),
+  calendarMonth: document.getElementById('calendar-month'),
+  calendarGrid: document.getElementById('calendar-grid'),
+  calendarPrev: document.getElementById('calendar-prev'),
+  calendarNext: document.getElementById('calendar-next'),
+  graphSmoothnessRange: document.getElementById('graph-smoothness'),
+  graphSmoothnessValue: document.getElementById('graph-smoothness-value'),
+};
+
+const now = new Date();
+const today = dateKeyFromParts(now.getFullYear(), now.getMonth(), now.getDate());
+const todayValue = dateStringValue(today);
+const calendarState = {
+  year: new Date().getFullYear(),
+  month: new Date().getMonth(),
 };
 
 let activeSubjectId = null;
@@ -60,9 +108,8 @@ let activeSubjectId = null;
 setTheme(state.theme.mode, state.theme.variant);
 initTabs();
 
-const today = new Date().toISOString().slice(0, 10);
-
 render();
+updateGraphSmoothnessUI();
 
 window.addEventListener('resize', () => {
   renderCharts();
@@ -74,10 +121,19 @@ if (elements.themeButtons) {
       const mode = button.dataset.themeMode || 'light';
       const variant = button.dataset.themeVariant || resolveVariant(mode);
       setTheme(mode, variant);
+      renderCharts();
+      renderCalendar();
       if (elements.themeModal?.classList.contains('is-open')) {
         closeModal(elements.themeModal);
       }
     });
+  });
+}
+
+if (elements.graphSmoothnessRange) {
+  elements.graphSmoothnessRange.addEventListener('input', (event) => {
+    const value = Number(event.target.value);
+    setGraphSmoothness(value / 100);
   });
 }
 
@@ -102,6 +158,60 @@ if (elements.resetData) {
       saveData(state.data);
       render();
     }
+  });
+}
+
+if (elements.upcomingAdd) {
+  elements.upcomingAdd.addEventListener('click', () => {
+    openUpcomingModal();
+  });
+}
+
+if (elements.upcomingModal) {
+  elements.upcomingModal.addEventListener('click', (event) => {
+    const actionTarget = event.target.closest('[data-action]');
+    if (!actionTarget) return;
+    if (actionTarget.dataset.action === 'close-upcoming') {
+      closeUpcomingModal();
+    }
+  });
+}
+
+if (elements.upcomingForm) {
+  elements.upcomingForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const formData = new FormData(elements.upcomingForm);
+    const subjectId = String(formData.get('subjectId') || '').trim();
+    const upcomingName = String(formData.get('upcomingName') || '').trim();
+    const upcomingDate = String(formData.get('upcomingDate') || '').trim();
+    const upcomingNotes = String(formData.get('upcomingNotes') || '').trim();
+
+    if (!subjectId) {
+      return setUpcomingMessage('Choose a subject first.');
+    }
+    const subject = state.data.subjects.find((item) => item.id === subjectId);
+    if (!subject) {
+      return setUpcomingMessage('Select a valid subject.');
+    }
+    if (!upcomingName) {
+      return setUpcomingMessage('Please enter an assessment name.');
+    }
+    if (!upcomingDate) {
+      return setUpcomingMessage('Please choose a due date.');
+    }
+
+    subject.upcoming = Array.isArray(subject.upcoming) ? subject.upcoming : [];
+    subject.upcoming.push({
+      id: cryptoRandomId(),
+      name: upcomingName,
+      date: upcomingDate,
+      notes: upcomingNotes,
+      createdAt: Date.now(),
+    });
+
+    saveData(state.data);
+    render();
+    closeUpcomingModal();
   });
 }
 
@@ -155,6 +265,24 @@ if (elements.subjectModal) {
       return;
     }
 
+    if (action === 'open-upcoming') {
+      if (activeSubjectId) {
+        openUpcomingModal(activeSubjectId);
+      } else {
+        openUpcomingModal();
+      }
+      return;
+    }
+
+    if (action === 'set-subject-color') {
+      const subjectId = actionTarget.dataset.id || activeSubjectId;
+      const color = actionTarget.dataset.color;
+      if (subjectId && color) {
+        applySubjectColor(subjectId, color);
+      }
+      return;
+    }
+
     if (action === 'delete-subject') {
       if (!activeSubjectId) return;
       if (!confirm('Delete this subject and all assessments?')) return;
@@ -175,6 +303,25 @@ if (elements.subjectModal) {
       render();
       openSubjectModal(subjectId);
     }
+
+    if (action === 'delete-upcoming') {
+      const subjectId = actionTarget.dataset.subjectId;
+      const upcomingId = actionTarget.dataset.upcomingId;
+      removeUpcoming(subjectId, upcomingId);
+    }
+  });
+}
+
+if (elements.subjectModal) {
+  elements.subjectModal.addEventListener('input', (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    if (target.name !== 'subjectColor') return;
+    const subjectId = target.dataset.subjectId || activeSubjectId;
+    const color = target.value;
+    if (subjectId && color) {
+      applySubjectColor(subjectId, color);
+    }
   });
 }
 
@@ -186,6 +333,40 @@ if (elements.assessmentModal) {
     if (action === 'close-assessment') {
       closeAssessmentModal();
     }
+  });
+}
+
+if (elements.upcomingList) {
+  elements.upcomingList.addEventListener('click', (event) => {
+    const actionTarget = event.target.closest('[data-action]');
+    if (!actionTarget) return;
+    if (actionTarget.dataset.action === 'delete-upcoming') {
+      const subjectId = actionTarget.dataset.subjectId;
+      const upcomingId = actionTarget.dataset.upcomingId;
+      removeUpcoming(subjectId, upcomingId);
+    }
+  });
+}
+
+if (elements.calendarPrev) {
+  elements.calendarPrev.addEventListener('click', () => {
+    calendarState.month -= 1;
+    if (calendarState.month < 0) {
+      calendarState.month = 11;
+      calendarState.year -= 1;
+    }
+    renderCalendar();
+  });
+}
+
+if (elements.calendarNext) {
+  elements.calendarNext.addEventListener('click', () => {
+    calendarState.month += 1;
+    if (calendarState.month > 11) {
+      calendarState.month = 0;
+      calendarState.year += 1;
+    }
+    renderCalendar();
   });
 }
 
@@ -236,6 +417,10 @@ document.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape') return;
   if (elements.themeModal?.classList.contains('is-open')) {
     closeModal(elements.themeModal);
+    return;
+  }
+  if (elements.upcomingModal?.classList.contains('is-open')) {
+    closeUpcomingModal();
     return;
   }
   if (elements.assessmentModal?.classList.contains('is-open')) {
@@ -292,13 +477,15 @@ if (elements.assessmentTable) {
 
 function loadData() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = safeGetItem(STORAGE_KEY);
     if (!raw) return { subjects: [] };
     const parsed = JSON.parse(raw);
     if (!parsed || !Array.isArray(parsed.subjects)) return { subjects: [] };
-    const todayValue = new Date().toISOString().slice(0, 10);
+    const now = new Date();
+    const todayValue = dateKeyFromParts(now.getFullYear(), now.getMonth(), now.getDate());
     const subjects = parsed.subjects.map((subject, index) => {
       const assessments = Array.isArray(subject.assessments) ? subject.assessments : [];
+      const upcoming = Array.isArray(subject.upcoming) ? subject.upcoming : [];
       return {
         id: subject.id || cryptoRandomId(),
         name: subject.name || 'Untitled Subject',
@@ -321,6 +508,22 @@ function loadData() {
             createdAt,
           };
         }),
+        upcoming: upcoming.map((item, upcomingIndex) => {
+          const date = item.date || todayValue;
+          const dateValue = dateStringValue(date);
+          const createdAt = Number.isFinite(item.createdAt)
+            ? item.createdAt
+            : Number.isFinite(dateValue)
+            ? dateValue - upcomingIndex
+            : Date.now() - upcomingIndex;
+          return {
+            id: item.id || cryptoRandomId(),
+            name: item.name || 'Upcoming assessment',
+            date,
+            notes: item.notes || '',
+            createdAt,
+          };
+        }),
       };
     });
     return { subjects };
@@ -330,12 +533,12 @@ function loadData() {
 }
 
 function saveData(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  safeSetItem(STORAGE_KEY, JSON.stringify(data));
 }
 
 function loadThemeSettings() {
-  const storedMode = localStorage.getItem(THEME_KEY);
-  const storedVariant = localStorage.getItem(THEME_VARIANT_KEY);
+  const storedMode = safeGetItem(THEME_KEY);
+  const storedVariant = safeGetItem(THEME_VARIANT_KEY);
   const mode =
     storedMode === 'light' || storedMode === 'dark'
       ? storedMode
@@ -344,6 +547,13 @@ function loadThemeSettings() {
       : 'light';
   const variant = resolveVariant(mode, storedVariant);
   return { mode, variant };
+}
+
+function loadGraphSmoothness() {
+  const stored = safeGetItem(GRAPH_SMOOTHNESS_KEY);
+  const value = stored === null ? 0.35 : parseFloat(stored);
+  if (!Number.isFinite(value)) return 0.35;
+  return clamp(value, 0, 1);
 }
 
 function resolveVariant(mode, variant) {
@@ -356,9 +566,28 @@ function setTheme(mode, variant) {
   const resolved = resolveVariant(mode, variant);
   document.documentElement.dataset.theme = mode;
   document.documentElement.dataset.themeVariant = resolved;
-  localStorage.setItem(THEME_KEY, mode);
-  localStorage.setItem(THEME_VARIANT_KEY, resolved);
+  safeSetItem(THEME_KEY, mode);
+  safeSetItem(THEME_VARIANT_KEY, resolved);
   updateThemeButtons();
+}
+
+function setGraphSmoothness(value) {
+  const clamped = clamp(value, 0, 1);
+  state.graphSmoothness = clamped;
+  safeSetItem(GRAPH_SMOOTHNESS_KEY, clamped.toFixed(2));
+  updateGraphSmoothnessUI();
+  renderCharts();
+}
+
+function updateGraphSmoothnessUI() {
+  if (!elements.graphSmoothnessRange || !elements.graphSmoothnessValue) return;
+  const percent = Math.round(state.graphSmoothness * 100);
+  elements.graphSmoothnessRange.value = String(percent);
+  elements.graphSmoothnessValue.textContent = `${percent}%`;
+}
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
 }
 
 function updateThemeButtons() {
@@ -375,7 +604,7 @@ function updateThemeButtons() {
 
 function initTabs() {
   if (!elements.navItems || elements.navItems.length === 0) return;
-  const saved = localStorage.getItem(TAB_KEY);
+  const saved = safeGetItem(TAB_KEY);
   const initial = saved && document.querySelector(`[data-view="${saved}"]`) ? saved : 'dashboard';
   setActiveTab(initial);
   elements.navItems.forEach((button) => {
@@ -390,8 +619,9 @@ function setActiveTab(tab) {
   elements.views.forEach((view) => {
     view.classList.toggle('is-active', view.dataset.view === tab);
   });
-  localStorage.setItem(TAB_KEY, tab);
+  safeSetItem(TAB_KEY, tab);
   renderCharts();
+  renderCalendar();
 }
 
 function openModal(modal) {
@@ -422,6 +652,15 @@ function openSubjectModal(subjectId) {
   const stats = subjectStats(subject);
   const averageText = stats.average === null ? '--' : `${stats.average.toFixed(1)}%`;
   const gradeText = stats.grade ?? '--';
+  const subjectColor = subject.color || palette[0];
+  const swatchHtml = palette
+    .map((color) => {
+      const activeClass = color.toLowerCase() === subjectColor.toLowerCase() ? ' is-active' : '';
+      return `
+        <button class="color-swatch${activeClass}" type="button" data-action="set-subject-color" data-color="${color}" data-id="${subject.id}" style="--swatch:${color}" aria-label="Set subject color to ${color}"></button>
+      `;
+    })
+    .join('');
 
   elements.subjectModalTitle.textContent = subject.name;
   if (elements.subjectModalMeta) {
@@ -450,15 +689,39 @@ function openSubjectModal(subjectId) {
         })
         .join('')
     : '<div class="empty-state">No assessments yet.</div>';
+  const upcomingItems = sortUpcoming(expandUpcomingItems(subject));
+  const upcomingHtml = buildUpcomingList(upcomingItems, { showSubject: false, allowRemove: true });
 
   if (elements.subjectModalBody) {
     elements.subjectModalBody.innerHTML = `
       <div class="modal-chart">
         <canvas id="subject-modal-chart"></canvas>
       </div>
+      <div class="subject-color-panel">
+        <div class="subject-color-header">
+          <div>
+            <div class="section-eyebrow">Subject color</div>
+            <div class="subject-color-meta">Used across cards and charts.</div>
+          </div>
+          <div class="color-control">
+            <input class="color-input" type="color" name="subjectColor" value="${subjectColor}" data-subject-id="${subject.id}" aria-label="Subject color" />
+            <span class="color-value" data-role="color-value">${subjectColor.toUpperCase()}</span>
+          </div>
+        </div>
+        <div class="color-swatches">
+          ${swatchHtml}
+        </div>
+      </div>
       <div class="modal-actions">
         <button class="primary-button" type="button" data-action="open-assessment">Add Assessment</button>
+        <button class="ghost-button" type="button" data-action="open-upcoming">Add Upcoming</button>
         <button class="ghost-button" type="button" data-action="delete-subject">Delete Subject</button>
+      </div>
+      <div class="subject-upcoming">
+        <div class="history-title">Upcoming assessments</div>
+        <div class="upcoming-list">
+          ${upcomingHtml}
+        </div>
       </div>
       <div class="subject-history">
         <div class="history-title">Assessment history</div>
@@ -481,6 +744,7 @@ function openSubjectModal(subjectId) {
 
 function closeSubjectModal() {
   closeAssessmentModal();
+  closeUpcomingModal();
   closeModal(elements.subjectModal);
   activeSubjectId = null;
 }
@@ -508,6 +772,33 @@ function openAssessmentModal(subjectId) {
 function closeAssessmentModal() {
   closeModal(elements.assessmentModal);
   setAssessmentMessage('');
+}
+
+function openUpcomingModal(subjectId = null) {
+  if (!elements.upcomingModal || !elements.upcomingForm) return;
+  if (!state.data.subjects.length) {
+    setUpcomingMessage('Add a subject first.');
+    return;
+  }
+  elements.upcomingForm.reset();
+  renderUpcomingSubjectSelect();
+  if (elements.upcomingSubjectSelect) {
+    const preferred = subjectId || elements.upcomingSubjectSelect.value;
+    if (preferred) {
+      elements.upcomingSubjectSelect.value = preferred;
+    }
+  }
+  const dateInput = elements.upcomingForm.querySelector('input[name="upcomingDate"]');
+  if (dateInput) {
+    dateInput.value = today;
+  }
+  setUpcomingMessage('');
+  openModal(elements.upcomingModal);
+}
+
+function closeUpcomingModal() {
+  closeModal(elements.upcomingModal);
+  setUpcomingMessage('');
 }
 
 function showChartTooltip(text, x, y) {
@@ -570,6 +861,10 @@ function setAssessmentMessage(message) {
   setInlineMessage(elements.assessmentMessage, message);
 }
 
+function setUpcomingMessage(message) {
+  setInlineMessage(elements.upcomingMessage, message);
+}
+
 function getOrCreateSubject(name) {
   const existing = state.data.subjects.find((subject) => subject.name.toLowerCase() === name.toLowerCase());
   if (existing) return existing;
@@ -578,9 +873,66 @@ function getOrCreateSubject(name) {
     name,
     color: palette[state.data.subjects.length % palette.length],
     assessments: [],
+    upcoming: [],
   };
   state.data.subjects.push(subject);
   return subject;
+}
+
+function removeUpcoming(subjectId, upcomingId) {
+  if (!subjectId || !upcomingId) return;
+  const subject = state.data.subjects.find((item) => item.id === subjectId);
+  if (!subject || !Array.isArray(subject.upcoming)) return;
+  subject.upcoming = subject.upcoming.filter((item) => item.id !== upcomingId);
+  saveData(state.data);
+  render();
+  if (elements.subjectModal?.classList.contains('is-open') && activeSubjectId === subjectId) {
+    openSubjectModal(subjectId);
+  }
+}
+
+function applySubjectColor(subjectId, color) {
+  const subject = state.data.subjects.find((item) => item.id === subjectId);
+  if (!subject || !color) return;
+  const normalized = String(color).trim();
+  if (!normalized) return;
+  if (subject.color && subject.color.toLowerCase() === normalized.toLowerCase()) {
+    updateSubjectColorUI(subjectId, normalized);
+    return;
+  }
+  subject.color = normalized;
+  saveData(state.data);
+  render();
+  updateSubjectColorUI(subjectId, normalized);
+}
+
+function updateSubjectColorUI(subjectId, color) {
+  if (!elements.subjectModal?.classList.contains('is-open')) return;
+  if (activeSubjectId !== subjectId) return;
+  const input = elements.subjectModal.querySelector('input[name="subjectColor"]');
+  if (input) {
+    input.value = color;
+  }
+  const valueLabel = elements.subjectModal.querySelector('[data-role="color-value"]');
+  if (valueLabel) {
+    valueLabel.textContent = color.toUpperCase();
+  }
+  elements.subjectModal.querySelectorAll('.color-swatch').forEach((swatch) => {
+    swatch.classList.toggle(
+      'is-active',
+      swatch.dataset.color?.toLowerCase() === color.toLowerCase()
+    );
+  });
+  const chartCanvas = elements.subjectModal.querySelector('#subject-modal-chart');
+  if (chartCanvas) {
+    const subject = state.data.subjects.find((item) => item.id === subjectId);
+    if (!subject) return;
+    const points = sortAssessments(subject.assessments).map((assessment) => ({
+      value: assessment.total > 0 ? (assessment.score / assessment.total) * 100 : 0,
+      label: assessment.name,
+    }));
+    drawLineChart(chartCanvas, points, { stroke: subject.color, showAxis: true });
+  }
 }
 
 function render() {
@@ -588,7 +940,10 @@ function render() {
   renderSubjects();
   renderInsights();
   renderAssessments();
+  renderUpcomingDashboard();
+  renderUpcomingSubjectSelect();
   renderCharts();
+  renderCalendar();
 }
 
 function renderOverview() {
@@ -755,6 +1110,40 @@ function renderAssessments() {
     .join('');
 }
 
+function renderUpcomingDashboard() {
+  if (!elements.upcomingList) return;
+  const upcoming = sortUpcoming(getUpcomingAssessments());
+  if (upcoming.length === 0) {
+    elements.upcomingList.innerHTML = '<div class="empty-state">No upcoming assessments yet.</div>';
+  } else {
+    const maxItems = 4;
+    const visible = upcoming.slice(0, maxItems);
+    const moreCount = upcoming.length - visible.length;
+    const moreHtml = moreCount > 0 ? `<div class="upcoming-more">+${moreCount} more scheduled</div>` : '';
+    elements.upcomingList.innerHTML = `${buildUpcomingList(visible, { showSubject: true, allowRemove: true })}${moreHtml}`;
+  }
+  if (elements.upcomingAdd) {
+    elements.upcomingAdd.disabled = state.data.subjects.length === 0;
+  }
+}
+
+function renderUpcomingSubjectSelect() {
+  if (!elements.upcomingSubjectSelect) return;
+  if (!state.data.subjects.length) {
+    elements.upcomingSubjectSelect.innerHTML = '<option value="">No subjects yet</option>';
+    elements.upcomingSubjectSelect.disabled = true;
+    return;
+  }
+  elements.upcomingSubjectSelect.disabled = false;
+  const currentValue = elements.upcomingSubjectSelect.value;
+  elements.upcomingSubjectSelect.innerHTML = state.data.subjects
+    .map((subject) => `<option value="${subject.id}">${subject.name}</option>`)
+    .join('');
+  if (currentValue) {
+    elements.upcomingSubjectSelect.value = currentValue;
+  }
+}
+
 function renderCharts() {
   renderOverallChart();
   renderSubjectCharts();
@@ -842,6 +1231,193 @@ function renderSubjectsChart() {
   drawMultiLineChart(elements.subjectsChart, series);
 }
 
+function renderCalendar() {
+  if (!elements.calendarGrid || !elements.calendarMonth) return;
+  const year = calendarState.year;
+  const month = calendarState.month;
+  elements.calendarMonth.textContent = formatMonthYear(year, month);
+
+  const firstOfMonth = new Date(year, month, 1);
+  const startOffset = (firstOfMonth.getDay() + 6) % 7;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+  const eventsByDate = buildCalendarEvents();
+  const cells = [];
+
+  for (let index = 0; index < 42; index += 1) {
+    const dayNumber = index - startOffset + 1;
+    let cellMonth = month;
+    let cellYear = year;
+    let displayDay = dayNumber;
+    let isMuted = false;
+
+    if (dayNumber <= 0) {
+      cellMonth = month - 1;
+      if (cellMonth < 0) {
+        cellMonth = 11;
+        cellYear -= 1;
+      }
+      displayDay = daysInPrevMonth + dayNumber;
+      isMuted = true;
+    } else if (dayNumber > daysInMonth) {
+      cellMonth = month + 1;
+      if (cellMonth > 11) {
+        cellMonth = 0;
+        cellYear += 1;
+      }
+      displayDay = dayNumber - daysInMonth;
+      isMuted = true;
+    }
+
+    const dateKey = dateKeyFromParts(cellYear, cellMonth, displayDay);
+    const events = eventsByDate[dateKey] || [];
+    const dayLabel = displayDay.toString();
+    const isToday = dateKey === today;
+
+    const eventsHtml = events.length
+      ? `
+        <div class="calendar-events">
+          ${events
+            .slice(0, 3)
+            .map(
+              (event) => `
+                <div class="calendar-event${event.type === 'completed' ? ' is-completed' : ''}" style="--event-color:${event.color}">
+                  <span class="calendar-event-title">${event.name}</span>
+                  <span class="calendar-event-sub">${event.subject}</span>
+                </div>
+              `
+            )
+            .join('')}
+          ${events.length > 3 ? `<div class="calendar-more">+${events.length - 3} more</div>` : ''}
+        </div>
+      `
+      : '';
+
+    cells.push(`
+      <div class="calendar-cell${isMuted ? ' is-muted' : ''}${isToday ? ' is-today' : ''}">
+        <div class="calendar-day">${dayLabel}</div>
+        ${eventsHtml}
+      </div>
+    `);
+  }
+
+  elements.calendarGrid.innerHTML = cells.join('');
+}
+
+function traceSmoothLine(ctx, points, smoothness = 0.35) {
+  if (!points.length) return;
+  const s = clamp(smoothness, 0, 1);
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  if (points.length < 2) return;
+  if (s === 0) {
+    for (let i = 1; i < points.length; i += 1) {
+      ctx.lineTo(points[i].x, points[i].y);
+    }
+    return;
+  }
+  const factor = s / 6;
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const p0 = points[i - 1] || points[i];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[i + 2] || p2;
+    const cp1x = p1.x + (p2.x - p0.x) * factor;
+    const cp1y = p1.y + (p2.y - p0.y) * factor;
+    const cp2x = p2.x - (p3.x - p1.x) * factor;
+    const cp2y = p2.y - (p3.y - p1.y) * factor;
+    ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+  }
+}
+
+function withAlpha(color, alpha) {
+  const value = String(color || '').trim();
+  if (!value) return `rgba(0, 0, 0, ${alpha})`;
+  if (value.startsWith('rgb')) {
+    const parts = value
+      .replace(/rgba?\(/, '')
+      .replace(')', '')
+      .split(',')
+      .map((item) => parseFloat(item.trim()));
+    if (parts.length >= 3) {
+      return `rgba(${parts[0]}, ${parts[1]}, ${parts[2]}, ${alpha})`;
+    }
+  }
+  if (value.startsWith('#')) {
+    let hex = value.slice(1);
+    if (hex.length === 3) {
+      hex = hex
+        .split('')
+        .map((char) => char + char)
+        .join('');
+    }
+    if (hex.length === 6) {
+      const r = parseInt(hex.slice(0, 2), 16);
+      const g = parseInt(hex.slice(2, 4), 16);
+      const b = parseInt(hex.slice(4, 6), 16);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+  }
+  return value;
+}
+
+function scaleValue(value, min, max, start, end) {
+  if (!Number.isFinite(value) || min === max) {
+    return (start + end) / 2;
+  }
+  return start + ((value - min) / (max - min)) * (end - start);
+}
+
+function getValueRange(points, options = {}) {
+  const values = (points || [])
+    .map((point) => point.value)
+    .filter((value) => Number.isFinite(value));
+  if (!values.length) {
+    return { min: 0, max: 100 };
+  }
+  let minValue = Math.min(...values);
+  let maxValue = Math.max(...values);
+  if (minValue === maxValue) {
+    minValue -= 5;
+    maxValue += 5;
+  }
+  const range = Math.max(maxValue - minValue, 1);
+  const padding = Math.max(10, range * 0.2);
+  const minClamp = Number.isFinite(options.min) ? options.min : 0;
+  const maxClamp = Number.isFinite(options.max) ? options.max : 100;
+  let min = minValue - padding;
+  let max = maxValue + padding;
+  if (Number.isFinite(minClamp)) min = Math.max(minClamp, min);
+  if (Number.isFinite(maxClamp)) max = Math.min(maxClamp, max);
+  if (max - min < 1) {
+    max = min + 1;
+  }
+  const tickMin = Math.ceil(min / 5) * 5;
+  const tickMax = Math.floor(max / 5) * 5;
+  if (tickMax - tickMin >= 10) {
+    return { min: tickMin, max: tickMax };
+  }
+  return { min, max };
+}
+
+function buildTicks(min, max, steps = 4) {
+  if (!Number.isFinite(min) || !Number.isFinite(max) || min === max) {
+    return [0, 25, 50, 75, 100];
+  }
+  const roundedMin = Math.floor(min / 5) * 5;
+  const roundedMax = Math.ceil(max / 5) * 5;
+  const range = Math.max(roundedMax - roundedMin, 5);
+  const desiredSteps = Math.max(steps, 1);
+  const stepMultiple = Math.max(1, Math.ceil(range / (desiredSteps * 5)));
+  const step = stepMultiple * 5;
+  const ticks = [];
+  for (let value = roundedMin; value <= roundedMax + 0.0001; value += step) {
+    ticks.push(value);
+  }
+  return ticks.length ? ticks : [roundedMin, roundedMax];
+}
+
 function drawLineChart(canvas, points, options = {}) {
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
@@ -870,19 +1446,25 @@ function drawLineChart(canvas, points, options = {}) {
   const paddingRight = 36;
   const paddingTop = 18;
   const paddingBottom = 18;
-  const ticks = [0, 25, 50, 75, 100];
+  const valueRange = getValueRange(series, { min: 0, max: 100 });
+  const ticks = buildTicks(valueRange.min, valueRange.max, 4);
 
   if (showAxis) {
     ctx.fillStyle = axisColor;
-    ctx.font = '12px \"SF Pro Text\", \"Manrope\", sans-serif';
+    ctx.font = '12px "Red Hat Display", sans-serif';
+    ctx.textBaseline = 'middle';
     ticks.forEach((tick) => {
-      const y = height - paddingBottom - (tick / 100) * (height - paddingTop - paddingBottom);
-      ctx.textAlign = 'left';
-      ctx.fillText(`${tick}`, 4, y + 4);
-      ctx.textAlign = 'right';
-      ctx.fillText(`${tick}`, width - 4, y + 4);
-    });
-  }
+      const y =
+        height -
+        paddingBottom -
+        ((tick - valueRange.min) / (valueRange.max - valueRange.min)) *
+          (height - paddingTop - paddingBottom);
+    ctx.textAlign = 'left';
+    ctx.fillText(`${Math.round(tick)}`, 4, y);
+    ctx.textAlign = 'right';
+    ctx.fillText(`${Math.round(tick)}`, width - 4, y);
+  });
+}
 
   if (!series || series.length < 2) {
     ctx.strokeStyle = 'rgba(255,255,255,0.2)';
@@ -894,22 +1476,14 @@ function drawLineChart(canvas, points, options = {}) {
   }
 
   const stroke = options.stroke || '#2aa9ff';
-  const max = 100;
-  const min = 0;
-  const xStep = (width - paddingLeft - paddingRight) / (series.length - 1);
-
-  ctx.lineWidth = 2.5;
-  ctx.strokeStyle = stroke;
-  ctx.beginPath();
-
+  const max = valueRange.max;
+  const min = valueRange.min;
   const chartPoints = series.map((point, index) => {
-    const x = paddingLeft + xStep * index;
-    const y = height - paddingBottom - ((point.value - min) / (max - min)) * (height - paddingTop - paddingBottom);
-    if (index === 0) {
-      ctx.moveTo(x, y);
-    } else {
-      ctx.lineTo(x, y);
-    }
+    const x = paddingLeft + ((width - paddingLeft - paddingRight) / (series.length - 1)) * index;
+    const y =
+      height -
+      paddingBottom -
+      ((point.value - min) / (max - min)) * (height - paddingTop - paddingBottom);
     return {
       x,
       y,
@@ -918,12 +1492,16 @@ function drawLineChart(canvas, points, options = {}) {
     };
   });
 
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = stroke;
+  traceSmoothLine(ctx, chartPoints, state.graphSmoothness);
   ctx.stroke();
 
   const gradient = ctx.createLinearGradient(0, paddingTop, 0, height - paddingBottom);
-  gradient.addColorStop(0, `${stroke}55`);
-  gradient.addColorStop(1, `${stroke}05`);
+  gradient.addColorStop(0, withAlpha(stroke, 0.35));
+  gradient.addColorStop(1, withAlpha(stroke, 0.05));
 
+  traceSmoothLine(ctx, chartPoints, state.graphSmoothness);
   ctx.lineTo(width - paddingRight, height - paddingBottom);
   ctx.lineTo(paddingLeft, height - paddingBottom);
   ctx.closePath();
@@ -952,17 +1530,24 @@ function drawMultiLineChart(canvas, series) {
   const paddingRight = 36;
   const paddingTop = 18;
   const paddingBottom = 18;
-  const ticks = [0, 25, 50, 75, 100];
+  const allSeriesPoints = series.flatMap((line) => line.points || []);
+  const valueRange = getValueRange(allSeriesPoints, { min: 0, max: 100 });
+  const ticks = buildTicks(valueRange.min, valueRange.max, 4);
   const axisColor = getComputedStyle(document.documentElement).getPropertyValue('--text-tertiary').trim() || '#7a8292';
 
   ctx.fillStyle = axisColor;
-  ctx.font = '12px \"SF Pro Text\", \"Manrope\", sans-serif';
+  ctx.font = '12px "Red Hat Display", sans-serif';
+  ctx.textBaseline = 'middle';
   ticks.forEach((tick) => {
-    const y = height - paddingBottom - (tick / 100) * (height - paddingTop - paddingBottom);
+    const y =
+      height -
+      paddingBottom -
+      ((tick - valueRange.min) / (valueRange.max - valueRange.min)) *
+        (height - paddingTop - paddingBottom);
     ctx.textAlign = 'left';
-    ctx.fillText(`${tick}`, 4, y + 4);
+    ctx.fillText(`${Math.round(tick)}`, 4, y);
     ctx.textAlign = 'right';
-    ctx.fillText(`${tick}`, width - 4, y + 4);
+    ctx.fillText(`${Math.round(tick)}`, width - 4, y);
   });
 
   if (!series || series.length === 0) {
@@ -974,33 +1559,31 @@ function drawMultiLineChart(canvas, series) {
     return;
   }
 
-  const maxPoints = Math.max(...series.map((line) => line.points.length));
-  const xStep = maxPoints > 1 ? (width - paddingLeft - paddingRight) / (maxPoints - 1) : 0;
   const allPoints = [];
-
   series.forEach((line) => {
     const points = line.points;
     if (!points.length) return;
     ctx.lineWidth = 2.2;
     ctx.strokeStyle = line.color || '#2aa9ff';
-    ctx.beginPath();
-
-    points.forEach((point, index) => {
-      const x = paddingLeft + xStep * index;
-      const y = height - paddingBottom - (point.value / 100) * (height - paddingTop - paddingBottom);
-      if (index === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
-      allPoints.push({
+    const chartPoints = points.map((point, index) => {
+      const fallbackDenom = Math.max(points.length - 1, 1);
+      const x = paddingLeft + ((width - paddingLeft - paddingRight) / fallbackDenom) * index;
+      const y =
+        height -
+        paddingBottom -
+        ((point.value - valueRange.min) / (valueRange.max - valueRange.min)) *
+          (height - paddingTop - paddingBottom);
+      const entry = {
         x,
         y,
         value: point.value,
         label: point.label ? `${line.name}: ${point.label}` : line.name,
-      });
+      };
+      allPoints.push(entry);
+      return entry;
     });
 
+    traceSmoothLine(ctx, chartPoints, state.graphSmoothness);
     ctx.stroke();
   });
 
@@ -1008,9 +1591,32 @@ function drawMultiLineChart(canvas, series) {
   bindChartHover(canvas);
 }
 
+function dateStringValue(value) {
+  if (!value) return 0;
+  if (typeof value === 'string') {
+    const parts = value.split('-').map(Number);
+    if (parts.length === 3 && parts.every((part) => Number.isFinite(part))) {
+      return Date.UTC(parts[0], parts[1] - 1, parts[2]);
+    }
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return 0;
+  return Date.UTC(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+}
+
+function dateKeyFromParts(year, month, day) {
+  const paddedMonth = String(month + 1).padStart(2, '0');
+  const paddedDay = String(day).padStart(2, '0');
+  return `${year}-${paddedMonth}-${paddedDay}`;
+}
+
+function formatMonthYear(year, month) {
+  const date = new Date(year, month, 1);
+  return date.toLocaleDateString('en-AU', { month: 'long', year: 'numeric' });
+}
+
 function assessmentDateValue(assessment) {
-  const dateValue = new Date(assessment.date).getTime();
-  return Number.isFinite(dateValue) ? dateValue : 0;
+  return dateStringValue(assessment.date);
 }
 
 function assessmentTieBreak(assessment) {
@@ -1053,9 +1659,121 @@ function getAllAssessments() {
       ...assessment,
       subjectId: subject.id,
       subjectName: subject.name,
+      subjectColor: subject.color,
       order: index,
     }))
   );
+}
+
+function expandUpcomingItems(subject) {
+  return (subject.upcoming || []).map((item, index) => ({
+    ...item,
+    subjectId: subject.id,
+    subjectName: subject.name,
+    subjectColor: subject.color,
+    order: index,
+  }));
+}
+
+function getUpcomingAssessments() {
+  return state.data.subjects.flatMap((subject) => expandUpcomingItems(subject));
+}
+
+function upcomingDateValue(item) {
+  return dateStringValue(item.date);
+}
+
+function upcomingTieBreak(item) {
+  if (Number.isFinite(item.createdAt)) return item.createdAt;
+  const order = Number.isFinite(item.order) ? item.order : 0;
+  return -order;
+}
+
+function sortUpcoming(items) {
+  return items
+    .map((item, index) => ({
+      ...item,
+      order: Number.isFinite(item.order) ? item.order : index,
+    }))
+    .sort((a, b) => {
+      const dateDiff = upcomingDateValue(a) - upcomingDateValue(b);
+      if (dateDiff !== 0) return dateDiff;
+      return upcomingTieBreak(a) - upcomingTieBreak(b);
+    });
+}
+
+function isPastDate(value) {
+  if (!value) return false;
+  return dateStringValue(value) < todayValue;
+}
+
+function buildUpcomingList(items, options = {}) {
+  if (!items.length) {
+    return '<div class="empty-state">No upcoming assessments.</div>';
+  }
+  return items
+    .map((item) => {
+      const metaParts = [];
+      if (options.showSubject && item.subjectName) {
+        metaParts.push(item.subjectName);
+      }
+      metaParts.push(formatDate(item.date));
+      if (item.notes) {
+        metaParts.push(item.notes);
+      }
+      const metaText = metaParts.join(' · ');
+      const overdue = isPastDate(item.date);
+      const tagHtml = overdue ? '<span class="upcoming-tag is-overdue">Overdue</span>' : '';
+      const removeHtml = options.allowRemove
+        ? `<button class="delete-button" data-action="delete-upcoming" data-subject-id="${item.subjectId}" data-upcoming-id="${item.id}">Remove</button>`
+        : '';
+      const dotHtml = item.subjectColor
+        ? `<span class="upcoming-dot" style="--swatch:${item.subjectColor}"></span>`
+        : '';
+      return `
+        <div class="upcoming-item">
+          <div>
+            <div class="upcoming-name">${dotHtml}${item.name}</div>
+            <div class="upcoming-meta">${metaText}</div>
+          </div>
+          <div class="upcoming-right">
+            ${tagHtml}
+            ${removeHtml}
+          </div>
+        </div>
+      `;
+    })
+    .join('');
+}
+
+function buildCalendarEvents() {
+  const eventsByDate = {};
+  const addEvent = (date, event) => {
+    if (!date) return;
+    if (!eventsByDate[date]) {
+      eventsByDate[date] = [];
+    }
+    eventsByDate[date].push(event);
+  };
+
+  sortUpcoming(getUpcomingAssessments()).forEach((item) => {
+    addEvent(item.date, {
+      type: 'upcoming',
+      name: item.name,
+      subject: item.subjectName,
+      color: item.subjectColor || 'var(--accent)',
+    });
+  });
+
+  Object.values(eventsByDate).forEach((items) => {
+    items.sort((a, b) => {
+      const order = a.type === b.type ? 0 : a.type === 'upcoming' ? -1 : 1;
+      if (order !== 0) return order;
+      return a.name.localeCompare(b.name);
+    });
+  });
+
+  return eventsByDate;
 }
 
 function subjectStats(subject) {
@@ -1095,19 +1813,26 @@ function getBestGrade(items) {
 }
 
 function getLetterGrade(percentage) {
-  if (percentage === null || !Number.isFinite(percentage)) return null;
-  if (percentage >= 93) return 'A';
-  if (percentage >= 90) return 'A-';
-  if (percentage >= 87) return 'B+';
-  if (percentage >= 83) return 'B';
-  if (percentage >= 80) return 'B-';
-  if (percentage >= 77) return 'C+';
-  if (percentage >= 73) return 'C';
-  if (percentage >= 70) return 'C-';
-  if (percentage >= 67) return 'D+';
-  if (percentage >= 63) return 'D';
-  if (percentage >= 60) return 'D-';
-  return 'F';
+if (percentage === null || !Number.isFinite(percentage)) return null;
+
+if (percentage >= 95) return 'A+';
+if (percentage >= 90) return 'A';
+if (percentage >= 85) return 'A-';
+
+if (percentage >= 80) return 'B+';
+if (percentage >= 75) return 'B';
+if (percentage >= 70) return 'B-';
+
+if (percentage >= 65) return 'C+';
+if (percentage >= 60) return 'C';
+if (percentage >= 50) return 'C-';
+
+if (percentage >= 40) return 'D+';
+if (percentage >= 35) return 'D';
+if (percentage >= 30) return 'D-';
+
+return 'E';
+
 }
 
 function gradeColorFor(letter) {
