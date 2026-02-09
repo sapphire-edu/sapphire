@@ -506,6 +506,54 @@ body.modal-open {
   gap: 16px;
 }
 
+.export-grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.export-panel {
+  border: 1px solid var(--card-border);
+  background: var(--bg-tertiary);
+  border-radius: 20px;
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+}
+
+.export-panel .section-title {
+  font-size: 20px;
+}
+
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  background: var(--bg-secondary);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.checkbox-item input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+.export-textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
 .modal-actions {
   display: flex;
   gap: 12px;
@@ -932,6 +980,19 @@ body.modal-open {
     box-shadow 0.2s ease;
 }
 
+.field textarea {
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: "Red Hat Display", sans-serif;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
 .field select {
   padding: 12px 14px;
   border-radius: 14px;
@@ -959,8 +1020,13 @@ body.modal-open {
   color: var(--input-placeholder);
 }
 
+.field textarea::placeholder {
+  color: var(--input-placeholder);
+}
+
 .field input:focus,
-.field select:focus {
+.field select:focus,
+.field textarea:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--input-focus);

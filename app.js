@@ -66,6 +66,19 @@ const elements = {
   subjectsKey: document.getElementById('subjects-key'),
   insightList: document.getElementById('insight-list'),
   themeOpen: document.getElementById('theme-open'),
+  exportOpen: document.getElementById('export-open'),
+  exportModal: document.getElementById('export-modal'),
+  exportPreset: document.getElementById('export-preset'),
+  exportSubjects: document.getElementById('export-subjects'),
+  exportAssessments: document.getElementById('export-assessments'),
+  exportUpcoming: document.getElementById('export-upcoming'),
+  exportGenerate: document.getElementById('export-generate'),
+  exportOutput: document.getElementById('export-output'),
+  exportCopy: document.getElementById('export-copy'),
+  exportMessage: document.getElementById('export-message'),
+  importInput: document.getElementById('import-input'),
+  importRestore: document.getElementById('import-restore'),
+  importMessage: document.getElementById('import-message'),
   themeModal: document.getElementById('theme-modal'),
   resetData: document.getElementById('reset-data'),
   subjectForm: document.getElementById('subject-form'),
@@ -139,6 +152,101 @@ if (elements.graphSmoothnessRange) {
 
 if (elements.themeOpen) {
   elements.themeOpen.addEventListener('click', () => openModal(elements.themeModal));
+}
+
+if (elements.exportOpen) {
+  elements.exportOpen.addEventListener('click', () => openModal(elements.exportModal));
+}
+
+if (elements.exportModal) {
+  elements.exportModal.addEventListener('click', (event) => {
+    const actionTarget = event.target.closest('[data-action]');
+    if (!actionTarget) return;
+    if (actionTarget.dataset.action === 'close-export') {
+      closeModal(elements.exportModal);
+    }
+  });
+}
+
+if (elements.exportPreset) {
+  elements.exportPreset.addEventListener('change', () => {
+    applyExportPreset(elements.exportPreset.value);
+  });
+  applyExportPreset(elements.exportPreset.value || 'all');
+}
+
+if (elements.exportSubjects) {
+  elements.exportSubjects.addEventListener('change', updateExportPresetFromChecks);
+}
+
+if (elements.exportAssessments) {
+  elements.exportAssessments.addEventListener('change', updateExportPresetFromChecks);
+}
+
+if (elements.exportUpcoming) {
+  elements.exportUpcoming.addEventListener('change', updateExportPresetFromChecks);
+}
+
+if (elements.exportGenerate) {
+  elements.exportGenerate.addEventListener('click', () => {
+    const selection = getExportSelection();
+    if (!selection.subjects && !selection.assessments && !selection.upcoming) {
+      return setExportMessage('Select at least one item to export.');
+    }
+    const payload = buildExportPayload(selection);
+    const encoded = encodeExportString(payload);
+    if (elements.exportOutput) {
+      elements.exportOutput.value = encoded;
+    }
+    setExportMessage('String ready. Copy it to share or save.');
+  });
+}
+
+if (elements.exportCopy) {
+  elements.exportCopy.addEventListener('click', async () => {
+    if (!elements.exportOutput || !elements.exportOutput.value.trim()) {
+      return setExportMessage('Generate a string first.');
+    }
+    const value = elements.exportOutput.value.trim();
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(value);
+      } else {
+        elements.exportOutput.focus();
+        elements.exportOutput.select();
+        document.execCommand('copy');
+      }
+      setExportMessage('Copied to clipboard.');
+    } catch (error) {
+      setExportMessage('Copy failed. Select and copy manually.');
+    }
+  });
+}
+
+if (elements.importRestore) {
+  elements.importRestore.addEventListener('click', () => {
+    const raw = elements.importInput ? elements.importInput.value.trim() : '';
+    if (!raw) {
+      return setImportMessage('Paste a string to import.');
+    }
+    const payload = decodeExportString(raw);
+    if (!payload) {
+      return setImportMessage('That string could not be read.');
+    }
+    const nextData = buildDataFromExportPayload(payload);
+    if (!nextData) {
+      return setImportMessage('No valid data found in that string.');
+    }
+    if (!confirm('Add this data to your gradebook? Your existing data stays.')) return;
+    const incoming = normalizeData(nextData);
+    state.data = mergeData(state.data, incoming);
+    saveData(state.data);
+    render();
+    if (elements.importInput) {
+      elements.importInput.value = '';
+    }
+    setImportMessage('Data imported.');
+  });
 }
 
 if (elements.themeModal) {
@@ -480,56 +588,60 @@ function loadData() {
     const raw = safeGetItem(STORAGE_KEY);
     if (!raw) return { subjects: [] };
     const parsed = JSON.parse(raw);
-    if (!parsed || !Array.isArray(parsed.subjects)) return { subjects: [] };
-    const now = new Date();
-    const todayValue = dateKeyFromParts(now.getFullYear(), now.getMonth(), now.getDate());
-    const subjects = parsed.subjects.map((subject, index) => {
-      const assessments = Array.isArray(subject.assessments) ? subject.assessments : [];
-      const upcoming = Array.isArray(subject.upcoming) ? subject.upcoming : [];
-      return {
-        id: subject.id || cryptoRandomId(),
-        name: subject.name || 'Untitled Subject',
-        color: subject.color || palette[index % palette.length],
-        assessments: assessments.map((assessment, assessmentIndex) => {
-          const date = assessment.date || todayValue;
-          const dateValue = new Date(date).getTime();
-          const createdAt = Number.isFinite(assessment.createdAt)
-            ? assessment.createdAt
-            : Number.isFinite(dateValue)
-            ? dateValue - assessmentIndex
-            : Date.now() - assessmentIndex;
-          return {
-            id: assessment.id || cryptoRandomId(),
-            name: assessment.name || 'Assessment',
-            score: Number.isFinite(assessment.score) ? assessment.score : 0,
-            total: Number.isFinite(assessment.total) ? assessment.total : 0,
-            weight: assessment.weight === undefined ? null : assessment.weight,
-            date,
-            createdAt,
-          };
-        }),
-        upcoming: upcoming.map((item, upcomingIndex) => {
-          const date = item.date || todayValue;
-          const dateValue = dateStringValue(date);
-          const createdAt = Number.isFinite(item.createdAt)
-            ? item.createdAt
-            : Number.isFinite(dateValue)
-            ? dateValue - upcomingIndex
-            : Date.now() - upcomingIndex;
-          return {
-            id: item.id || cryptoRandomId(),
-            name: item.name || 'Upcoming assessment',
-            date,
-            notes: item.notes || '',
-            createdAt,
-          };
-        }),
-      };
-    });
-    return { subjects };
+    return normalizeData(parsed);
   } catch (error) {
     return { subjects: [] };
   }
+}
+
+function normalizeData(parsed) {
+  if (!parsed || !Array.isArray(parsed.subjects)) return { subjects: [] };
+  const now = new Date();
+  const todayValue = dateKeyFromParts(now.getFullYear(), now.getMonth(), now.getDate());
+  const subjects = parsed.subjects.map((subject, index) => {
+    const assessments = Array.isArray(subject.assessments) ? subject.assessments : [];
+    const upcoming = Array.isArray(subject.upcoming) ? subject.upcoming : [];
+    return {
+      id: subject.id || cryptoRandomId(),
+      name: subject.name || 'Untitled Subject',
+      color: subject.color || palette[index % palette.length],
+      assessments: assessments.map((assessment, assessmentIndex) => {
+        const date = assessment.date || todayValue;
+        const dateValue = new Date(date).getTime();
+        const createdAt = Number.isFinite(assessment.createdAt)
+          ? assessment.createdAt
+          : Number.isFinite(dateValue)
+          ? dateValue - assessmentIndex
+          : Date.now() - assessmentIndex;
+        return {
+          id: assessment.id || cryptoRandomId(),
+          name: assessment.name || 'Assessment',
+          score: Number.isFinite(assessment.score) ? assessment.score : 0,
+          total: Number.isFinite(assessment.total) ? assessment.total : 0,
+          weight: assessment.weight === undefined ? null : assessment.weight,
+          date,
+          createdAt,
+        };
+      }),
+      upcoming: upcoming.map((item, upcomingIndex) => {
+        const date = item.date || todayValue;
+        const dateValue = dateStringValue(date);
+        const createdAt = Number.isFinite(item.createdAt)
+          ? item.createdAt
+          : Number.isFinite(dateValue)
+          ? dateValue - upcomingIndex
+          : Date.now() - upcomingIndex;
+        return {
+          id: item.id || cryptoRandomId(),
+          name: item.name || 'Upcoming assessment',
+          date,
+          notes: item.notes || '',
+          createdAt,
+        };
+      }),
+    };
+  });
+  return { subjects };
 }
 
 function saveData(data) {
@@ -863,6 +975,314 @@ function setAssessmentMessage(message) {
 
 function setUpcomingMessage(message) {
   setInlineMessage(elements.upcomingMessage, message);
+}
+
+function setExportMessage(message) {
+  setInlineMessage(elements.exportMessage, message);
+}
+
+function setImportMessage(message) {
+  setInlineMessage(elements.importMessage, message);
+}
+
+function getExportSelection() {
+  return {
+    subjects: Boolean(elements.exportSubjects?.checked),
+    assessments: Boolean(elements.exportAssessments?.checked),
+    upcoming: Boolean(elements.exportUpcoming?.checked),
+  };
+}
+
+function applyExportPreset(preset) {
+  if (!elements.exportSubjects || !elements.exportAssessments || !elements.exportUpcoming) return;
+  const presets = {
+    all: { subjects: true, assessments: true, upcoming: true },
+    subjects: { subjects: true, assessments: false, upcoming: false },
+    assessments: { subjects: false, assessments: true, upcoming: false },
+    upcoming: { subjects: false, assessments: false, upcoming: true },
+  };
+  const selection = presets[preset];
+  if (!selection) return;
+  elements.exportSubjects.checked = selection.subjects;
+  elements.exportAssessments.checked = selection.assessments;
+  elements.exportUpcoming.checked = selection.upcoming;
+}
+
+function updateExportPresetFromChecks() {
+  if (!elements.exportPreset) return;
+  const selection = getExportSelection();
+  const matches = (preset) =>
+    selection.subjects === preset.subjects &&
+    selection.assessments === preset.assessments &&
+    selection.upcoming === preset.upcoming;
+  const presets = {
+    all: { subjects: true, assessments: true, upcoming: true },
+    subjects: { subjects: true, assessments: false, upcoming: false },
+    assessments: { subjects: false, assessments: true, upcoming: false },
+    upcoming: { subjects: false, assessments: false, upcoming: true },
+  };
+  const matched = Object.entries(presets).find(([, preset]) => matches(preset));
+  elements.exportPreset.value = matched ? matched[0] : 'custom';
+}
+
+function buildExportPayload(selection) {
+  const subjects = [];
+  const subjectIds = new Set();
+
+  const addSubject = (subject) => {
+    if (!subject) return;
+    const id = subject.id || subject.subjectId || cryptoRandomId();
+    if (subjectIds.has(id)) return;
+    subjectIds.add(id);
+    subjects.push({
+      id,
+      name: subject.name || subject.subjectName || 'Untitled Subject',
+      color: subject.color || subject.subjectColor || palette[subjects.length % palette.length],
+    });
+  };
+
+  if (selection.subjects) {
+    state.data.subjects.forEach(addSubject);
+  }
+
+  const assessments = selection.assessments
+    ? getAllAssessments().map((assessment) => {
+        addSubject(assessment);
+        return {
+          id: assessment.id,
+          subjectId: assessment.subjectId,
+          subjectName: assessment.subjectName,
+          subjectColor: assessment.subjectColor,
+          name: assessment.name,
+          score: assessment.score,
+          total: assessment.total,
+          weight: assessment.weight,
+          date: assessment.date,
+          createdAt: assessment.createdAt,
+        };
+      })
+    : [];
+
+  const upcoming = selection.upcoming
+    ? getUpcomingAssessments().map((item) => {
+        addSubject(item);
+        return {
+          id: item.id,
+          subjectId: item.subjectId,
+          subjectName: item.subjectName,
+          subjectColor: item.subjectColor,
+          name: item.name,
+          date: item.date,
+          notes: item.notes,
+          createdAt: item.createdAt,
+        };
+      })
+    : [];
+
+  return {
+    schema: 1,
+    createdAt: new Date().toISOString(),
+    selection,
+    subjects,
+    assessments,
+    upcoming,
+  };
+}
+
+function encodeExportString(payload) {
+  const json = JSON.stringify(payload);
+  return `SAPPHIRE::${encodeBase64Utf8(json)}`;
+}
+
+function decodeExportString(value) {
+  if (!value) return null;
+  try {
+    const trimmed = String(value).trim();
+    if (!trimmed) return null;
+    if (trimmed.startsWith('SAPPHIRE::')) {
+      const raw = trimmed.slice('SAPPHIRE::'.length);
+      const json = decodeBase64Utf8(raw);
+      return JSON.parse(json);
+    }
+    return JSON.parse(trimmed);
+  } catch (error) {
+    return null;
+  }
+}
+
+function buildDataFromExportPayload(payload) {
+  if (!payload) return null;
+  if (payload.data && Array.isArray(payload.data.subjects)) {
+    return payload.data;
+  }
+  if (Array.isArray(payload.subjects)) {
+    const hasNested = payload.subjects.some(
+      (subject) => Array.isArray(subject.assessments) || Array.isArray(subject.upcoming)
+    );
+    if (hasNested) {
+      return { subjects: payload.subjects };
+    }
+  }
+
+  const subjects = [];
+  const subjectMap = new Map();
+
+  const addSubject = (subject) => {
+    if (!subject) return null;
+    const id = subject.id || subject.subjectId || cryptoRandomId();
+    if (subjectMap.has(id)) return subjectMap.get(id);
+    const entry = {
+      id,
+      name: subject.name || subject.subjectName || 'Untitled Subject',
+      color: subject.color || subject.subjectColor || palette[subjects.length % palette.length],
+      assessments: [],
+      upcoming: [],
+    };
+    subjects.push(entry);
+    subjectMap.set(id, entry);
+    return entry;
+  };
+
+  if (Array.isArray(payload.subjects)) {
+    payload.subjects.forEach((subject) => addSubject(subject));
+  }
+
+  if (Array.isArray(payload.assessments)) {
+    payload.assessments.forEach((assessment, index) => {
+      const subject = assessment.subjectId ? subjectMap.get(assessment.subjectId) : null;
+      const target = subject || addSubject(assessment);
+      if (!target) return;
+      target.assessments.push({
+        id: assessment.id || cryptoRandomId(),
+        name: assessment.name || 'Assessment',
+        score: Number.isFinite(assessment.score) ? assessment.score : 0,
+        total: Number.isFinite(assessment.total) ? assessment.total : 0,
+        weight: assessment.weight === undefined ? null : assessment.weight,
+        date: assessment.date || today,
+        createdAt: Number.isFinite(assessment.createdAt) ? assessment.createdAt : Date.now() - index,
+      });
+    });
+  }
+
+  if (Array.isArray(payload.upcoming)) {
+    payload.upcoming.forEach((item, index) => {
+      const subject = item.subjectId ? subjectMap.get(item.subjectId) : null;
+      const target = subject || addSubject(item);
+      if (!target) return;
+      target.upcoming.push({
+        id: item.id || cryptoRandomId(),
+        name: item.name || 'Upcoming assessment',
+        date: item.date || today,
+        notes: item.notes || '',
+        createdAt: Number.isFinite(item.createdAt) ? item.createdAt : Date.now() - index,
+      });
+    });
+  }
+
+  return { subjects };
+}
+
+function mergeData(existing, incoming) {
+  const merged = {
+    subjects: existing.subjects.map((subject) => ({
+      ...subject,
+      assessments: [...subject.assessments],
+      upcoming: [...subject.upcoming],
+    })),
+  };
+  const subjectIds = new Set(merged.subjects.map((subject) => subject.id));
+  const subjectsByName = new Map(
+    merged.subjects.map((subject) => [subject.name.toLowerCase(), subject])
+  );
+
+  const uniqueId = (candidate, used) => {
+    let id = candidate || cryptoRandomId();
+    while (used.has(id)) {
+      id = cryptoRandomId();
+    }
+    used.add(id);
+    return id;
+  };
+
+  const normalizeText = (value) => String(value || '').trim().toLowerCase();
+  const assessmentSignature = (assessment) =>
+    [
+      normalizeText(assessment.name),
+      String(assessment.score),
+      String(assessment.total),
+      String(assessment.weight ?? 'null'),
+      String(assessment.date),
+    ].join('|');
+  const upcomingSignature = (item) =>
+    [
+      normalizeText(item.name),
+      String(item.date),
+      normalizeText(item.notes),
+    ].join('|');
+
+  const mergeSubjectItems = (target, source) => {
+    const assessmentIds = new Set(target.assessments.map((item) => item.id));
+    const upcomingIds = new Set(target.upcoming.map((item) => item.id));
+    const assessmentSignatures = new Set(target.assessments.map(assessmentSignature));
+    const upcomingSignatures = new Set(target.upcoming.map(upcomingSignature));
+
+    source.assessments.forEach((assessment) => {
+      const signature = assessmentSignature(assessment);
+      if (assessmentSignatures.has(signature)) return;
+      const id = uniqueId(assessment.id, assessmentIds);
+      target.assessments.push({
+        ...assessment,
+        id,
+      });
+      assessmentSignatures.add(signature);
+    });
+
+    source.upcoming.forEach((item) => {
+      const signature = upcomingSignature(item);
+      if (upcomingSignatures.has(signature)) return;
+      const id = uniqueId(item.id, upcomingIds);
+      target.upcoming.push({
+        ...item,
+        id,
+      });
+      upcomingSignatures.add(signature);
+    });
+  };
+
+  incoming.subjects.forEach((subject) => {
+    const key = subject.name.toLowerCase();
+    const existingSubject = subjectsByName.get(key);
+    if (!existingSubject) {
+      const id = uniqueId(subject.id, subjectIds);
+      const nextSubject = {
+        ...subject,
+        id,
+        assessments: [...subject.assessments],
+        upcoming: [...subject.upcoming],
+      };
+      merged.subjects.push(nextSubject);
+      subjectsByName.set(key, nextSubject);
+      return;
+    }
+    mergeSubjectItems(existingSubject, subject);
+  });
+
+  return merged;
+}
+
+function encodeBase64Utf8(value) {
+  const bytes = new TextEncoder().encode(value);
+  let binary = '';
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary);
+}
+
+function decodeBase64Utf8(value) {
+  const binary = atob(value);
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
 }
 
 function getOrCreateSubject(name) {
