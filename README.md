@@ -8,11 +8,14 @@ Sapphire is a lightweight, client-side gradebook designed for NSW high school st
 Access it here: https://sapphire-edu.github.io
 
 **Highlights**
+
 - Local-only storage (saved in the browser via `localStorage`/`sessionStorage`).
+- Onboarding to set your name, choose a theme, and pick electives (core subjects included).
 - Add subjects and assessments (score, total, weight, date).
 - Calendar for upcoming assessments and reminders.
 - Analytics with weighted average trend and per-subject score lines (canvas charts).
-- 8 built-in themes (4 light, 4 dark) and adjustable graph smoothing.
+- Share/export strings (subjects-only or everything). Exports include your name.
+- Settings panel to update name, theme, graph smoothing, and reset data.
 
 **Preview**
 
@@ -25,14 +28,17 @@ Light theme:
 ![](https://github.com/user-attachments/assets/e8bc77e9-9219-42ff-9bfd-ff93dc90d96b)
 
 **How to use**
+
+- On first launch, complete onboarding to set your name, theme, and electives.
 - Add a subject via the "Add Subject" card.
 - Open a subject and add assessments: provide the achieved mark, total mark, optional weighting and a date.
 - Use the "Upcoming" panel to schedule reminders for future assessments.
 - Visit the Analytics tab to see your weighted trend and per-subject lines.
-- Open the Themes modal to switch between 8 variants and tweak graph smoothing.
-
+- Use the Settings panel to update your name, pick a theme, and adjust graph smoothing.
+- Use Share to export a string (subjects-only or everything) and import strings from peers.
 
 **Contributing**
+
 - Bug reports and improvements welcome. Open a PR with focused changes.
 
 **License**

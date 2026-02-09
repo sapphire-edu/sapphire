@@ -3,6 +3,7 @@ const THEME_KEY = 'nsw-grade-theme';
 const THEME_VARIANT_KEY = 'sapphire-theme-variant';
 const TAB_KEY = 'sapphire-active-tab';
 const GRAPH_SMOOTHNESS_KEY = 'sapphire-graph-smoothness';
+const USER_NAME_KEY = 'sapphire-user-name';
 
 const palette = ['#2aa9ff', '#5ae3a1', '#f6b96e', '#c78bff', '#ff8b8b', '#56d2d2', '#ffb347', '#4dd4a8'];
 const LIGHT_THEMES = ['pearl', 'mint', 'sunrise', 'sky'];
@@ -34,6 +35,19 @@ function safeSetItem(key, value) {
   }
 }
 
+function safeRemoveItem(key) {
+  try {
+    localStorage.removeItem(key);
+  } catch (error) {
+    // no-op
+  }
+  try {
+    sessionStorage.removeItem(key);
+  } catch (error) {
+    // no-op
+  }
+}
+
 const state = {
   data: loadData(),
   theme: loadThemeSettings(),
@@ -41,6 +55,7 @@ const state = {
 };
 
 const elements = {
+  pageGreeting: document.getElementById('page-greeting'),
   overallLetter: document.getElementById('overall-letter'),
   overallPercent: document.getElementById('overall-percent'),
   overallSub: document.getElementById('overall-sub'),
@@ -65,9 +80,10 @@ const elements = {
   subjectsLegend: document.getElementById('subjects-legend'),
   subjectsKey: document.getElementById('subjects-key'),
   insightList: document.getElementById('insight-list'),
-  themeOpen: document.getElementById('theme-open'),
   exportOpen: document.getElementById('export-open'),
   exportModal: document.getElementById('export-modal'),
+  settingsOpen: document.getElementById('settings-open'),
+  settingsModal: document.getElementById('settings-modal'),
   exportPreset: document.getElementById('export-preset'),
   exportGenerate: document.getElementById('export-generate'),
   exportOutput: document.getElementById('export-output'),
@@ -76,7 +92,6 @@ const elements = {
   importInput: document.getElementById('import-input'),
   importRestore: document.getElementById('import-restore'),
   importMessage: document.getElementById('import-message'),
-  themeModal: document.getElementById('theme-modal'),
   resetData: document.getElementById('reset-data'),
   subjectForm: document.getElementById('subject-form'),
   subjectMessage: document.getElementById('subject-message'),
@@ -103,6 +118,16 @@ const elements = {
   calendarNext: document.getElementById('calendar-next'),
   graphSmoothnessRange: document.getElementById('graph-smoothness'),
   graphSmoothnessValue: document.getElementById('graph-smoothness-value'),
+  settingsForm: document.getElementById('settings-form'),
+  settingsName: document.getElementById('settings-name'),
+  settingsMessage: document.getElementById('settings-message'),
+  onboardingModal: document.getElementById('onboarding-modal'),
+  onboardingForm: document.getElementById('onboarding-form'),
+  onboardingName: document.getElementById('onboarding-name'),
+  onboardingMessage: document.getElementById('onboarding-message'),
+  onboardingSkip: document.getElementById('onboarding-skip'),
+  electiveGrid: document.getElementById('elective-grid'),
+  customElective: document.getElementById('custom-elective'),
 };
 
 const now = new Date();
@@ -117,6 +142,9 @@ let activeSubjectId = null;
 
 setTheme(state.theme.mode, state.theme.variant);
 initTabs();
+
+updateGreeting();
+maybeStartOnboarding();
 
 render();
 updateGraphSmoothnessUI();
@@ -147,12 +175,22 @@ if (elements.graphSmoothnessRange) {
   });
 }
 
-if (elements.themeOpen) {
-  elements.themeOpen.addEventListener('click', () => openModal(elements.themeModal));
-}
-
 if (elements.exportOpen) {
   elements.exportOpen.addEventListener('click', () => openModal(elements.exportModal));
+}
+
+if (elements.settingsOpen) {
+  elements.settingsOpen.addEventListener('click', () => openModal(elements.settingsModal));
+}
+
+if (elements.settingsModal) {
+  elements.settingsModal.addEventListener('click', (event) => {
+    const actionTarget = event.target.closest('[data-action]');
+    if (!actionTarget) return;
+    if (actionTarget.dataset.action === 'close-settings') {
+      closeModal(elements.settingsModal);
+    }
+  });
 }
 
 if (elements.exportModal) {
@@ -216,6 +254,7 @@ if (elements.importRestore) {
     if (!payload) {
       return setImportMessage('That string could not be read.');
     }
+    applyImportedProfile(payload);
     const nextData = buildDataFromExportPayload(payload);
     if (!nextData) {
       return setImportMessage('No valid data found in that string.');
@@ -232,22 +271,37 @@ if (elements.importRestore) {
   });
 }
 
-if (elements.themeModal) {
-  elements.themeModal.addEventListener('click', (event) => {
-    const actionTarget = event.target.closest('[data-action]');
-    if (!actionTarget) return;
-    if (actionTarget.dataset.action === 'close-themes') {
-      closeModal(elements.themeModal);
+if (elements.settingsForm) {
+  elements.settingsForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const name = String(elements.settingsName?.value || '').trim();
+    if (!name) {
+      return setSettingsMessage('Please enter a name.');
     }
+    setUserName(name);
+    updateGreeting();
+    setSettingsMessage('Name updated.');
+  });
+}
+
+if (elements.onboardingForm) {
+  elements.onboardingForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    finishOnboarding({ skipElectives: false });
+  });
+}
+
+if (elements.onboardingSkip) {
+  elements.onboardingSkip.addEventListener('click', () => {
+    finishOnboarding({ skipElectives: true });
   });
 }
 
 if (elements.resetData) {
   elements.resetData.addEventListener('click', () => {
     if (confirm('Reset all stored grades? This cannot be undone.')) {
-      state.data = { subjects: [] };
-      saveData(state.data);
-      render();
+      clearAllStoredData();
+      window.location.reload();
     }
   });
 }
@@ -506,8 +560,8 @@ if (elements.assessmentForm) {
 
 document.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape') return;
-  if (elements.themeModal?.classList.contains('is-open')) {
-    closeModal(elements.themeModal);
+  if (elements.settingsModal?.classList.contains('is-open')) {
+    closeModal(elements.settingsModal);
     return;
   }
   if (elements.upcomingModal?.classList.contains('is-open')) {
@@ -575,6 +629,28 @@ function loadData() {
   } catch (error) {
     return { subjects: [] };
   }
+}
+
+function loadUserName() {
+  const value = safeGetItem(USER_NAME_KEY);
+  return value ? String(value).trim() : '';
+}
+
+function setUserName(value) {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) return;
+  safeSetItem(USER_NAME_KEY, trimmed);
+}
+
+function clearAllStoredData() {
+  [
+    STORAGE_KEY,
+    THEME_KEY,
+    THEME_VARIANT_KEY,
+    TAB_KEY,
+    GRAPH_SMOOTHNESS_KEY,
+    USER_NAME_KEY,
+  ].forEach((key) => safeRemoveItem(key));
 }
 
 function normalizeData(parsed) {
@@ -969,6 +1045,44 @@ function setImportMessage(message) {
   setInlineMessage(elements.importMessage, message);
 }
 
+function setSettingsMessage(message) {
+  setInlineMessage(elements.settingsMessage, message);
+}
+
+function setOnboardingMessage(message) {
+  setInlineMessage(elements.onboardingMessage, message);
+}
+
+function updateGreeting() {
+  if (!elements.pageGreeting) return;
+  const name = loadUserName();
+  elements.pageGreeting.textContent = name ? `Hi, ${name}` : 'Sapphire Gradebook';
+  if (elements.settingsName) {
+    elements.settingsName.value = name;
+  }
+  if (elements.onboardingName) {
+    elements.onboardingName.value = name;
+  }
+}
+
+function maybeStartOnboarding() {
+  const hasStoredData = safeGetItem(STORAGE_KEY);
+  if (hasStoredData) return;
+  if (!elements.onboardingModal) return;
+  if (elements.onboardingName) {
+    elements.onboardingName.value = loadUserName();
+  }
+  openModal(elements.onboardingModal);
+}
+
+function applyImportedProfile(payload) {
+  if (!payload || !payload.profile || !payload.profile.name) return;
+  const existing = loadUserName();
+  if (existing) return;
+  setUserName(payload.profile.name);
+  updateGreeting();
+}
+
 function getExportScope() {
   if (!elements.exportPreset) return 'all';
   return elements.exportPreset.value === 'subjects' ? 'subjects' : 'all';
@@ -1031,6 +1145,9 @@ function buildExportPayload(scope) {
     schema: 1,
     createdAt: new Date().toISOString(),
     selection: { scope },
+    profile: {
+      name: loadUserName(),
+    },
     subjects,
     assessments,
     upcoming,
@@ -1253,6 +1370,51 @@ function decodeBase64Utf8(value) {
   const binary = atob(value);
   const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
   return new TextDecoder().decode(bytes);
+}
+
+function finishOnboarding(options) {
+  if (!elements.onboardingName) return;
+  const name = String(elements.onboardingName.value || '').trim();
+  if (!name) {
+    return setOnboardingMessage('Please add your name to continue.');
+  }
+  setUserName(name);
+  updateGreeting();
+
+  if (!state.data || !Array.isArray(state.data.subjects)) {
+    state.data = { subjects: [] };
+  }
+
+  if (state.data.subjects.length === 0) {
+    const coreSubjects = ['English', 'Geography', 'History', 'Mathematics', 'PDHPE', 'Science'];
+    const electives = options?.skipElectives ? [] : getSelectedElectives();
+    const custom = options?.skipElectives ? [] : getCustomElectives();
+    const allSubjects = [...coreSubjects, ...electives, ...custom];
+    const unique = Array.from(new Set(allSubjects.map((item) => item.trim()).filter(Boolean)));
+    unique.forEach((subject) => getOrCreateSubject(subject));
+    saveData(state.data);
+  }
+
+  if (elements.onboardingModal) {
+    closeModal(elements.onboardingModal);
+  }
+  setOnboardingMessage('');
+  render();
+}
+
+function getSelectedElectives() {
+  if (!elements.electiveGrid) return [];
+  return Array.from(elements.electiveGrid.querySelectorAll('input[type="checkbox"]'))
+    .filter((input) => input.checked)
+    .map((input) => input.value);
+}
+
+function getCustomElectives() {
+  if (!elements.customElective) return [];
+  return String(elements.customElective.value || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function getOrCreateSubject(name) {
