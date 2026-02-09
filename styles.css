@@ -203,6 +203,7 @@ body.modal-open {
   display: flex;
   align-items: center;
   gap: 14px;
+  flex: 1;
 }
 
 .logo {
@@ -226,6 +227,7 @@ body.modal-open {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+  justify-content: center;
 }
 
 .nav-item {
@@ -254,6 +256,8 @@ body.modal-open {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+  flex: 1;
+  justify-content: flex-end;
 }
 
 .theme-grid {
