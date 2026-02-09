@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
-    <link rel="icon" href="favicon.png">
+    <link rel="icon" href="favicon.png" />
     <title>Sapphire</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
@@ -469,32 +469,15 @@
             <div>
               <div class="section-eyebrow">Export</div>
               <h3 class="section-title">Create a share string</h3>
-              <p class="muted">Choose what to include, then copy the string.</p>
+              <p class="muted">Choose the scope, then copy the string.</p>
             </div>
             <label class="field">
-              <span>Preset</span>
+              <span>Scope</span>
               <select id="export-preset">
                 <option value="all">Everything</option>
                 <option value="subjects">Subjects only</option>
-                <option value="assessments">Assignments only</option>
-                <option value="upcoming">Upcoming only</option>
-                <option value="custom">Custom</option>
               </select>
             </label>
-            <div class="checkbox-grid">
-              <label class="checkbox-item">
-                <input type="checkbox" id="export-subjects" checked />
-                Subjects
-              </label>
-              <label class="checkbox-item">
-                <input type="checkbox" id="export-assessments" checked />
-                Assignments
-              </label>
-              <label class="checkbox-item">
-                <input type="checkbox" id="export-upcoming" checked />
-                Upcoming
-              </label>
-            </div>
             <div class="form-actions">
               <button class="primary-button" type="button" id="export-generate">
                 Generate string

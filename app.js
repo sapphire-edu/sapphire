@@ -69,9 +69,6 @@ const elements = {
   exportOpen: document.getElementById('export-open'),
   exportModal: document.getElementById('export-modal'),
   exportPreset: document.getElementById('export-preset'),
-  exportSubjects: document.getElementById('export-subjects'),
-  exportAssessments: document.getElementById('export-assessments'),
-  exportUpcoming: document.getElementById('export-upcoming'),
   exportGenerate: document.getElementById('export-generate'),
   exportOutput: document.getElementById('export-output'),
   exportCopy: document.getElementById('export-copy'),
@@ -170,30 +167,16 @@ if (elements.exportModal) {
 
 if (elements.exportPreset) {
   elements.exportPreset.addEventListener('change', () => {
-    applyExportPreset(elements.exportPreset.value);
+    if (elements.exportOutput) {
+      elements.exportOutput.value = '';
+    }
   });
-  applyExportPreset(elements.exportPreset.value || 'all');
-}
-
-if (elements.exportSubjects) {
-  elements.exportSubjects.addEventListener('change', updateExportPresetFromChecks);
-}
-
-if (elements.exportAssessments) {
-  elements.exportAssessments.addEventListener('change', updateExportPresetFromChecks);
-}
-
-if (elements.exportUpcoming) {
-  elements.exportUpcoming.addEventListener('change', updateExportPresetFromChecks);
 }
 
 if (elements.exportGenerate) {
   elements.exportGenerate.addEventListener('click', () => {
-    const selection = getExportSelection();
-    if (!selection.subjects && !selection.assessments && !selection.upcoming) {
-      return setExportMessage('Select at least one item to export.');
-    }
-    const payload = buildExportPayload(selection);
+    const scope = getExportScope();
+    const payload = buildExportPayload(scope);
     const encoded = encodeExportString(payload);
     if (elements.exportOutput) {
       elements.exportOutput.value = encoded;
@@ -695,6 +678,7 @@ function updateGraphSmoothnessUI() {
   if (!elements.graphSmoothnessRange || !elements.graphSmoothnessValue) return;
   const percent = Math.round(state.graphSmoothness * 100);
   elements.graphSmoothnessRange.value = String(percent);
+  elements.graphSmoothnessRange.style.setProperty('--slider-fill', `${percent}%`);
   elements.graphSmoothnessValue.textContent = `${percent}%`;
 }
 
@@ -985,47 +969,13 @@ function setImportMessage(message) {
   setInlineMessage(elements.importMessage, message);
 }
 
-function getExportSelection() {
-  return {
-    subjects: Boolean(elements.exportSubjects?.checked),
-    assessments: Boolean(elements.exportAssessments?.checked),
-    upcoming: Boolean(elements.exportUpcoming?.checked),
-  };
+function getExportScope() {
+  if (!elements.exportPreset) return 'all';
+  return elements.exportPreset.value === 'subjects' ? 'subjects' : 'all';
 }
 
-function applyExportPreset(preset) {
-  if (!elements.exportSubjects || !elements.exportAssessments || !elements.exportUpcoming) return;
-  const presets = {
-    all: { subjects: true, assessments: true, upcoming: true },
-    subjects: { subjects: true, assessments: false, upcoming: false },
-    assessments: { subjects: false, assessments: true, upcoming: false },
-    upcoming: { subjects: false, assessments: false, upcoming: true },
-  };
-  const selection = presets[preset];
-  if (!selection) return;
-  elements.exportSubjects.checked = selection.subjects;
-  elements.exportAssessments.checked = selection.assessments;
-  elements.exportUpcoming.checked = selection.upcoming;
-}
-
-function updateExportPresetFromChecks() {
-  if (!elements.exportPreset) return;
-  const selection = getExportSelection();
-  const matches = (preset) =>
-    selection.subjects === preset.subjects &&
-    selection.assessments === preset.assessments &&
-    selection.upcoming === preset.upcoming;
-  const presets = {
-    all: { subjects: true, assessments: true, upcoming: true },
-    subjects: { subjects: true, assessments: false, upcoming: false },
-    assessments: { subjects: false, assessments: true, upcoming: false },
-    upcoming: { subjects: false, assessments: false, upcoming: true },
-  };
-  const matched = Object.entries(presets).find(([, preset]) => matches(preset));
-  elements.exportPreset.value = matched ? matched[0] : 'custom';
-}
-
-function buildExportPayload(selection) {
+function buildExportPayload(scope) {
+  const includeAll = scope === 'all';
   const subjects = [];
   const subjectIds = new Set();
 
@@ -1041,11 +991,9 @@ function buildExportPayload(selection) {
     });
   };
 
-  if (selection.subjects) {
-    state.data.subjects.forEach(addSubject);
-  }
+  state.data.subjects.forEach(addSubject);
 
-  const assessments = selection.assessments
+  const assessments = includeAll
     ? getAllAssessments().map((assessment) => {
         addSubject(assessment);
         return {
@@ -1063,7 +1011,7 @@ function buildExportPayload(selection) {
       })
     : [];
 
-  const upcoming = selection.upcoming
+  const upcoming = includeAll
     ? getUpcomingAssessments().map((item) => {
         addSubject(item);
         return {
@@ -1082,7 +1030,7 @@ function buildExportPayload(selection) {
   return {
     schema: 1,
     createdAt: new Date().toISOString(),
-    selection,
+    selection: { scope },
     subjects,
     assessments,
     upcoming,
@@ -1126,6 +1074,7 @@ function buildDataFromExportPayload(payload) {
 
   const subjects = [];
   const subjectMap = new Map();
+  const subjectNameMap = new Map();
 
   const addSubject = (subject) => {
     if (!subject) return null;
@@ -1138,9 +1087,22 @@ function buildDataFromExportPayload(payload) {
       assessments: [],
       upcoming: [],
     };
+    const nameKey = entry.name.toLowerCase();
+    const existingByName = subjectNameMap.get(nameKey);
+    if (existingByName) {
+      subjectMap.set(id, existingByName);
+      return existingByName;
+    }
     subjects.push(entry);
     subjectMap.set(id, entry);
+    subjectNameMap.set(nameKey, entry);
     return entry;
+  };
+
+  const findSubjectByName = (value) => {
+    const key = String(value || '').trim().toLowerCase();
+    if (!key) return null;
+    return subjectNameMap.get(key) || null;
   };
 
   if (Array.isArray(payload.subjects)) {
@@ -1150,7 +1112,11 @@ function buildDataFromExportPayload(payload) {
   if (Array.isArray(payload.assessments)) {
     payload.assessments.forEach((assessment, index) => {
       const subject = assessment.subjectId ? subjectMap.get(assessment.subjectId) : null;
-      const target = subject || addSubject(assessment);
+      const named = subject || findSubjectByName(assessment.subjectName);
+      const target = named || (assessment.subjectName ? addSubject({
+        subjectName: assessment.subjectName,
+        subjectColor: assessment.subjectColor,
+      }) : null);
       if (!target) return;
       target.assessments.push({
         id: assessment.id || cryptoRandomId(),
@@ -1167,7 +1133,11 @@ function buildDataFromExportPayload(payload) {
   if (Array.isArray(payload.upcoming)) {
     payload.upcoming.forEach((item, index) => {
       const subject = item.subjectId ? subjectMap.get(item.subjectId) : null;
-      const target = subject || addSubject(item);
+      const named = subject || findSubjectByName(item.subjectName);
+      const target = named || (item.subjectName ? addSubject({
+        subjectName: item.subjectName,
+        subjectColor: item.subjectColor,
+      }) : null);
       if (!target) return;
       target.upcoming.push({
         id: item.id || cryptoRandomId(),

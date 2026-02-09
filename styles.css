@@ -291,6 +291,55 @@ body.modal-open {
 .theme-slider {
   width: 100%;
   accent-color: var(--accent);
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  height: 20px;
+  --slider-fill: 50%;
+}
+
+.theme-slider::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(
+      to right,
+      var(--accent) 0 var(--slider-fill),
+      var(--bg-secondary) var(--slider-fill) 100%
+    );
+  border: 1px solid var(--card-border);
+}
+
+.theme-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid #ffffff;
+  margin-top: -7px;
+  box-shadow: var(--shadow-soft);
+}
+
+.theme-slider::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--card-border);
+}
+
+.theme-slider::-moz-range-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.theme-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid #ffffff;
+  box-shadow: var(--shadow-soft);
 }
 
 .theme-slider-value {
