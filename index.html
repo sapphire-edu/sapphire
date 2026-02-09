@@ -168,6 +168,16 @@
                 </div>
               </form>
             </div>
+            <div class="subjects-toolbar">
+              <button
+                id="subjects-order-open"
+                class="ghost-button ghost-button--small"
+                type="button"
+              >
+                Edit order
+              </button>
+              <span class="section-meta">Reorder subjects in a list view.</span>
+            </div>
             <div id="subjects-grid" class="subjects-grid"></div>
           </section>
         </section>
@@ -712,6 +722,38 @@
       </div>
     </div>
 
+    <div class="modal" id="subjects-order-modal" aria-hidden="true">
+      <div class="modal-backdrop" data-action="close-subjects-order"></div>
+      <div
+        class="modal-panel modal-panel--small"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="subjects-order-title"
+      >
+        <div class="modal-header">
+          <div>
+            <div class="section-eyebrow">Subjects</div>
+            <h2 class="section-title" id="subjects-order-title">
+              Edit subject order
+            </h2>
+            <div class="modal-meta">
+              Move subjects up or down to reorder them.
+            </div>
+          </div>
+          <button
+            class="icon-button"
+            type="button"
+            data-action="close-subjects-order"
+          >
+            ✕
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="order-list" id="subjects-order-list"></div>
+        </div>
+      </div>
+    </div>
+
     <div class="modal" id="onboarding-modal" aria-hidden="true">
       <div class="modal-backdrop"></div>
       <div
@@ -724,7 +766,7 @@
           <div>
             <div class="section-eyebrow">Welcome</div>
             <h2 class="section-title" id="onboarding-title">
-              Set up your Sapphire
+              Set up your gradebook
             </h2>
             <div class="modal-meta">
               Add your name, pick a theme, and choose electives.
@@ -736,6 +778,17 @@
           class="modal-body onboarding-grid"
           autocomplete="off"
         >
+          <div class="onboarding-section">
+            <div class="form-actions">
+              <button
+                class="ghost-button ghost-button--small mini-button"
+                type="button"
+                id="onboarding-import-open"
+              >
+                Enter share code
+              </button>
+            </div>
+          </div>
           <label class="field">
             <span>Your name</span>
             <input
@@ -930,6 +983,57 @@
             ></span>
           </div>
         </form>
+      </div>
+    </div>
+
+    <div class="modal" id="onboarding-import-modal" aria-hidden="true">
+      <div class="modal-backdrop" data-action="close-onboarding-import"></div>
+      <div
+        class="modal-panel modal-panel--small"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="onboarding-import-title"
+      >
+        <div class="modal-header">
+          <div>
+            <div class="section-eyebrow">Share code</div>
+            <h2 class="section-title" id="onboarding-import-title">
+              Paste your code
+            </h2>
+            <div class="modal-meta">Only full-share codes can skip setup.</div>
+          </div>
+          <button
+            class="icon-button"
+            type="button"
+            data-action="close-onboarding-import"
+          >
+            ✕
+          </button>
+        </div>
+        <div class="modal-body">
+          <label class="field">
+            <span>Share or backup code</span>
+            <textarea
+              id="onboarding-import-input"
+              class="export-textarea"
+              placeholder="Paste your share code here"
+            ></textarea>
+          </label>
+          <div class="form-actions">
+            <button
+              class="primary-button"
+              type="button"
+              id="onboarding-import-apply"
+            >
+              Use code and skip
+            </button>
+            <span
+              class="form-message"
+              id="onboarding-import-message"
+              aria-live="polite"
+            ></span>
+          </div>
+        </div>
       </div>
     </div>
 

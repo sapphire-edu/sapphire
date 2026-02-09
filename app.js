@@ -121,11 +121,19 @@ const elements = {
   settingsForm: document.getElementById('settings-form'),
   settingsName: document.getElementById('settings-name'),
   settingsMessage: document.getElementById('settings-message'),
+  subjectsOrderOpen: document.getElementById('subjects-order-open'),
+  subjectsOrderModal: document.getElementById('subjects-order-modal'),
+  subjectsOrderList: document.getElementById('subjects-order-list'),
   onboardingModal: document.getElementById('onboarding-modal'),
   onboardingForm: document.getElementById('onboarding-form'),
   onboardingName: document.getElementById('onboarding-name'),
   onboardingMessage: document.getElementById('onboarding-message'),
   onboardingSkip: document.getElementById('onboarding-skip'),
+  onboardingImportOpen: document.getElementById('onboarding-import-open'),
+  onboardingImportModal: document.getElementById('onboarding-import-modal'),
+  onboardingImportInput: document.getElementById('onboarding-import-input'),
+  onboardingImportApply: document.getElementById('onboarding-import-apply'),
+  onboardingImportMessage: document.getElementById('onboarding-import-message'),
   electiveGrid: document.getElementById('elective-grid'),
   customElective: document.getElementById('custom-elective'),
 };
@@ -139,6 +147,8 @@ const calendarState = {
 };
 
 let activeSubjectId = null;
+let draggingOrderId = null;
+let currentOrderDropTarget = null;
 
 setTheme(state.theme.mode, state.theme.variant);
 initTabs();
@@ -190,6 +200,69 @@ if (elements.settingsModal) {
     if (actionTarget.dataset.action === 'close-settings') {
       closeModal(elements.settingsModal);
     }
+  });
+}
+
+if (elements.subjectsOrderOpen) {
+  elements.subjectsOrderOpen.addEventListener('click', () => {
+    renderSubjectsOrderList();
+    openModal(elements.subjectsOrderModal);
+  });
+}
+
+if (elements.subjectsOrderModal) {
+  elements.subjectsOrderModal.addEventListener('click', (event) => {
+    const actionTarget = event.target.closest('[data-action]');
+    if (!actionTarget) return;
+    const action = actionTarget.dataset.action;
+    if (action === 'close-subjects-order') {
+      closeModal(elements.subjectsOrderModal);
+      return;
+    }
+  });
+}
+
+if (elements.subjectsOrderList) {
+  elements.subjectsOrderList.addEventListener('dragstart', (event) => {
+    const item = event.target.closest('[data-order-item]');
+    if (!item) return;
+    draggingOrderId = item.dataset.id || null;
+    item.classList.add('is-dragging');
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', draggingOrderId || '');
+  });
+
+  elements.subjectsOrderList.addEventListener('dragend', (event) => {
+    const item = event.target.closest('[data-order-item]');
+    if (item) {
+      item.classList.remove('is-dragging');
+    }
+    draggingOrderId = null;
+    setOrderDropTarget(null);
+  });
+
+  elements.subjectsOrderList.addEventListener('dragover', (event) => {
+    if (!draggingOrderId) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    const target = event.target.closest('[data-order-item]');
+    if (!target || target.dataset.id === draggingOrderId) return;
+    setOrderDropTarget(target);
+    const dragging = elements.subjectsOrderList.querySelector('[data-order-item].is-dragging');
+    if (!dragging) return;
+    const rect = target.getBoundingClientRect();
+    const isAfter = event.clientY - rect.top > rect.height / 2;
+    const reference = isAfter ? target.nextSibling : target;
+    if (reference !== dragging) {
+      elements.subjectsOrderList.insertBefore(dragging, reference);
+    }
+  });
+
+  elements.subjectsOrderList.addEventListener('drop', (event) => {
+    if (!draggingOrderId) return;
+    event.preventDefault();
+    reorderSubjectsFromOrderList();
+    setOrderDropTarget(null);
   });
 }
 
@@ -294,6 +367,49 @@ if (elements.onboardingForm) {
 if (elements.onboardingSkip) {
   elements.onboardingSkip.addEventListener('click', () => {
     finishOnboarding({ skipElectives: true });
+  });
+}
+
+if (elements.onboardingImportOpen) {
+  elements.onboardingImportOpen.addEventListener('click', () => {
+    openModal(elements.onboardingImportModal);
+  });
+}
+
+if (elements.onboardingImportModal) {
+  elements.onboardingImportModal.addEventListener('click', (event) => {
+    const actionTarget = event.target.closest('[data-action]');
+    if (!actionTarget) return;
+    if (actionTarget.dataset.action === 'close-onboarding-import') {
+      closeModal(elements.onboardingImportModal);
+    }
+  });
+}
+
+if (elements.onboardingImportApply) {
+  elements.onboardingImportApply.addEventListener('click', () => {
+    const raw = elements.onboardingImportInput ? elements.onboardingImportInput.value.trim() : '';
+    if (!raw) {
+      return setOnboardingImportMessage('Paste a share code to continue.');
+    }
+    const payload = decodeExportString(raw);
+    if (!payload) {
+      return setOnboardingImportMessage('That code could not be read.');
+    }
+    if (payload.selection?.scope !== 'all') {
+      return setOnboardingImportMessage('Only full-share codes can skip setup.');
+    }
+    const nextData = buildDataFromExportPayload(payload);
+    if (!nextData) {
+      return setOnboardingImportMessage('No data found in that code.');
+    }
+    applyImportedProfile(payload);
+    state.data = normalizeData(nextData);
+    saveData(state.data);
+    render();
+    closeModal(elements.onboardingImportModal);
+    closeModal(elements.onboardingModal);
+    setOnboardingImportMessage('');
   });
 }
 
@@ -1053,6 +1169,56 @@ function setOnboardingMessage(message) {
   setInlineMessage(elements.onboardingMessage, message);
 }
 
+function setOnboardingImportMessage(message) {
+  setInlineMessage(elements.onboardingImportMessage, message);
+}
+
+function renderSubjectsOrderList() {
+  if (!elements.subjectsOrderList) return;
+  if (!state.data.subjects.length) {
+    elements.subjectsOrderList.innerHTML = '<div class="empty-state">No subjects yet.</div>';
+    return;
+  }
+  elements.subjectsOrderList.innerHTML = state.data.subjects
+    .map((subject) => {
+      return `
+        <div class="order-item" data-order-item="true" data-id="${subject.id}" draggable="true">
+          <div class="order-left">
+            <span class="order-swatch" style="--swatch:${subject.color}"></span>
+            <div class="order-name">${subject.name}</div>
+          </div>
+          <div class="order-handle" aria-hidden="true">⠿</div>
+        </div>
+      `;
+    })
+    .join('');
+}
+
+function setOrderDropTarget(target) {
+  if (currentOrderDropTarget === target) return;
+  if (currentOrderDropTarget) {
+    currentOrderDropTarget.classList.remove('is-drop-target');
+  }
+  currentOrderDropTarget = target;
+  if (currentOrderDropTarget) {
+    currentOrderDropTarget.classList.add('is-drop-target');
+  }
+}
+
+function reorderSubjectsFromOrderList() {
+  if (!elements.subjectsOrderList) return;
+  const orderedIds = Array.from(elements.subjectsOrderList.querySelectorAll('[data-order-item]'))
+    .map((item) => item.dataset.id)
+    .filter(Boolean);
+  if (!orderedIds.length) return;
+  const subjectMap = new Map(state.data.subjects.map((subject) => [subject.id, subject]));
+  const nextSubjects = orderedIds.map((id) => subjectMap.get(id)).filter(Boolean);
+  if (nextSubjects.length !== state.data.subjects.length) return;
+  state.data.subjects = nextSubjects;
+  saveData(state.data);
+  renderSubjects();
+}
+
 function updateGreeting() {
   if (!elements.pageGreeting) return;
   const name = loadUserName();
@@ -1098,9 +1264,10 @@ function buildExportPayload(scope) {
     const id = subject.id || subject.subjectId || cryptoRandomId();
     if (subjectIds.has(id)) return;
     subjectIds.add(id);
+    const name = subject.subjectName || subject.name || 'Untitled Subject';
     subjects.push({
       id,
-      name: subject.name || subject.subjectName || 'Untitled Subject',
+      name,
       color: subject.color || subject.subjectColor || palette[subjects.length % palette.length],
     });
   };
@@ -1109,7 +1276,6 @@ function buildExportPayload(scope) {
 
   const assessments = includeAll
     ? getAllAssessments().map((assessment) => {
-        addSubject(assessment);
         return {
           id: assessment.id,
           subjectId: assessment.subjectId,
@@ -1127,7 +1293,6 @@ function buildExportPayload(scope) {
 
   const upcoming = includeAll
     ? getUpcomingAssessments().map((item) => {
-        addSubject(item);
         return {
           id: item.id,
           subjectId: item.subjectId,
