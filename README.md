@@ -3,19 +3,20 @@
   Sapphire
 </h1>
 
-Sapphire is a lightweight, client-side gradebook designed for NSW high school students. It runs entirely in the browser and stores data locally on your device (no server required), helping you track s[...]
+Sapphire is a lightweight gradebook designed for NSW high school students. It runs in the browser with fast local storage, and now supports optional cloud sync via Google sign-in (Appwrite), so your data can follow you across devices.
 
 Access it here: https://sapphire-edu.github.io
 
 **Highlights**
 
-- Local-only storage (saved in the browser via `localStorage`/`sessionStorage`).
-- Onboarding to set your name, choose a theme, and pick electives (core subjects included).
+- Local-first storage (saved in the browser via `localStorage`/`sessionStorage`).
+- Optional Google sign-in for cloud sync (Appwrite). Continue as a guest to stay local-only.
+- Step-by-step onboarding: sign-in, name, theme + smoothing preview, electives (core subjects included).
 - Add subjects and assessments (score, total, weight, date).
 - Calendar for upcoming assessments and reminders.
 - Analytics with weighted average trend and per-subject score lines (canvas charts).
 - Share/export strings (subjects-only or everything). Exports include your name.
-- Settings panel to update name, theme, graph smoothing, and reset data.
+- Settings panel to update name, theme, graph smoothing, and reset data (local + cloud).
 
 **Preview**
 
@@ -29,7 +30,7 @@ Light theme:
 
 **How to use**
 
-- On first launch, complete onboarding to set your name, theme, and electives.
+- On first launch, complete onboarding (sign in or continue as guest, then name, theme, and electives).
 - Add a subject via the "Add Subject" card.
 - Open a subject and add assessments: provide the achieved mark, total mark, optional weighting and a date.
 - Use the "Upcoming" panel to schedule reminders for future assessments.
