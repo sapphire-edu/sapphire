@@ -258,12 +258,174 @@ body.modal-open {
   flex-wrap: wrap;
   flex: 1;
   justify-content: flex-end;
+  align-items: center;
+}
+
+.profile-button {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.profile-menu {
+  position: relative;
+}
+
+.profile-ring {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--card-border);
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.profile-button:hover .profile-ring {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-soft);
+  border-color: var(--accent-soft);
+}
+
+.profile-avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: none;
+}
+
+.profile-fallback {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.profile-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 220px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-soft);
+  padding: 10px;
+  display: none;
+  z-index: 20;
+}
+
+.profile-dropdown.is-open {
+  display: block;
+}
+
+.profile-card {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  padding: 8px 8px 12px;
+}
+
+.profile-card-avatar {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--card-border);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.profile-card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: none;
+}
+
+.profile-card-fallback {
+  font-weight: 700;
+  font-size: 24px;
+  color: var(--text-secondary);
+}
+
+.profile-card-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.profile-menu-action {
+  width: 100%;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  text-align: center;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.profile-menu-action:hover {
+  filter: brightness(1.05);
 }
 
 .theme-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+
+.onboarding-step {
+  display: none;
+}
+
+.onboarding-step.is-active {
+  display: block;
+}
+
+.onboarding-progress {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--card-border);
+  overflow: hidden;
+  margin-top: 16px;
+}
+
+.onboarding-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  border-radius: inherit;
+  transition: width 0.3s ease;
+}
+
+.onboarding-nav {
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.onboarding-nav #onboarding-finish {
+  display: none;
+}
+
+.onboarding-nav.is-final #onboarding-next {
+  display: none;
+}
+
+.onboarding-nav.is-final #onboarding-finish {
+  display: inline-flex;
 }
 
 .theme-controls {
@@ -274,6 +436,10 @@ body.modal-open {
   background: var(--bg-tertiary);
   display: grid;
   gap: 12px;
+}
+
+.chart-wrap--compact {
+  height: 120px;
 }
 
 .theme-control-meta {
@@ -562,6 +728,8 @@ body.modal-open {
   inset: 0;
   display: none;
   z-index: 60;
+  align-items: center;
+  justify-content: center;
 }
 
 #assessment-modal {
@@ -569,7 +737,7 @@ body.modal-open {
 }
 
 .modal.is-open {
-  display: block;
+  display: flex;
 }
 
 .modal-backdrop {
@@ -582,8 +750,9 @@ body.modal-open {
 .modal-panel {
   position: relative;
   z-index: 1;
-  margin: 6vh auto;
+  margin: 0 auto;
   max-width: 720px;
+  width: min(720px, 92vw);
   background: var(--bg-secondary);
   border-radius: 28px;
   padding: 24px;
@@ -594,11 +763,13 @@ body.modal-open {
 }
 
 .modal-panel--large {
-  max-width: 920px;
+  max-width: 980px;
+  width: min(980px, 92vw);
 }
 
 .modal-panel--small {
   max-width: 520px;
+  width: min(520px, 92vw);
 }
 
 .modal-header {
@@ -619,6 +790,20 @@ body.modal-open {
   gap: 16px;
 }
 
+.confirm-body {
+  gap: 18px;
+}
+
+.confirm-danger {
+  background: var(--grade-d) !important;
+  box-shadow: none;
+}
+
+.confirm-danger:hover {
+  filter: brightness(1.05);
+}
+
+
 .onboarding-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20px;
@@ -627,6 +812,10 @@ body.modal-open {
 .onboarding-grid .field,
 .onboarding-grid .onboarding-section,
 .onboarding-grid .form-actions {
+  grid-column: 1 / -1;
+}
+
+.onboarding-grid .onboarding-step {
   grid-column: 1 / -1;
 }
 
@@ -673,46 +862,49 @@ body.modal-open {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
+  padding: 10px 12px 10px 38px;
   border-radius: 12px;
   border: 1px solid var(--card-border);
   background: var(--bg-secondary);
   font-size: 13px;
   color: var(--text-secondary);
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  position: relative;
 }
 
 .checkbox-item input {
-  width: 16px;
-  height: 16px;
-  appearance: none;
-  -webkit-appearance: none;
-  border: 1px solid var(--card-border);
-  border-radius: 4px;
-  background: var(--bg-secondary);
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-}
-
-.checkbox-item input::after {
-  content: "";
-  width: 8px;
-  height: 4px;
-  border: 2px solid #ffffff;
-  border-top: 0;
-  border-right: 0;
-  transform: translateY(-1px) rotate(-45deg);
+  position: absolute;
   opacity: 0;
+  pointer-events: none;
 }
 
-.checkbox-item input:checked {
-  background: var(--accent);
+.checkbox-item::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  border: 2px solid var(--card-border);
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.checkbox-item:has(input:checked) {
   border-color: var(--accent);
+  color: var(--text-primary);
+  background: var(--accent-soft);
+  transform: scale(0.98);
 }
 
-.checkbox-item input:checked::after {
-  opacity: 1;
+.checkbox-item:has(input:checked)::before {
+  border-color: var(--accent);
+  background: var(--accent);
 }
+
 
 .export-textarea {
   min-height: 110px;

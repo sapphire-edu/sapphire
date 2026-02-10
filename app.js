@@ -4,10 +4,38 @@ const THEME_VARIANT_KEY = 'sapphire-theme-variant';
 const TAB_KEY = 'sapphire-active-tab';
 const GRAPH_SMOOTHNESS_KEY = 'sapphire-graph-smoothness';
 const USER_NAME_KEY = 'sapphire-user-name';
+const APPWRITE_SYNC_KEY = 'sapphire-last-sync';
+
+const APPWRITE_ENDPOINT = 'https://syd.cloud.appwrite.io/v1';
+const APPWRITE_PROJECT_ID = 'sapphire';
+const APPWRITE_DATABASE_ID = 'sapphire-storage';
+const APPWRITE_COLLECTION_ID = 'sapphire-storage';
 
 const palette = ['#2aa9ff', '#5ae3a1', '#f6b96e', '#c78bff', '#ff8b8b', '#56d2d2', '#ffb347', '#4dd4a8'];
 const LIGHT_THEMES = ['pearl', 'mint', 'sunrise', 'sky'];
 const DARK_THEMES = ['midnight', 'aurora', 'cosmic', 'sapphire'];
+
+const appwriteState = {
+  enabled: false,
+  ready: false,
+  user: null,
+  syncing: false,
+  syncingVisible: false,
+  pending: false,
+  lastSyncedAt: null,
+  error: null,
+};
+
+let appwriteClient = null;
+let appwriteAccount = null;
+let appwriteDatabases = null;
+let syncTimer = null;
+let syncStatusTimer = null;
+let confirmResolver = null;
+
+const onboardingState = {
+  step: 0,
+};
 
 function safeGetItem(key) {
   try {
@@ -63,6 +91,15 @@ const elements = {
   overallAssessments: document.getElementById('overall-assessments'),
   overallBest: document.getElementById('overall-best'),
   overallGradeSquare: document.getElementById('overall-grade-square'),
+  authButton: document.getElementById('auth-button'),
+  authMenu: document.getElementById('auth-menu'),
+  authMenuAction: document.getElementById('auth-menu-action'),
+  profileAvatar: document.getElementById('profile-avatar'),
+  profileFallback: document.getElementById('profile-fallback'),
+  profileCardAvatar: document.getElementById('profile-card-avatar'),
+  profileCardFallback: document.getElementById('profile-card-fallback'),
+  profileCardName: document.getElementById('profile-card-name'),
+  syncStatus: document.getElementById('sync-status'),
   topSubjectIcon: document.getElementById('top-subject-icon'),
   topSubjectName: document.getElementById('top-subject-name'),
   topSubjectGrade: document.getElementById('top-subject-grade'),
@@ -134,8 +171,22 @@ const elements = {
   onboardingImportInput: document.getElementById('onboarding-import-input'),
   onboardingImportApply: document.getElementById('onboarding-import-apply'),
   onboardingImportMessage: document.getElementById('onboarding-import-message'),
+  onboardingAuth: document.getElementById('onboarding-auth'),
+  onboardingGuest: document.getElementById('onboarding-guest'),
+  onboardingBack: document.getElementById('onboarding-back'),
+  onboardingNext: document.getElementById('onboarding-next'),
+  onboardingFinish: document.getElementById('onboarding-finish'),
+  onboardingProgressBar: document.getElementById('onboarding-progress-bar'),
+  onboardingGraphSmoothness: document.getElementById('onboarding-graph-smoothness'),
+  onboardingGraphSmoothnessValue: document.getElementById('onboarding-graph-smoothness-value'),
+  onboardingSmoothingPreview: document.getElementById('onboarding-smoothing-preview'),
   electiveGrid: document.getElementById('elective-grid'),
   customElective: document.getElementById('custom-elective'),
+  confirmModal: document.getElementById('confirm-modal'),
+  confirmTitle: document.getElementById('confirm-title'),
+  confirmMessage: document.getElementById('confirm-message'),
+  confirmAccept: document.getElementById('confirm-accept'),
+  confirmCancel: document.getElementById('confirm-cancel'),
 };
 
 const now = new Date();
@@ -158,6 +209,8 @@ maybeStartOnboarding();
 
 render();
 updateGraphSmoothnessUI();
+renderOnboardingSmoothingPreview();
+initAppwrite();
 
 window.addEventListener('resize', () => {
   renderCharts();
@@ -185,6 +238,14 @@ if (elements.graphSmoothnessRange) {
   });
 }
 
+if (elements.onboardingGraphSmoothness) {
+  elements.onboardingGraphSmoothness.addEventListener('input', (event) => {
+    const value = Number(event.target.value);
+    setGraphSmoothness(value / 100);
+    updateOnboardingGraphSmoothnessUI();
+  });
+}
+
 if (elements.exportOpen) {
   elements.exportOpen.addEventListener('click', () => openModal(elements.exportModal));
 }
@@ -192,6 +253,27 @@ if (elements.exportOpen) {
 if (elements.settingsOpen) {
   elements.settingsOpen.addEventListener('click', () => openModal(elements.settingsModal));
 }
+
+if (elements.authButton) {
+  elements.authButton.addEventListener('click', () => {
+    toggleAuthMenu();
+  });
+}
+
+if (elements.authMenuAction) {
+  elements.authMenuAction.addEventListener('click', () => {
+    closeAuthMenu();
+    handleAuthAction();
+  });
+}
+
+document.addEventListener('click', (event) => {
+  if (!elements.authMenu || !elements.authButton) return;
+  const withinMenu = event.target.closest('.profile-menu');
+  if (!withinMenu) {
+    closeAuthMenu();
+  }
+});
 
 if (elements.settingsModal) {
   elements.settingsModal.addEventListener('click', (event) => {
@@ -276,6 +358,20 @@ if (elements.exportModal) {
   });
 }
 
+if (elements.confirmModal) {
+  elements.confirmModal.addEventListener('click', (event) => {
+    const actionTarget = event.target.closest('[data-action]');
+    if (!actionTarget) return;
+    if (actionTarget.dataset.action === 'close-confirm') {
+      closeModal(elements.confirmModal);
+      if (confirmResolver) {
+        confirmResolver(false);
+        confirmResolver = null;
+      }
+    }
+  });
+}
+
 if (elements.exportPreset) {
   elements.exportPreset.addEventListener('change', () => {
     if (elements.exportOutput) {
@@ -318,7 +414,7 @@ if (elements.exportCopy) {
 }
 
 if (elements.importRestore) {
-  elements.importRestore.addEventListener('click', () => {
+  elements.importRestore.addEventListener('click', async () => {
     const raw = elements.importInput ? elements.importInput.value.trim() : '';
     if (!raw) {
       return setImportMessage('Paste a string to import.');
@@ -332,7 +428,12 @@ if (elements.importRestore) {
     if (!nextData) {
       return setImportMessage('No valid data found in that string.');
     }
-    if (!confirm('Add this data to your gradebook? Your existing data stays.')) return;
+    const confirmed = await showConfirm({
+      title: 'Add imported data?',
+      message: 'Your existing data stays. Add these subjects and assessments?',
+      confirmLabel: 'Add data',
+    });
+    if (!confirmed) return;
     const incoming = normalizeData(nextData);
     state.data = mergeData(state.data, incoming);
     saveData(state.data);
@@ -360,6 +461,10 @@ if (elements.settingsForm) {
 if (elements.onboardingForm) {
   elements.onboardingForm.addEventListener('submit', (event) => {
     event.preventDefault();
+    if (!isOnboardingFinalStep()) {
+      advanceOnboardingStep();
+      return;
+    }
     finishOnboarding({ skipElectives: false });
   });
 }
@@ -373,6 +478,30 @@ if (elements.onboardingSkip) {
 if (elements.onboardingImportOpen) {
   elements.onboardingImportOpen.addEventListener('click', () => {
     openModal(elements.onboardingImportModal);
+  });
+}
+
+if (elements.onboardingAuth) {
+  elements.onboardingAuth.addEventListener('click', () => {
+    handleAuthAction();
+  });
+}
+
+if (elements.onboardingGuest) {
+  elements.onboardingGuest.addEventListener('click', () => {
+    advanceOnboardingStep();
+  });
+}
+
+if (elements.onboardingBack) {
+  elements.onboardingBack.addEventListener('click', () => {
+    retreatOnboardingStep();
+  });
+}
+
+if (elements.onboardingNext) {
+  elements.onboardingNext.addEventListener('click', () => {
+    advanceOnboardingStep();
   });
 }
 
@@ -414,9 +543,19 @@ if (elements.onboardingImportApply) {
 }
 
 if (elements.resetData) {
-  elements.resetData.addEventListener('click', () => {
-    if (confirm('Reset all stored grades? This cannot be undone.')) {
-      clearAllStoredData();
+  elements.resetData.addEventListener('click', async () => {
+    const confirmed = await showConfirm({
+      title: 'Reset all data?',
+      message: 'This will clear everything on this device and in the cloud.',
+      confirmLabel: 'Reset',
+      danger: true,
+    });
+    if (!confirmed) return;
+    clearAllStoredData();
+    try {
+      await clearCloudData();
+    } finally {
+      await signOutAfterReset();
       window.location.reload();
     }
   });
@@ -509,7 +648,7 @@ if (elements.subjectGrid) {
 }
 
 if (elements.subjectModal) {
-  elements.subjectModal.addEventListener('click', (event) => {
+  elements.subjectModal.addEventListener('click', async (event) => {
     const actionTarget = event.target.closest('[data-action]');
     if (!actionTarget) return;
     const action = actionTarget.dataset.action;
@@ -546,7 +685,13 @@ if (elements.subjectModal) {
 
     if (action === 'delete-subject') {
       if (!activeSubjectId) return;
-      if (!confirm('Delete this subject and all assessments?')) return;
+      const confirmed = await showConfirm({
+        title: 'Delete subject?',
+        message: 'This will remove the subject and all assessments.',
+        confirmLabel: 'Delete',
+        danger: true,
+      });
+      if (!confirmed) return;
       state.data.subjects = state.data.subjects.filter((subject) => subject.id !== activeSubjectId);
       saveData(state.data);
       closeSubjectModal();
@@ -559,6 +704,13 @@ if (elements.subjectModal) {
       const assessmentId = actionTarget.dataset.assessmentId;
       const subject = state.data.subjects.find((item) => item.id === subjectId);
       if (!subject) return;
+      const confirmed = await showConfirm({
+        title: 'Delete assessment?',
+        message: 'This will remove the assessment result.',
+        confirmLabel: 'Delete',
+        danger: true,
+      });
+      if (!confirmed) return;
       subject.assessments = subject.assessments.filter((item) => item.id !== assessmentId);
       saveData(state.data);
       render();
@@ -720,7 +872,7 @@ if (elements.subjectGrid) {
 }
 
 if (elements.assessmentTable) {
-  elements.assessmentTable.addEventListener('click', (event) => {
+  elements.assessmentTable.addEventListener('click', async (event) => {
     const target = event.target.closest('[data-action]');
     if (!target) return;
     const action = target.dataset.action;
@@ -729,6 +881,12 @@ if (elements.assessmentTable) {
       const assessmentId = target.dataset.assessmentId;
       const subject = state.data.subjects.find((item) => item.id === subjectId);
       if (!subject) return;
+      const confirmed = await showConfirm({
+        title: 'Delete assessment?',
+        message: 'This will remove the assessment result.',
+        confirmLabel: 'Delete',
+      });
+      if (!confirmed) return;
       subject.assessments = subject.assessments.filter((item) => item.id !== assessmentId);
       saveData(state.data);
       render();
@@ -741,7 +899,11 @@ function loadData() {
     const raw = safeGetItem(STORAGE_KEY);
     if (!raw) return { subjects: [] };
     const parsed = JSON.parse(raw);
-    return normalizeData(parsed);
+    const normalized = normalizeData(parsed);
+    if (normalized.userName && !loadUserName()) {
+      setUserName(normalized.userName, { skipSync: true });
+    }
+    return normalized;
   } catch (error) {
     return { subjects: [] };
   }
@@ -752,10 +914,16 @@ function loadUserName() {
   return value ? String(value).trim() : '';
 }
 
-function setUserName(value) {
+function setUserName(value, options = {}) {
   const trimmed = String(value || '').trim();
   if (!trimmed) return;
   safeSetItem(USER_NAME_KEY, trimmed);
+  if (state.data) {
+    state.data.userName = trimmed;
+  }
+  if (!options.skipSync) {
+    queueCloudSync();
+  }
 }
 
 function clearAllStoredData() {
@@ -766,6 +934,7 @@ function clearAllStoredData() {
     TAB_KEY,
     GRAPH_SMOOTHNESS_KEY,
     USER_NAME_KEY,
+    APPWRITE_SYNC_KEY,
   ].forEach((key) => safeRemoveItem(key));
 }
 
@@ -816,11 +985,582 @@ function normalizeData(parsed) {
       }),
     };
   });
-  return { subjects };
+  const lastUpdatedAt = Number.isFinite(parsed.lastUpdatedAt) ? parsed.lastUpdatedAt : 0;
+  const userName = typeof parsed.userName === 'string' ? parsed.userName : '';
+  const graphSmoothness = Number.isFinite(parsed.graphSmoothness) ? parsed.graphSmoothness : null;
+  return { subjects, lastUpdatedAt, userName, graphSmoothness };
 }
 
-function saveData(data) {
+function saveData(data, options = {}) {
+  const { skipSync = false, skipTimestamp = false } = options;
+  if (!skipTimestamp) {
+    data.lastUpdatedAt = Date.now();
+  }
+  data.userName = loadUserName() || data.userName || '';
   safeSetItem(STORAGE_KEY, JSON.stringify(data));
+  if (!skipSync) {
+    queueCloudSync();
+  }
+}
+
+function loadLastSync() {
+  const raw = safeGetItem(APPWRITE_SYNC_KEY);
+  const value = raw ? Number(raw) : 0;
+  return Number.isFinite(value) ? value : 0;
+}
+
+function initAppwrite() {
+  if (!window.Appwrite) {
+    updateAuthUI();
+    return;
+  }
+  const { Client, Account, Databases } = Appwrite;
+  appwriteClient = new Client()
+    .setEndpoint(APPWRITE_ENDPOINT)
+    .setProject(APPWRITE_PROJECT_ID);
+  appwriteAccount = new Account(appwriteClient);
+  appwriteDatabases = new Databases(appwriteClient);
+  appwriteState.enabled = true;
+  appwriteState.lastSyncedAt = loadLastSync();
+  updateAuthUI();
+  checkAppwriteSession();
+}
+
+async function checkAppwriteSession() {
+  if (!appwriteAccount) return;
+  try {
+    const user = await appwriteAccount.get();
+    appwriteState.user = user;
+    appwriteState.ready = true;
+    updateAuthUI();
+    await pullOrSeedCloudData();
+  } catch (error) {
+    appwriteState.user = null;
+    appwriteState.ready = true;
+    updateAuthUI();
+  }
+}
+
+function handleAuthAction() {
+  if (!appwriteState.enabled || !appwriteAccount) return;
+  if (appwriteState.user) {
+    appwriteAccount
+      .deleteSession('current')
+      .then(() => {
+        appwriteState.user = null;
+        appwriteState.error = null;
+        updateAuthUI();
+      })
+      .catch(() => {
+        appwriteState.user = null;
+        updateAuthUI();
+      });
+    return;
+  }
+  const redirect = window.location.href;
+  appwriteAccount.createOAuth2Session('google', redirect, redirect);
+}
+
+function updateAuthUI() {
+  if (!elements.authButton || !elements.syncStatus) return;
+  if (!appwriteState.enabled) {
+    elements.authButton.disabled = true;
+    elements.authButton.setAttribute('aria-label', 'Sign in');
+    setProfileAvatar(null);
+    updateProfileCard(null);
+    updateAuthMenu();
+    if (elements.onboardingAuth) {
+      elements.onboardingAuth.disabled = true;
+      elements.onboardingAuth.textContent = 'Sign in with Google';
+    }
+    updateSyncStatus('Private • Stored on this device');
+    return;
+  }
+
+  elements.authButton.disabled = false;
+  if (!appwriteState.user) {
+    elements.authButton.setAttribute('aria-label', 'Sign in');
+    setProfileAvatar(null);
+    updateProfileCard(null);
+    updateAuthMenu();
+    if (elements.onboardingAuth) {
+      elements.onboardingAuth.disabled = false;
+      elements.onboardingAuth.textContent = 'Sign in with Google';
+    }
+    updateSyncStatus('Private • Stored on this device');
+    return;
+  }
+
+  elements.authButton.setAttribute('aria-label', 'Sign out');
+  setProfileAvatar(appwriteState.user);
+  updateProfileCard(appwriteState.user);
+  updateAuthMenu();
+  if (elements.onboardingAuth) {
+    elements.onboardingAuth.disabled = true;
+    elements.onboardingAuth.textContent = 'Signed in';
+  }
+  updateSyncStatus();
+}
+
+function setProfileAvatar(user) {
+  if (!elements.profileAvatar || !elements.profileFallback) return;
+  const fallbackText = getUserInitials(user);
+  elements.profileFallback.textContent = fallbackText;
+  elements.profileFallback.style.display = 'grid';
+  elements.profileAvatar.style.display = 'none';
+
+  if (!user) {
+    elements.profileAvatar.removeAttribute('src');
+    return;
+  }
+
+  const name = user.name || user.email || 'User';
+  const avatarUrl = getUserAvatarUrl(user) || buildAvatarUrl(name);
+  elements.profileAvatar.onload = () => {
+    elements.profileAvatar.style.display = 'block';
+    elements.profileFallback.style.display = 'none';
+  };
+  elements.profileAvatar.onerror = () => {
+    elements.profileAvatar.style.display = 'none';
+    elements.profileFallback.style.display = 'grid';
+  };
+  elements.profileAvatar.src = avatarUrl;
+}
+
+function updateProfileCard(user) {
+  if (!elements.profileCardAvatar || !elements.profileCardFallback || !elements.profileCardName) return;
+  const fallbackText = getUserInitials(user);
+  elements.profileCardFallback.textContent = fallbackText;
+  elements.profileCardFallback.style.display = 'grid';
+  elements.profileCardAvatar.style.display = 'none';
+
+  if (!user) {
+    elements.profileCardAvatar.removeAttribute('src');
+    elements.profileCardName.textContent = 'Not signed in';
+    return;
+  }
+
+  const name = user.name || user.email || 'Signed in';
+  const avatarUrl = getUserAvatarUrl(user) || buildAvatarUrl(name);
+  elements.profileCardName.textContent = name;
+  elements.profileCardAvatar.onload = () => {
+    elements.profileCardAvatar.style.display = 'block';
+    elements.profileCardFallback.style.display = 'none';
+  };
+  elements.profileCardAvatar.onerror = () => {
+    elements.profileCardAvatar.style.display = 'none';
+    elements.profileCardFallback.style.display = 'grid';
+  };
+  elements.profileCardAvatar.src = avatarUrl;
+}
+
+function buildAvatarUrl(name) {
+  const encoded = encodeURIComponent(name);
+  return `${APPWRITE_ENDPOINT}/avatars/initials?name=${encoded}&project=${APPWRITE_PROJECT_ID}`;
+}
+
+function getUserInitials(user) {
+  if (!user) return '?';
+  const base = String(user.name || user.email || '').trim();
+  if (!base) return '?';
+  return initials(base);
+}
+
+function getUserAvatarUrl(user) {
+  if (!user || !user.prefs) return '';
+  const prefs = user.prefs || {};
+  return (
+    prefs.avatar ||
+    prefs.picture ||
+    prefs.photo ||
+    prefs.image ||
+    ''
+  );
+}
+
+function toggleAuthMenu() {
+  if (!elements.authMenu || !elements.authButton) return;
+  const isOpen = elements.authMenu.classList.contains('is-open');
+  if (isOpen) {
+    closeAuthMenu();
+    return;
+  }
+  elements.authMenu.classList.add('is-open');
+  elements.authButton.setAttribute('aria-expanded', 'true');
+}
+
+function closeAuthMenu() {
+  if (!elements.authMenu || !elements.authButton) return;
+  elements.authMenu.classList.remove('is-open');
+  elements.authButton.setAttribute('aria-expanded', 'false');
+}
+
+function updateAuthMenu() {
+  if (!elements.authMenuAction) return;
+  elements.authMenuAction.textContent = appwriteState.user ? 'Sign out' : 'Sign in';
+}
+
+function updateSyncStatus(customMessage) {
+  if (!elements.syncStatus) return;
+  if (customMessage) {
+    elements.syncStatus.textContent = customMessage;
+    return;
+  }
+  if (!appwriteState.enabled || !appwriteState.user) {
+    elements.syncStatus.textContent = 'Private • Stored on this device';
+    return;
+  }
+
+  const label = appwriteState.user.name || appwriteState.user.email || 'Account';
+  if (appwriteState.syncingVisible) {
+    elements.syncStatus.textContent = `Syncing… • ${label}`;
+    return;
+  }
+  if (appwriteState.error) {
+    elements.syncStatus.textContent = `Sync issue • ${label}`;
+    return;
+  }
+  const syncLabel = formatSyncTimestamp(appwriteState.lastSyncedAt);
+  elements.syncStatus.textContent = `Signed in as ${label} • ${syncLabel}`;
+}
+
+function formatSyncTimestamp(timestamp) {
+  if (!timestamp) return 'Sync on';
+  const diff = Date.now() - timestamp;
+  if (diff < 15000) return 'Synced just now';
+  if (diff < 60000) return 'Synced <1m ago';
+  if (diff < 3600000) return `Synced ${Math.round(diff / 60000)}m ago`;
+  return `Synced ${Math.round(diff / 3600000)}h ago`;
+}
+
+function buildCloudPayload() {
+  const payload = {
+    subjects: Array.isArray(state.data.subjects) ? state.data.subjects : [],
+    lastUpdatedAt: Number.isFinite(state.data.lastUpdatedAt)
+      ? state.data.lastUpdatedAt
+      : Date.now(),
+    userName: loadUserName() || state.data.userName || '',
+    graphSmoothness: Number.isFinite(state.graphSmoothness) ? state.graphSmoothness : null,
+  };
+  return payload;
+}
+
+function queueCloudSync(immediate = false) {
+  if (!appwriteState.enabled || !appwriteState.user || !appwriteDatabases) return;
+  if (syncTimer) {
+    clearTimeout(syncTimer);
+    syncTimer = null;
+  }
+  if (immediate) {
+    performCloudSync();
+    return;
+  }
+  const schedule = () => {
+    syncTimer = null;
+    performCloudSync();
+  };
+  if ('requestIdleCallback' in window) {
+    syncTimer = window.requestIdleCallback(schedule, { timeout: 1500 });
+  } else {
+    syncTimer = window.setTimeout(schedule, 1200);
+  }
+}
+
+async function performCloudSync() {
+  if (!appwriteState.enabled || !appwriteState.user || !appwriteDatabases) return;
+  if (appwriteState.syncing) {
+    appwriteState.pending = true;
+    return;
+  }
+
+  appwriteState.syncing = true;
+  appwriteState.error = null;
+  appwriteState.syncingVisible = false;
+  if (syncStatusTimer) {
+    clearTimeout(syncStatusTimer);
+    syncStatusTimer = null;
+  }
+  syncStatusTimer = window.setTimeout(() => {
+    appwriteState.syncingVisible = true;
+    updateSyncStatus();
+  }, 500);
+  updateSyncStatus();
+
+  const userId = appwriteState.user.$id;
+  const payload = buildCloudPayload();
+  const document = {
+    userName: payload.userName || '',
+    payload: JSON.stringify(payload),
+  };
+
+  try {
+    await appwriteDatabases.updateDocument(
+      APPWRITE_DATABASE_ID,
+      APPWRITE_COLLECTION_ID,
+      userId,
+      document
+    );
+  } catch (error) {
+    if (error && error.code === 404) {
+      const permissions = [];
+      if (window.Appwrite?.Permission && window.Appwrite?.Role) {
+        permissions.push(Appwrite.Permission.read(Appwrite.Role.user(userId)));
+        permissions.push(Appwrite.Permission.update(Appwrite.Role.user(userId)));
+        permissions.push(Appwrite.Permission.delete(Appwrite.Role.user(userId)));
+      }
+      try {
+        await appwriteDatabases.createDocument(
+          APPWRITE_DATABASE_ID,
+          APPWRITE_COLLECTION_ID,
+          userId,
+          document,
+          permissions
+        );
+      } catch (createError) {
+        appwriteState.error = createError;
+      }
+    } else {
+      appwriteState.error = error;
+    }
+  } finally {
+    if (syncStatusTimer) {
+      clearTimeout(syncStatusTimer);
+      syncStatusTimer = null;
+    }
+    appwriteState.syncingVisible = false;
+    if (!appwriteState.error) {
+      appwriteState.lastSyncedAt = Date.now();
+      safeSetItem(APPWRITE_SYNC_KEY, String(appwriteState.lastSyncedAt));
+    }
+    appwriteState.syncing = false;
+    updateSyncStatus();
+
+    if (appwriteState.pending) {
+      appwriteState.pending = false;
+      queueCloudSync(true);
+    }
+  }
+}
+
+async function pullOrSeedCloudData() {
+  if (!appwriteDatabases || !appwriteState.user) return;
+  const userId = appwriteState.user.$id;
+  try {
+    const doc = await appwriteDatabases.getDocument(
+      APPWRITE_DATABASE_ID,
+      APPWRITE_COLLECTION_ID,
+      userId
+    );
+    const remotePayload = readRemotePayload(doc);
+    if (!remotePayload) {
+      queueCloudSync(true);
+      return;
+    }
+    const remoteData = normalizeData(remotePayload);
+    const localSnapshot = normalizeData(loadData());
+    const hasLocal =
+      (Array.isArray(localSnapshot.subjects) && localSnapshot.subjects.length > 0) ||
+      Boolean(localSnapshot.userName);
+    const hasRemote =
+      (Array.isArray(remoteData.subjects) && remoteData.subjects.length > 0) ||
+      Boolean(remoteData.userName);
+
+    if (hasLocal && hasRemote) {
+      const merged = mergeLocalAndRemote(localSnapshot, remoteData);
+      applyMergedData(merged);
+      queueCloudSync(true);
+      return;
+    }
+    if (hasRemote) {
+      applyRemoteData(remoteData);
+      return;
+    }
+    if (hasLocal) {
+      applyMergedData(localSnapshot);
+      queueCloudSync(true);
+    }
+  } catch (error) {
+    if (error && error.code === 404) {
+      queueCloudSync(true);
+    } else {
+      appwriteState.error = error;
+      updateSyncStatus();
+    }
+  }
+}
+
+function readRemotePayload(doc) {
+  if (!doc || !doc.payload) return null;
+  if (typeof doc.payload === 'string') {
+    try {
+      return JSON.parse(doc.payload);
+    } catch (error) {
+      return null;
+    }
+  }
+  return doc.payload;
+}
+
+function applyRemoteData(remoteData) {
+  state.data = normalizeData(remoteData);
+  if (state.data.userName) {
+    setUserName(state.data.userName, { skipSync: true });
+  }
+  applyCloudPreferences(state.data);
+  saveData(state.data, { skipSync: true, skipTimestamp: true });
+  render();
+  updateGreeting();
+  updateSyncStatus();
+  maybeCompleteOnboardingFromCloud();
+}
+
+function mergeLocalAndRemote(localData, remoteData) {
+  const merged = mergeData(localData, remoteData);
+  const localUpdated = Number.isFinite(localData.lastUpdatedAt) ? localData.lastUpdatedAt : 0;
+  const remoteUpdated = Number.isFinite(remoteData.lastUpdatedAt) ? remoteData.lastUpdatedAt : 0;
+  merged.lastUpdatedAt = Math.max(localUpdated, remoteUpdated);
+  merged.userName = localData.userName || remoteData.userName || '';
+  if (remoteUpdated >= localUpdated) {
+    merged.graphSmoothness =
+      Number.isFinite(remoteData.graphSmoothness) ? remoteData.graphSmoothness : localData.graphSmoothness ?? null;
+  } else {
+    merged.graphSmoothness =
+      Number.isFinite(localData.graphSmoothness) ? localData.graphSmoothness : remoteData.graphSmoothness ?? null;
+  }
+  return normalizeData(merged);
+}
+
+function applyMergedData(mergedData) {
+  state.data = normalizeData(mergedData);
+  if (state.data.userName) {
+    setUserName(state.data.userName, { skipSync: true });
+  }
+  applyCloudPreferences(state.data);
+  saveData(state.data, { skipSync: true, skipTimestamp: true });
+  render();
+  updateGreeting();
+  updateSyncStatus();
+  maybeCompleteOnboardingFromCloud();
+}
+
+function applyCloudPreferences(payload) {
+  if (!payload) return;
+  if (Number.isFinite(payload.graphSmoothness)) {
+    setGraphSmoothness(payload.graphSmoothness, { skipSync: true });
+  }
+}
+
+function renderOnboardingSmoothingPreview() {
+  if (!elements.onboardingSmoothingPreview) return;
+  const points = [
+    { value: 62, label: 'Start' },
+    { value: 78, label: 'Quiz' },
+    { value: 54, label: 'Task' },
+    { value: 86, label: 'Project' },
+    { value: 71, label: 'Test' },
+    { value: 92, label: 'Final' },
+  ];
+  drawLineChart(elements.onboardingSmoothingPreview, points, {
+    stroke: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#2aa9ff',
+    showAxis: false,
+  });
+}
+
+function maybeCompleteOnboardingFromCloud() {
+  if (!elements.onboardingModal) return;
+  if (!elements.onboardingModal.classList.contains('is-open')) return;
+  const hasName = Boolean(loadUserName());
+  const hasSubjects = Array.isArray(state.data.subjects) && state.data.subjects.length > 0;
+  if (hasName || hasSubjects) {
+    closeModal(elements.onboardingModal);
+    setOnboardingMessage('');
+  }
+}
+
+function setOnboardingStep(step) {
+  onboardingState.step = clamp(step, 0, 3);
+  const steps = elements.onboardingForm?.querySelectorAll('[data-onboarding-step]');
+  if (steps) {
+    steps.forEach((section) => {
+      const sectionStep = Number(section.dataset.onboardingStep);
+      section.classList.toggle('is-active', sectionStep === onboardingState.step);
+    });
+  }
+
+  if (elements.onboardingProgressBar) {
+    const progress = ((onboardingState.step + 1) / 4) * 100;
+    elements.onboardingProgressBar.style.width = `${progress}%`;
+  }
+
+  if (onboardingState.step === 2) {
+    requestAnimationFrame(() => {
+      renderOnboardingSmoothingPreview();
+    });
+  }
+
+  if (elements.onboardingBack) {
+    elements.onboardingBack.style.display = onboardingState.step === 0 ? 'none' : 'inline-flex';
+  }
+  if (elements.onboardingNext && elements.onboardingFinish) {
+    const final = onboardingState.step === 3;
+    elements.onboardingNext.style.display = final ? 'none' : 'inline-flex';
+    elements.onboardingFinish.style.display = final ? 'inline-flex' : 'none';
+    const nav = elements.onboardingNext.closest('.onboarding-nav');
+    if (nav) {
+      nav.classList.toggle('is-final', final);
+    }
+  }
+
+  setOnboardingMessage('');
+}
+
+function isOnboardingFinalStep() {
+  return onboardingState.step === 3;
+}
+
+function advanceOnboardingStep() {
+  if (onboardingState.step === 1 && elements.onboardingName) {
+    const name = String(elements.onboardingName.value || '').trim();
+    if (!name) {
+      setOnboardingMessage('Please add your name to continue.');
+      return;
+    }
+  }
+  setOnboardingStep(onboardingState.step + 1);
+}
+
+function retreatOnboardingStep() {
+  setOnboardingStep(onboardingState.step - 1);
+}
+
+async function clearCloudData() {
+  if (!appwriteDatabases || !appwriteState.user) return;
+  try {
+    await appwriteDatabases.deleteDocument(
+      APPWRITE_DATABASE_ID,
+      APPWRITE_COLLECTION_ID,
+      appwriteState.user.$id
+    );
+  } catch (error) {
+    // Ignore delete errors; local reset should still proceed.
+  } finally {
+    appwriteState.lastSyncedAt = null;
+    safeSetItem(APPWRITE_SYNC_KEY, '');
+    updateSyncStatus();
+  }
+}
+
+async function signOutAfterReset() {
+  if (!appwriteAccount || !appwriteState.user) return;
+  try {
+    await appwriteAccount.deleteSession('current');
+  } catch (error) {
+    // Ignore sign-out errors after reset.
+  } finally {
+    appwriteState.user = null;
+    appwriteState.error = null;
+    updateAuthUI();
+  }
 }
 
 function loadThemeSettings() {
@@ -856,14 +1596,18 @@ function setTheme(mode, variant) {
   safeSetItem(THEME_KEY, mode);
   safeSetItem(THEME_VARIANT_KEY, resolved);
   updateThemeButtons();
+  renderOnboardingSmoothingPreview();
 }
 
-function setGraphSmoothness(value) {
+function setGraphSmoothness(value, options = {}) {
   const clamped = clamp(value, 0, 1);
   state.graphSmoothness = clamped;
   safeSetItem(GRAPH_SMOOTHNESS_KEY, clamped.toFixed(2));
   updateGraphSmoothnessUI();
   renderCharts();
+  if (!options.skipSync) {
+    queueCloudSync();
+  }
 }
 
 function updateGraphSmoothnessUI() {
@@ -872,6 +1616,16 @@ function updateGraphSmoothnessUI() {
   elements.graphSmoothnessRange.value = String(percent);
   elements.graphSmoothnessRange.style.setProperty('--slider-fill', `${percent}%`);
   elements.graphSmoothnessValue.textContent = `${percent}%`;
+  updateOnboardingGraphSmoothnessUI();
+}
+
+function updateOnboardingGraphSmoothnessUI() {
+  if (!elements.onboardingGraphSmoothness || !elements.onboardingGraphSmoothnessValue) return;
+  const percent = Math.round(state.graphSmoothness * 100);
+  elements.onboardingGraphSmoothness.value = String(percent);
+  elements.onboardingGraphSmoothness.style.setProperty('--slider-fill', `${percent}%`);
+  elements.onboardingGraphSmoothnessValue.textContent = `${percent}%`;
+  renderOnboardingSmoothingPreview();
 }
 
 function clamp(value, min, max) {
@@ -929,6 +1683,48 @@ function closeModal(modal) {
     document.body.classList.remove('modal-open');
   }
   hideChartTooltip();
+}
+
+function showConfirm(options) {
+  if (!elements.confirmModal || !elements.confirmAccept || !elements.confirmCancel) {
+    return Promise.resolve(false);
+  }
+  const { title, message, confirmLabel, cancelLabel, danger } = options || {};
+  if (elements.confirmTitle) {
+    elements.confirmTitle.textContent = title || 'Are you sure?';
+  }
+  if (elements.confirmMessage) {
+    elements.confirmMessage.textContent = message || 'This action can’t be undone.';
+  }
+  elements.confirmAccept.textContent = confirmLabel || 'Confirm';
+  elements.confirmAccept.classList.toggle('confirm-danger', Boolean(danger));
+  elements.confirmCancel.textContent = cancelLabel || 'Cancel';
+
+  if (confirmResolver) {
+    confirmResolver(false);
+  }
+
+  return new Promise((resolve) => {
+    confirmResolver = resolve;
+    const onAccept = () => {
+      cleanup();
+      resolve(true);
+    };
+    const onCancel = () => {
+      cleanup();
+      resolve(false);
+    };
+    const cleanup = () => {
+      elements.confirmAccept.removeEventListener('click', onAccept);
+      elements.confirmCancel.removeEventListener('click', onCancel);
+      elements.confirmAccept.classList.remove('confirm-danger');
+      confirmResolver = null;
+      closeModal(elements.confirmModal);
+    };
+    elements.confirmAccept.addEventListener('click', onAccept);
+    elements.confirmCancel.addEventListener('click', onCancel);
+    openModal(elements.confirmModal);
+  });
 }
 
 function openSubjectModal(subjectId) {
@@ -1238,6 +2034,7 @@ function maybeStartOnboarding() {
   if (elements.onboardingName) {
     elements.onboardingName.value = loadUserName();
   }
+  setOnboardingStep(0);
   openModal(elements.onboardingModal);
 }
 

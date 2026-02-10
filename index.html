@@ -36,6 +36,43 @@
           <button id="settings-open" class="ghost-button" type="button">
             Settings
           </button>
+          <div class="profile-menu">
+            <button
+              id="auth-button"
+              class="profile-button"
+              type="button"
+              aria-label="Sign in"
+              aria-expanded="false"
+              aria-controls="auth-menu"
+            >
+              <span class="profile-ring">
+                <img
+                  id="profile-avatar"
+                  class="profile-avatar"
+                  alt=""
+                  loading="lazy"
+                />
+                <span id="profile-fallback" class="profile-fallback">?</span>
+              </span>
+            </button>
+            <div id="auth-menu" class="profile-dropdown" role="menu">
+              <div class="profile-card">
+                <div class="profile-card-avatar">
+                  <img
+                    id="profile-card-avatar"
+                    class="profile-card-image"
+                    alt=""
+                    loading="lazy"
+                  />
+                  <span id="profile-card-fallback" class="profile-card-fallback">?</span>
+                </div>
+                <div id="profile-card-name" class="profile-card-name">Not signed in</div>
+              </div>
+              <button id="auth-menu-action" class="profile-menu-action" type="button">
+                Sign in
+              </button>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -45,7 +82,9 @@
             <div class="section-eyebrow">Welcome back</div>
             <div class="page-title" id="page-greeting">Sapphire Gradebook</div>
           </div>
-          <div class="topbar-meta">Private • Stored on this device</div>
+          <div class="topbar-meta" id="sync-status">
+            Private • Stored on this device
+          </div>
         </header>
 
         <section class="view is-active" data-view="dashboard">
@@ -773,209 +812,272 @@
             </div>
           </div>
         </div>
+        <div class="onboarding-progress">
+          <div class="onboarding-progress-bar" id="onboarding-progress-bar"></div>
+        </div>
         <form
           id="onboarding-form"
           class="modal-body onboarding-grid"
           autocomplete="off"
         >
-          <div class="onboarding-section">
-            <div class="form-actions">
-              <button
-                class="ghost-button ghost-button--small mini-button"
-                type="button"
-                id="onboarding-import-open"
-              >
-                Enter share code
-              </button>
-            </div>
-          </div>
-          <label class="field">
-            <span>Your name</span>
-            <input
-              id="onboarding-name"
-              name="name"
-              placeholder="e.g. John"
-              required
-            />
-          </label>
-
-          <div class="onboarding-section">
-            <div>
-              <div class="section-eyebrow">Theme</div>
-              <h3 class="section-title">Pick a look</h3>
-            </div>
-            <div class="theme-grid">
-              <button
-                class="theme-button"
-                type="button"
-                data-theme-mode="light"
-                data-theme-variant="pearl"
-              >
-                <span class="theme-swatch" style="--swatch: #0a84ff"></span>
-                Pearl
-              </button>
-              <button
-                class="theme-button"
-                type="button"
-                data-theme-mode="light"
-                data-theme-variant="mint"
-              >
-                <span class="theme-swatch" style="--swatch: #34c759"></span>
-                Mint
-              </button>
-              <button
-                class="theme-button"
-                type="button"
-                data-theme-mode="light"
-                data-theme-variant="sunrise"
-              >
-                <span class="theme-swatch" style="--swatch: #ff9f0a"></span>
-                Sunrise
-              </button>
-              <button
-                class="theme-button"
-                type="button"
-                data-theme-mode="light"
-                data-theme-variant="sky"
-              >
-                <span class="theme-swatch" style="--swatch: #64d2ff"></span>
-                Sky
-              </button>
-              <button
-                class="theme-button"
-                type="button"
-                data-theme-mode="dark"
-                data-theme-variant="midnight"
-              >
-                <span class="theme-swatch" style="--swatch: #2aa9ff"></span>
-                Midnight
-              </button>
-              <button
-                class="theme-button"
-                type="button"
-                data-theme-mode="dark"
-                data-theme-variant="aurora"
-              >
-                <span class="theme-swatch" style="--swatch: #5ae3a1"></span>
-                Aurora
-              </button>
-              <button
-                class="theme-button"
-                type="button"
-                data-theme-mode="dark"
-                data-theme-variant="cosmic"
-              >
-                <span class="theme-swatch" style="--swatch: #c77dff"></span>
-                Cosmic
-              </button>
-              <button
-                class="theme-button"
-                type="button"
-                data-theme-mode="dark"
-                data-theme-variant="sapphire"
-              >
-                <span class="theme-swatch" style="--swatch: #1f7aff"></span>
-                Sapphire
-              </button>
+          <div class="onboarding-step" data-onboarding-step="0">
+            <div class="onboarding-section">
+              <div>
+                <div class="section-eyebrow">Sign in</div>
+                <h3 class="section-title">Sync your gradebook</h3>
+                <p class="muted">
+                  Sign in to back up across devices. Continue as a guest to keep data only on this device.
+                </p>
+              </div>
+              <div class="form-actions">
+                <button
+                  class="primary-button"
+                  type="button"
+                  id="onboarding-auth"
+                >
+                  Sign in with Google
+                </button>
+                <button
+                  class="ghost-button"
+                  type="button"
+                  id="onboarding-guest"
+                >
+                  Continue as guest
+                </button>
+                <button
+                  class="ghost-button ghost-button--small mini-button"
+                  type="button"
+                  id="onboarding-import-open"
+                >
+                  Enter share code
+                </button>
+              </div>
             </div>
           </div>
 
-          <div class="onboarding-section">
-            <div>
-              <div class="section-eyebrow">Electives</div>
-              <h3 class="section-title">Choose your electives</h3>
-              <p class="muted">Core subjects are added automatically.</p>
-            </div>
-            <div class="elective-grid" id="elective-grid">
-              <label class="checkbox-item"
-                ><input type="checkbox" value="Broadcast Media" />Broadcast
-                Media</label
-              >
-              <label class="checkbox-item"
-                ><input type="checkbox" value="Ceramics" />Ceramics</label
-              >
-              <label class="checkbox-item"
-                ><input type="checkbox" value="Child Studies" />Child
-                Studies</label
-              >
-              <label class="checkbox-item"
-                ><input type="checkbox" value="Commerce" />Commerce</label
-              >
-              <label class="checkbox-item"
-                ><input type="checkbox" value="Computing Technology" />Computing
-                Technology</label
-              >
-              <label class="checkbox-item"
-                ><input type="checkbox" value="Dance" />Dance</label
-              >
-              <label class="checkbox-item"
-                ><input type="checkbox" value="Design and Technology" />Design
-                and Technology</label
-              >
-              <label class="checkbox-item"
-                ><input type="checkbox" value="Drama" />Drama</label
-              >
-              <label class="checkbox-item"
-                ><input type="checkbox" value="Food Technology" />Food
-                Technology</label
-              >
-              <label class="checkbox-item"
-                ><input type="checkbox" value="French" />French</label
-              >
-              <label class="checkbox-item"
-                ><input type="checkbox" value="Indonesian" />Indonesian</label
-              >
-              <label class="checkbox-item"
-                ><input
-                  type="checkbox"
-                  value="International Studies"
-                />International Studies</label
-              >
-              <label class="checkbox-item"
-                ><input type="checkbox" value="Multimedia" />Multimedia</label
-              >
-              <label class="checkbox-item"
-                ><input type="checkbox" value="Music" />Music</label
-              >
-              <label class="checkbox-item"
-                ><input type="checkbox" value="Photography" />Photography</label
-              >
-              <label class="checkbox-item"
-                ><input type="checkbox" value="PASS" />PASS</label
-              >
-              <label class="checkbox-item"
-                ><input type="checkbox" value="Psychology" />Psychology</label
-              >
-              <label class="checkbox-item"
-                ><input type="checkbox" value="Textiles Technology" />Textiles
-                Technology</label
-              >
-              <label class="checkbox-item"
-                ><input type="checkbox" value="Woodworking" />Woodworking</label
-              >
-              <label class="checkbox-item"
-                ><input type="checkbox" value="Visual Arts" />Visual Arts</label
-              >
-              <label class="checkbox-item"
-                ><input type="checkbox" value="Visual Design" />Visual
-                Design</label
-              >
-            </div>
+          <div class="onboarding-step" data-onboarding-step="1">
             <label class="field">
-              <span>Custom elective (optional)</span>
+              <span>Your name</span>
               <input
-                id="custom-elective"
-                name="customElective"
-                placeholder="Add one or more, separated by commas"
+                id="onboarding-name"
+                name="name"
+                placeholder="e.g. John"
+                required
               />
             </label>
           </div>
 
-          <div class="form-actions">
-            <button class="ghost-button" type="button" id="onboarding-skip">
-              Skip electives
+          <div class="onboarding-step" data-onboarding-step="2">
+            <div class="onboarding-section">
+              <div>
+                <div class="section-eyebrow">Theme</div>
+                <h3 class="section-title">Pick a look</h3>
+              </div>
+              <div class="theme-grid">
+                <button
+                  class="theme-button"
+                  type="button"
+                  data-theme-mode="light"
+                  data-theme-variant="pearl"
+                >
+                  <span class="theme-swatch" style="--swatch: #0a84ff"></span>
+                  Pearl
+                </button>
+                <button
+                  class="theme-button"
+                  type="button"
+                  data-theme-mode="light"
+                  data-theme-variant="mint"
+                >
+                  <span class="theme-swatch" style="--swatch: #34c759"></span>
+                  Mint
+                </button>
+                <button
+                  class="theme-button"
+                  type="button"
+                  data-theme-mode="light"
+                  data-theme-variant="sunrise"
+                >
+                  <span class="theme-swatch" style="--swatch: #ff9f0a"></span>
+                  Sunrise
+                </button>
+                <button
+                  class="theme-button"
+                  type="button"
+                  data-theme-mode="light"
+                  data-theme-variant="sky"
+                >
+                  <span class="theme-swatch" style="--swatch: #64d2ff"></span>
+                  Sky
+                </button>
+                <button
+                  class="theme-button"
+                  type="button"
+                  data-theme-mode="dark"
+                  data-theme-variant="midnight"
+                >
+                  <span class="theme-swatch" style="--swatch: #2aa9ff"></span>
+                  Midnight
+                </button>
+                <button
+                  class="theme-button"
+                  type="button"
+                  data-theme-mode="dark"
+                  data-theme-variant="aurora"
+                >
+                  <span class="theme-swatch" style="--swatch: #5ae3a1"></span>
+                  Aurora
+                </button>
+                <button
+                  class="theme-button"
+                  type="button"
+                  data-theme-mode="dark"
+                  data-theme-variant="cosmic"
+                >
+                  <span class="theme-swatch" style="--swatch: #c77dff"></span>
+                  Cosmic
+                </button>
+                <button
+                  class="theme-button"
+                  type="button"
+                  data-theme-mode="dark"
+                  data-theme-variant="sapphire"
+                >
+                  <span class="theme-swatch" style="--swatch: #1f7aff"></span>
+                  Sapphire
+                </button>
+              </div>
+              <div class="theme-controls">
+                <div>
+                  <div class="section-eyebrow">Graph smoothing</div>
+                  <div class="theme-control-meta">Adjust the curve softness.</div>
+                </div>
+                <div class="chart-wrap chart-wrap--compact">
+                  <canvas id="onboarding-smoothing-preview" height="120"></canvas>
+                </div>
+                <div class="theme-slider-row">
+                  <input
+                    id="onboarding-graph-smoothness"
+                    class="theme-slider"
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="5"
+                    value="35"
+                  />
+                  <span
+                    class="theme-slider-value"
+                    id="onboarding-graph-smoothness-value"
+                    >35%</span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="onboarding-step" data-onboarding-step="3">
+            <div class="onboarding-section">
+              <div>
+                <div class="section-eyebrow">Electives</div>
+                <h3 class="section-title">Choose your electives</h3>
+                <p class="muted">Core subjects are added automatically.</p>
+              </div>
+              <div class="elective-grid" id="elective-grid">
+                <label class="checkbox-item"
+                  ><input type="checkbox" value="Broadcast Media" />Broadcast
+                  Media</label
+                >
+                <label class="checkbox-item"
+                  ><input type="checkbox" value="Ceramics" />Ceramics</label
+                >
+                <label class="checkbox-item"
+                  ><input type="checkbox" value="Child Studies" />Child
+                  Studies</label
+                >
+                <label class="checkbox-item"
+                  ><input type="checkbox" value="Commerce" />Commerce</label
+                >
+                <label class="checkbox-item"
+                  ><input type="checkbox" value="Computing Technology" />Computing
+                  Technology</label
+                >
+                <label class="checkbox-item"
+                  ><input type="checkbox" value="Dance" />Dance</label
+                >
+                <label class="checkbox-item"
+                  ><input type="checkbox" value="Design and Technology" />Design
+                  and Technology</label
+                >
+                <label class="checkbox-item"
+                  ><input type="checkbox" value="Drama" />Drama</label
+                >
+                <label class="checkbox-item"
+                  ><input type="checkbox" value="Food Technology" />Food
+                  Technology</label
+                >
+                <label class="checkbox-item"
+                  ><input type="checkbox" value="French" />French</label
+                >
+                <label class="checkbox-item"
+                  ><input type="checkbox" value="Indonesian" />Indonesian</label
+                >
+                <label class="checkbox-item"
+                  ><input
+                    type="checkbox"
+                    value="International Studies"
+                  />International Studies</label
+                >
+                <label class="checkbox-item"
+                  ><input type="checkbox" value="Multimedia" />Multimedia</label
+                >
+                <label class="checkbox-item"
+                  ><input type="checkbox" value="Music" />Music</label
+                >
+                <label class="checkbox-item"
+                  ><input type="checkbox" value="Photography" />Photography</label
+                >
+                <label class="checkbox-item"
+                  ><input type="checkbox" value="PASS" />PASS</label
+                >
+                <label class="checkbox-item"
+                  ><input type="checkbox" value="Psychology" />Psychology</label
+                >
+                <label class="checkbox-item"
+                  ><input type="checkbox" value="Textiles Technology" />Textiles
+                  Technology</label
+                >
+                <label class="checkbox-item"
+                  ><input type="checkbox" value="Woodworking" />Woodworking</label
+                >
+                <label class="checkbox-item"
+                  ><input type="checkbox" value="Visual Arts" />Visual Arts</label
+                >
+                <label class="checkbox-item"
+                  ><input type="checkbox" value="Visual Design" />Visual
+                  Design</label
+                >
+              </div>
+              <label class="field">
+                <span>Custom elective (optional)</span>
+                <input
+                  id="custom-elective"
+                  name="customElective"
+                  placeholder="Add one or more, separated by commas"
+                />
+              </label>
+            </div>
+          </div>
+
+          <div class="form-actions onboarding-nav">
+            <button class="ghost-button" type="button" id="onboarding-back">
+              Back
             </button>
-            <button class="primary-button" type="submit">Finish setup</button>
+            <button class="ghost-button" type="button" id="onboarding-next">
+              Next
+            </button>
+            <button class="primary-button" type="submit" id="onboarding-finish">
+              Finish setup
+            </button>
             <span
               class="form-message"
               id="onboarding-message"
@@ -1044,6 +1146,40 @@
       aria-hidden="true"
     ></div>
 
+    <div class="modal" id="confirm-modal" aria-hidden="true">
+      <div class="modal-backdrop" data-action="close-confirm"></div>
+      <div
+        class="modal-panel modal-panel--small"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-title"
+      >
+        <div class="modal-header">
+          <div>
+            <div class="section-eyebrow">Confirm</div>
+            <h2 class="section-title" id="confirm-title">Are you sure?</h2>
+          </div>
+          <button class="icon-button" type="button" data-action="close-confirm">
+            ✕
+          </button>
+        </div>
+        <div class="modal-body confirm-body">
+          <p id="confirm-message" class="muted">
+            This action can’t be undone.
+          </p>
+          <div class="form-actions">
+            <button id="confirm-cancel" class="ghost-button" type="button">
+              Cancel
+            </button>
+            <button id="confirm-accept" class="primary-button" type="button">
+              Confirm
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/appwrite@13.0.1/dist/iife/sdk.min.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
