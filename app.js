@@ -11,7 +11,24 @@ const APPWRITE_PROJECT_ID = 'sapphire';
 const APPWRITE_DATABASE_ID = 'sapphire-storage';
 const APPWRITE_COLLECTION_ID = 'sapphire-storage';
 
-const palette = ['#2aa9ff', '#5ae3a1', '#f6b96e', '#c78bff', '#ff8b8b', '#56d2d2', '#ffb347', '#4dd4a8'];
+const palette = [
+  '#d29086',
+  '#e26a49',
+  '#ce8c5a',
+  '#c89b77',
+  '#e7ad57',
+  '#5ebf73',
+  '#417f68',
+  '#77b3a7',
+  '#57a8d3',
+  '#3784cc',
+  '#427e80',
+  '#5774c1',
+  '#d77bad',
+  '#6e67d7',
+  '#9c4663',
+  '#6d7573'
+];
 const LIGHT_THEMES = ['pearl', 'mint', 'sunrise', 'sky'];
 const DARK_THEMES = ['midnight', 'aurora', 'cosmic', 'sapphire'];
 
@@ -30,8 +47,11 @@ let appwriteClient = null;
 let appwriteAccount = null;
 let appwriteDatabases = null;
 let syncTimer = null;
+let syncTimerKind = null;
 let syncStatusTimer = null;
+let syncStatusInterval = null;
 let confirmResolver = null;
+let confirmCleanup = null;
 
 const onboardingState = {
   step: 0,
@@ -216,6 +236,18 @@ window.addEventListener('resize', () => {
   renderCharts();
 });
 
+window.addEventListener('online', () => {
+  if (appwriteState.user) {
+    queueCloudSync(true);
+  }
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    updateSyncStatus();
+  }
+});
+
 if (elements.themeButtons) {
   elements.themeButtons.forEach((button) => {
     button.addEventListener('click', () => {
@@ -363,11 +395,7 @@ if (elements.confirmModal) {
     const actionTarget = event.target.closest('[data-action]');
     if (!actionTarget) return;
     if (actionTarget.dataset.action === 'close-confirm') {
-      closeModal(elements.confirmModal);
-      if (confirmResolver) {
-        confirmResolver(false);
-        confirmResolver = null;
-      }
+      dismissConfirm(false);
     }
   });
 }
@@ -720,6 +748,13 @@ if (elements.subjectModal) {
     if (action === 'delete-upcoming') {
       const subjectId = actionTarget.dataset.subjectId;
       const upcomingId = actionTarget.dataset.upcomingId;
+      const confirmed = await showConfirm({
+        title: 'Delete upcoming item?',
+        message: 'This will remove the upcoming assessment.',
+        confirmLabel: 'Delete',
+        danger: true,
+      });
+      if (!confirmed) return;
       removeUpcoming(subjectId, upcomingId);
     }
   });
@@ -750,12 +785,19 @@ if (elements.assessmentModal) {
 }
 
 if (elements.upcomingList) {
-  elements.upcomingList.addEventListener('click', (event) => {
+  elements.upcomingList.addEventListener('click', async (event) => {
     const actionTarget = event.target.closest('[data-action]');
     if (!actionTarget) return;
     if (actionTarget.dataset.action === 'delete-upcoming') {
       const subjectId = actionTarget.dataset.subjectId;
       const upcomingId = actionTarget.dataset.upcomingId;
+      const confirmed = await showConfirm({
+        title: 'Delete upcoming item?',
+        message: 'This will remove the upcoming assessment.',
+        confirmLabel: 'Delete',
+        danger: true,
+      });
+      if (!confirmed) return;
       removeUpcoming(subjectId, upcomingId);
     }
   });
@@ -828,6 +870,14 @@ if (elements.assessmentForm) {
 
 document.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape') return;
+  if (elements.confirmModal?.classList.contains('is-open')) {
+    dismissConfirm(false);
+    return;
+  }
+  if (elements.authMenu?.classList.contains('is-open')) {
+    closeAuthMenu();
+    return;
+  }
   if (elements.settingsModal?.classList.contains('is-open')) {
     closeModal(elements.settingsModal);
     return;
@@ -846,13 +896,19 @@ document.addEventListener('keydown', (event) => {
 });
 
 if (elements.subjectGrid) {
-  elements.subjectGrid.addEventListener('click', (event) => {
+  elements.subjectGrid.addEventListener('click', async (event) => {
     const target = event.target.closest('[data-action]');
     if (!target) return;
     const action = target.dataset.action;
     const subjectId = target.dataset.id;
     if (action === 'delete-subject') {
-      if (!confirm('Delete this subject and all assessments?')) return;
+      const confirmed = await showConfirm({
+        title: 'Delete subject?',
+        message: 'This will remove the subject and all assessments.',
+        confirmLabel: 'Delete',
+        danger: true,
+      });
+      if (!confirmed) return;
       state.data.subjects = state.data.subjects.filter((subject) => subject.id !== subjectId);
       saveData(state.data);
       render();
@@ -861,6 +917,13 @@ if (elements.subjectGrid) {
       const assessmentId = target.dataset.assessmentId;
       const subject = state.data.subjects.find((item) => item.id === target.dataset.subjectId);
       if (!subject) return;
+      const confirmed = await showConfirm({
+        title: 'Delete assessment?',
+        message: 'This will remove the assessment result.',
+        confirmLabel: 'Delete',
+        danger: true,
+      });
+      if (!confirmed) return;
       subject.assessments = subject.assessments.filter((item) => item.id !== assessmentId);
       saveData(state.data);
       render();
@@ -885,6 +948,7 @@ if (elements.assessmentTable) {
         title: 'Delete assessment?',
         message: 'This will remove the assessment result.',
         confirmLabel: 'Delete',
+        danger: true,
       });
       if (!confirmed) return;
       subject.assessments = subject.assessments.filter((item) => item.id !== assessmentId);
@@ -1064,6 +1128,7 @@ function handleAuthAction() {
 function updateAuthUI() {
   if (!elements.authButton || !elements.syncStatus) return;
   if (!appwriteState.enabled) {
+    stopSyncStatusTicker();
     elements.authButton.disabled = true;
     elements.authButton.setAttribute('aria-label', 'Sign in');
     setProfileAvatar(null);
@@ -1079,6 +1144,7 @@ function updateAuthUI() {
 
   elements.authButton.disabled = false;
   if (!appwriteState.user) {
+    stopSyncStatusTicker();
     elements.authButton.setAttribute('aria-label', 'Sign in');
     setProfileAvatar(null);
     updateProfileCard(null);
@@ -1092,6 +1158,7 @@ function updateAuthUI() {
   }
 
   elements.authButton.setAttribute('aria-label', 'Sign out');
+  startSyncStatusTicker();
   setProfileAvatar(appwriteState.user);
   updateProfileCard(appwriteState.user);
   updateAuthMenu();
@@ -1200,6 +1267,19 @@ function updateAuthMenu() {
   elements.authMenuAction.textContent = appwriteState.user ? 'Sign out' : 'Sign in';
 }
 
+function startSyncStatusTicker() {
+  if (syncStatusInterval) return;
+  syncStatusInterval = window.setInterval(() => {
+    updateSyncStatus();
+  }, 30000);
+}
+
+function stopSyncStatusTicker() {
+  if (!syncStatusInterval) return;
+  clearInterval(syncStatusInterval);
+  syncStatusInterval = null;
+}
+
 function updateSyncStatus(customMessage) {
   if (!elements.syncStatus) return;
   if (customMessage) {
@@ -1247,10 +1327,7 @@ function buildCloudPayload() {
 
 function queueCloudSync(immediate = false) {
   if (!appwriteState.enabled || !appwriteState.user || !appwriteDatabases) return;
-  if (syncTimer) {
-    clearTimeout(syncTimer);
-    syncTimer = null;
-  }
+  clearSyncTimer();
   if (immediate) {
     performCloudSync();
     return;
@@ -1261,9 +1338,22 @@ function queueCloudSync(immediate = false) {
   };
   if ('requestIdleCallback' in window) {
     syncTimer = window.requestIdleCallback(schedule, { timeout: 1500 });
+    syncTimerKind = 'idle';
   } else {
     syncTimer = window.setTimeout(schedule, 1200);
+    syncTimerKind = 'timeout';
   }
+}
+
+function clearSyncTimer() {
+  if (!syncTimer) return;
+  if (syncTimerKind === 'idle' && 'cancelIdleCallback' in window) {
+    window.cancelIdleCallback(syncTimer);
+  } else {
+    clearTimeout(syncTimer);
+  }
+  syncTimer = null;
+  syncTimerKind = null;
 }
 
 async function performCloudSync() {
@@ -1700,31 +1790,40 @@ function showConfirm(options) {
   elements.confirmAccept.classList.toggle('confirm-danger', Boolean(danger));
   elements.confirmCancel.textContent = cancelLabel || 'Cancel';
 
-  if (confirmResolver) {
-    confirmResolver(false);
-  }
+  dismissConfirm(false);
 
   return new Promise((resolve) => {
     confirmResolver = resolve;
     const onAccept = () => {
-      cleanup();
-      resolve(true);
+      dismissConfirm(true);
     };
     const onCancel = () => {
-      cleanup();
-      resolve(false);
+      dismissConfirm(false);
     };
-    const cleanup = () => {
+    confirmCleanup = () => {
       elements.confirmAccept.removeEventListener('click', onAccept);
       elements.confirmCancel.removeEventListener('click', onCancel);
       elements.confirmAccept.classList.remove('confirm-danger');
-      confirmResolver = null;
-      closeModal(elements.confirmModal);
+      confirmCleanup = null;
     };
     elements.confirmAccept.addEventListener('click', onAccept);
     elements.confirmCancel.addEventListener('click', onCancel);
     openModal(elements.confirmModal);
+    elements.confirmAccept.focus();
   });
+}
+
+function dismissConfirm(confirmed) {
+  if (!elements.confirmModal) return;
+  if (confirmCleanup) {
+    confirmCleanup();
+  }
+  closeModal(elements.confirmModal);
+  if (confirmResolver) {
+    const resolve = confirmResolver;
+    confirmResolver = null;
+    resolve(Boolean(confirmed));
+  }
 }
 
 function openSubjectModal(subjectId) {
@@ -2493,7 +2592,7 @@ function renderOverview() {
     elements.topSubjectGrade.textContent = '--';
     elements.topSubjectFooter.textContent = 'Add assessments to see your leading subject.';
     elements.topSubjectIcon.textContent = '★';
-    elements.topSubjectIcon.style.background = 'linear-gradient(135deg, var(--accent), rgba(90, 190, 255, 0.5))';
+    elements.topSubjectIcon.style.background = 'linear-gradient(135deg, var(--logo-gradient-1), var(--logo-gradient-2))';
   }
 
   const latest = getLatestAssessment();
