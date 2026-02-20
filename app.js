@@ -12,20 +12,20 @@ const APPWRITE_DATABASE_ID = 'sapphire-storage';
 const APPWRITE_COLLECTION_ID = 'sapphire-storage';
 
 const palette = [
-  '#d29086',
   '#e26a49',
   '#ce8c5a',
   '#c89b77',
+  '#d29086',
   '#e7ad57',
   '#5ebf73',
+  '#427e80',
   '#417f68',
   '#77b3a7',
   '#57a8d3',
   '#3784cc',
-  '#427e80',
   '#5774c1',
-  '#d77bad',
   '#6e67d7',
+  '#d77bad',
   '#9c4663',
   '#6d7573'
 ];
@@ -136,6 +136,7 @@ const SUBJECT_ICON_PRESETS = {
 };
 const LIGHT_THEMES = ['pearl', 'mint', 'sunrise', 'sky'];
 const DARK_THEMES = ['midnight', 'aurora', 'cosmic', 'sapphire'];
+const MONTH_AXIS_LABELS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
 const appwriteState = {
   enabled: false,
@@ -206,6 +207,11 @@ const state = {
   data: loadData(),
   theme: loadThemeSettings(),
   graphSmoothness: loadGraphSmoothness(),
+  assessmentTable: {
+    search: '',
+    sortKey: 'date',
+    sortDirection: 'desc',
+  },
 };
 
 const elements = {
@@ -237,6 +243,8 @@ const elements = {
   upcomingAdd: document.getElementById('upcoming-add'),
   subjectGrid: document.getElementById('subjects-grid'),
   assessmentTable: document.getElementById('assessment-table'),
+  assessmentSearch: document.getElementById('assessment-search'),
+  assessmentTableHead: document.getElementById('assessment-table-head'),
   overallChart: document.getElementById('overall-chart'),
   progressLegend: document.getElementById('progress-legend'),
   subjectsChart: document.getElementById('subjects-chart'),
@@ -342,6 +350,23 @@ const calendarState = {
 let activeSubjectId = null;
 let draggingOrderId = null;
 let currentOrderDropTarget = null;
+const hiddenSubjectsChartIds = new Set();
+const ASSESSMENT_SORT_KEYS = new Set(['subject', 'weight', 'percent', 'grade', 'date']);
+const GRADE_SORT_ORDER = new Map([
+  ['E', 0],
+  ['D-', 1],
+  ['D', 2],
+  ['D+', 3],
+  ['C-', 4],
+  ['C', 5],
+  ['C+', 6],
+  ['B-', 7],
+  ['B', 8],
+  ['B+', 9],
+  ['A-', 10],
+  ['A', 11],
+  ['A+', 12],
+]);
 
 setTheme(state.theme.mode, state.theme.variant);
 initTabs();
@@ -955,6 +980,22 @@ if (elements.subjectGrid) {
   });
 }
 
+if (elements.subjectsKey) {
+  elements.subjectsKey.addEventListener('click', (event) => {
+    const toggle = event.target.closest('[data-action="toggle-subject-line"]');
+    if (!toggle) return;
+    const subjectId = toggle.dataset.subjectId;
+    if (!subjectId) return;
+    if (hiddenSubjectsChartIds.has(subjectId)) {
+      hiddenSubjectsChartIds.delete(subjectId);
+    } else {
+      hiddenSubjectsChartIds.add(subjectId);
+    }
+    hideChartTooltip();
+    renderSubjectsChart();
+  });
+}
+
 if (elements.subjectModal) {
   elements.subjectModal.addEventListener('click', async (event) => {
     const actionTarget = event.target.closest('[data-action]');
@@ -1274,6 +1315,29 @@ if (elements.assessmentTable) {
       saveData(state.data);
       render();
     }
+  });
+}
+
+if (elements.assessmentSearch) {
+  elements.assessmentSearch.addEventListener('input', (event) => {
+    state.assessmentTable.search = String(event.target.value || '');
+    renderAssessments();
+  });
+}
+
+if (elements.assessmentTableHead) {
+  elements.assessmentTableHead.addEventListener('click', (event) => {
+    const toggle = event.target.closest('[data-assessment-sort]');
+    if (!toggle) return;
+    const sortKey = toggle.dataset.assessmentSort;
+    if (!ASSESSMENT_SORT_KEYS.has(sortKey)) return;
+    if (state.assessmentTable.sortKey === sortKey) {
+      state.assessmentTable.sortDirection = state.assessmentTable.sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      state.assessmentTable.sortKey = sortKey;
+      state.assessmentTable.sortDirection = sortKey === 'date' ? 'desc' : 'asc';
+    }
+    renderAssessments();
   });
 }
 
@@ -2362,10 +2426,7 @@ function openSubjectModal(subjectId) {
 
   const chartCanvas = elements.subjectModalBody?.querySelector('#subject-modal-chart');
   if (chartCanvas) {
-    const points = sortAssessments(subject.assessments).map((assessment) => ({
-      value: assessment.total > 0 ? (assessment.score / assessment.total) * 100 : 0,
-      label: assessment.name,
-    }));
+    const points = buildSubjectTimelinePoints(subject.assessments);
     drawLineChart(chartCanvas, points, { stroke: subject.color, showAxis: true });
   }
 }
@@ -3289,10 +3350,7 @@ function updateSubjectColorUI(subjectId, color) {
   if (chartCanvas) {
     const subject = state.data.subjects.find((item) => item.id === subjectId);
     if (!subject) return;
-    const points = sortAssessments(subject.assessments).map((assessment) => ({
-      value: assessment.total > 0 ? (assessment.score / assessment.total) * 100 : 0,
-      label: assessment.name,
-    }));
+    const points = buildSubjectTimelinePoints(subject.assessments);
     drawLineChart(chartCanvas, points, { stroke: subject.color, showAxis: true });
   }
 }
@@ -3484,19 +3542,125 @@ function renderSubjects() {
     .join('');
 }
 
+function normalizeAssessmentSortDirection(direction) {
+  return direction === 'asc' ? 'asc' : 'desc';
+}
+
+function compareNullableNumbers(left, right, direction = 'asc') {
+  const leftNull = !Number.isFinite(left);
+  const rightNull = !Number.isFinite(right);
+  if (leftNull && rightNull) return 0;
+  if (leftNull) return 1;
+  if (rightNull) return -1;
+  return direction === 'asc' ? left - right : right - left;
+}
+
+function buildAssessmentRows(items) {
+  return (items || []).map((assessment, index) => {
+    const percent = assessment.total > 0 ? (assessment.score / assessment.total) * 100 : 0;
+    const grade = getLetterGrade(percent);
+    return {
+      assessment,
+      percent,
+      grade,
+      gradeRank: GRADE_SORT_ORDER.get(grade) ?? -1,
+      dateValue: assessmentDateValue(assessment),
+      weightValue: Number.isFinite(assessment.weight) ? assessment.weight : null,
+      index,
+    };
+  });
+}
+
+function sortAssessmentRows(rows, sortKey, sortDirection) {
+  const direction = normalizeAssessmentSortDirection(sortDirection);
+  const key = ASSESSMENT_SORT_KEYS.has(sortKey) ? sortKey : 'date';
+  return [...rows].sort((left, right) => {
+    let compare = 0;
+    if (key === 'subject') {
+      compare = left.assessment.subjectName.localeCompare(right.assessment.subjectName, undefined, { sensitivity: 'base' });
+      if (compare === 0) {
+        compare = left.assessment.name.localeCompare(right.assessment.name, undefined, { sensitivity: 'base' });
+      }
+      compare = direction === 'asc' ? compare : -compare;
+    } else if (key === 'weight') {
+      compare = compareNullableNumbers(left.weightValue, right.weightValue, direction);
+      if (compare === 0) {
+        compare = direction === 'asc' ? left.percent - right.percent : right.percent - left.percent;
+      }
+    } else if (key === 'percent') {
+      compare = direction === 'asc' ? left.percent - right.percent : right.percent - left.percent;
+    } else if (key === 'grade') {
+      compare = direction === 'asc' ? left.gradeRank - right.gradeRank : right.gradeRank - left.gradeRank;
+      if (compare === 0) {
+        compare = direction === 'asc' ? left.percent - right.percent : right.percent - left.percent;
+      }
+    } else {
+      compare = direction === 'asc' ? left.dateValue - right.dateValue : right.dateValue - left.dateValue;
+    }
+    if (compare !== 0) return compare;
+    return left.index - right.index;
+  });
+}
+
+function renderAssessmentSortState() {
+  if (elements.assessmentSearch && elements.assessmentSearch.value !== state.assessmentTable.search) {
+    elements.assessmentSearch.value = state.assessmentTable.search;
+  }
+  if (!elements.assessmentTableHead) return;
+  const sortKey = ASSESSMENT_SORT_KEYS.has(state.assessmentTable.sortKey) ? state.assessmentTable.sortKey : 'date';
+  const sortDirection = normalizeAssessmentSortDirection(state.assessmentTable.sortDirection);
+  const toggles = elements.assessmentTableHead.querySelectorAll('[data-assessment-sort]');
+  toggles.forEach((toggle) => {
+    const key = toggle.dataset.assessmentSort;
+    const active = key === sortKey;
+    toggle.classList.toggle('is-active', active);
+    toggle.dataset.direction = active ? sortDirection : 'none';
+    toggle.setAttribute('aria-pressed', active ? 'true' : 'false');
+    const indicator = toggle.querySelector('[data-sort-indicator]');
+    if (indicator) {
+      indicator.textContent = active ? (sortDirection === 'asc' ? '↑' : '↓') : '↕';
+    }
+    const heading = toggle.closest('th');
+    if (heading) {
+      heading.setAttribute('aria-sort', active ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none');
+    }
+  });
+}
+
 function renderAssessments() {
   if (!elements.assessmentTable) return;
-  const allAssessments = sortAssessments(getAllAssessments()).reverse();
+  if (!ASSESSMENT_SORT_KEYS.has(state.assessmentTable.sortKey)) {
+    state.assessmentTable.sortKey = 'date';
+  }
+  state.assessmentTable.sortDirection = normalizeAssessmentSortDirection(state.assessmentTable.sortDirection);
+  renderAssessmentSortState();
 
+  const allAssessments = sortAssessments(getAllAssessments()).reverse();
   if (allAssessments.length === 0) {
     elements.assessmentTable.innerHTML = '<tr><td colspan="8" class="empty-state">No assessments logged yet.</td></tr>';
     return;
   }
 
-  elements.assessmentTable.innerHTML = allAssessments
-    .map((assessment) => {
-      const percent = assessment.total > 0 ? (assessment.score / assessment.total) * 100 : 0;
-      const grade = getLetterGrade(percent);
+  const searchQuery = String(state.assessmentTable.search || '').trim().toLowerCase();
+  const rows = buildAssessmentRows(allAssessments);
+  const filteredRows = searchQuery
+    ? rows.filter((row) => row.assessment.name.toLowerCase().includes(searchQuery))
+    : rows;
+
+  if (filteredRows.length === 0) {
+    elements.assessmentTable.innerHTML = '<tr><td colspan="8" class="empty-state">No assessments match your search.</td></tr>';
+    return;
+  }
+
+  const orderedRows = sortAssessmentRows(
+    filteredRows,
+    state.assessmentTable.sortKey,
+    state.assessmentTable.sortDirection
+  );
+
+  elements.assessmentTable.innerHTML = orderedRows
+    .map((row) => {
+      const { assessment, percent, grade } = row;
       return `
         <tr>
           <td>${assessment.subjectName}</td>
@@ -3558,20 +3722,7 @@ function renderCharts() {
 function renderOverallChart() {
   if (!elements.overallChart) return;
   const sorted = sortAssessments(getAllAssessments());
-  const points = [];
-  let runningWeight = 0;
-  let runningSum = 0;
-
-  sorted.forEach((assessment) => {
-    const weight = assessment.weight === null ? 1 : assessment.weight;
-    const percent = assessment.total > 0 ? (assessment.score / assessment.total) * 100 : 0;
-    runningSum += (percent / 100) * weight;
-    runningWeight += weight;
-    points.push({
-      value: (runningSum / runningWeight) * 100,
-      label: assessment.name,
-    });
-  });
+  const points = buildOverallTimelinePoints(sorted);
 
   if (elements.progressLegend) {
     if (points.length === 0) {
@@ -3593,42 +3744,53 @@ function renderSubjectCharts() {
     const subjectId = canvas.dataset.id;
     const subject = state.data.subjects.find((item) => item.id === subjectId);
     if (!subject) return;
-    const points = sortAssessments(subject.assessments).map((assessment) => ({
-      value: assessment.total > 0 ? (assessment.score / assessment.total) * 100 : 0,
-      label: assessment.name,
-    }));
+    const points = buildSubjectTimelinePoints(subject.assessments);
     drawLineChart(canvas, points, { stroke: subject.color, showAxis: false });
   });
 }
 
 function renderSubjectsChart() {
   if (!elements.subjectsChart) return;
-  const series = state.data.subjects
+  const allSeries = state.data.subjects
     .map((subject) => ({
+      id: subject.id,
       name: subject.name,
       color: subject.color,
       icon: resolveSubjectIcon(subject.icon, subject.name),
-      points: sortAssessments(subject.assessments).map((assessment) => ({
-        value: assessment.total > 0 ? (assessment.score / assessment.total) * 100 : 0,
-        label: assessment.name,
-      })),
+      points: buildSubjectTimelinePoints(subject.assessments),
     }))
     .filter((subject) => subject.points.length > 0);
+  const validIds = new Set(allSeries.map((subject) => subject.id));
+  Array.from(hiddenSubjectsChartIds).forEach((subjectId) => {
+    if (!validIds.has(subjectId)) {
+      hiddenSubjectsChartIds.delete(subjectId);
+    }
+  });
+  const series = allSeries.filter((subject) => !hiddenSubjectsChartIds.has(subject.id));
+  const totalCount = allSeries.length;
+  const visibleCount = series.length;
 
   if (elements.subjectsLegend) {
-    elements.subjectsLegend.textContent = series.length
-      ? `${series.length} subject lines · Hover for assessment details.`
+    elements.subjectsLegend.textContent = totalCount
+      ? `${visibleCount}/${totalCount} subject lines visible · Hover for details. Tip: Click subject chips below to hide/show lines.`
       : 'No subject data yet.';
   }
 
   if (elements.subjectsKey) {
-    elements.subjectsKey.innerHTML = series
+    elements.subjectsKey.innerHTML = allSeries
       .map(
         (subject) => `
-          <div class="chart-key-item">
+          <button
+            class="chart-key-item${hiddenSubjectsChartIds.has(subject.id) ? ' is-hidden' : ''}"
+            type="button"
+            data-action="toggle-subject-line"
+            data-subject-id="${subject.id}"
+            aria-pressed="${hiddenSubjectsChartIds.has(subject.id) ? 'false' : 'true'}"
+            title="Click to ${hiddenSubjectsChartIds.has(subject.id) ? 'show' : 'hide'} ${subject.name}"
+          >
             <span class="chart-key-swatch" style="--swatch:${subject.color}"></span>
             ${subject.name}
-          </div>
+          </button>
         `
       )
       .join('');
@@ -3733,7 +3895,16 @@ function traceSmoothLine(ctx, points, smoothness = 0.35) {
     const cp1y = p1.y + (p2.y - p0.y) * factor;
     const cp2x = p2.x - (p3.x - p1.x) * factor;
     const cp2y = p2.y - (p3.y - p1.y) * factor;
-    ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+    const minX = Math.min(p1.x, p2.x);
+    const maxX = Math.max(p1.x, p2.x);
+    ctx.bezierCurveTo(
+      clamp(cp1x, minX, maxX),
+      cp1y,
+      clamp(cp2x, minX, maxX),
+      cp2y,
+      p2.x,
+      p2.y
+    );
   }
 }
 
@@ -3789,7 +3960,9 @@ function getValueRange(points, options = {}) {
     maxValue += 5;
   }
   const range = Math.max(maxValue - minValue, 1);
-  const padding = Math.max(10, range * 0.2);
+  const paddingRatio = Number.isFinite(options.paddingRatio) ? options.paddingRatio : 0.2;
+  const minPadding = Number.isFinite(options.minPadding) ? options.minPadding : 10;
+  const padding = Math.max(minPadding, range * paddingRatio);
   const minClamp = Number.isFinite(options.min) ? options.min : 0;
   const maxClamp = Number.isFinite(options.max) ? options.max : 100;
   let min = minValue - padding;
@@ -3799,29 +3972,84 @@ function getValueRange(points, options = {}) {
   if (max - min < 1) {
     max = min + 1;
   }
-  const tickMin = Math.ceil(min / 5) * 5;
-  const tickMax = Math.floor(max / 5) * 5;
-  if (tickMax - tickMin >= 10) {
-    return { min: tickMin, max: tickMax };
+  const roundToStep = Number.isFinite(options.roundToStep) && options.roundToStep > 0
+    ? options.roundToStep
+    : null;
+  if (roundToStep) {
+    const roundedMin = Math.floor(min / roundToStep) * roundToStep;
+    const roundedMax = Math.ceil(max / roundToStep) * roundToStep;
+    if (roundedMax - roundedMin >= roundToStep * 2) {
+      return { min: roundedMin, max: roundedMax };
+    }
+  } else {
+    const tickMin = Math.ceil(min / 5) * 5;
+    const tickMax = Math.floor(max / 5) * 5;
+    if (tickMax - tickMin >= 10) {
+      return { min: tickMin, max: tickMax };
+    }
   }
   return { min, max };
 }
 
-function buildTicks(min, max, steps = 4) {
+function buildTicks(min, max, steps = 4, options = {}) {
   if (!Number.isFinite(min) || !Number.isFinite(max) || min === max) {
     return [0, 25, 50, 75, 100];
   }
-  const roundedMin = Math.floor(min / 5) * 5;
-  const roundedMax = Math.ceil(max / 5) * 5;
-  const range = Math.max(roundedMax - roundedMin, 5);
+  const roundToStep = Number.isFinite(options.roundToStep) && options.roundToStep > 0
+    ? options.roundToStep
+    : 5;
+  const roundedMin = Math.floor(min / roundToStep) * roundToStep;
+  const roundedMax = Math.ceil(max / roundToStep) * roundToStep;
+  const range = Math.max(roundedMax - roundedMin, roundToStep);
   const desiredSteps = Math.max(steps, 1);
-  const stepMultiple = Math.max(1, Math.ceil(range / (desiredSteps * 5)));
-  const step = stepMultiple * 5;
+  const stepMultiple = Math.max(1, Math.ceil(range / (desiredSteps * roundToStep)));
+  const step = stepMultiple * roundToStep;
   const ticks = [];
   for (let value = roundedMin; value <= roundedMax + 0.0001; value += step) {
     ticks.push(value);
   }
   return ticks.length ? ticks : [roundedMin, roundedMax];
+}
+
+function spreadDenseXCoordinates(points, minX, maxX, minGap = 6) {
+  if (!points || points.length < 2) {
+    return (points || []).map((point) => point.x);
+  }
+  const span = Math.max(maxX - minX, 1);
+  const effectiveGap = Math.min(minGap, span / (points.length - 1));
+  const adjusted = new Array(points.length);
+  adjusted[0] = clamp(points[0].x, minX, maxX);
+  for (let index = 1; index < points.length; index += 1) {
+    adjusted[index] = Math.max(points[index].x, adjusted[index - 1] + effectiveGap);
+  }
+  if (adjusted[adjusted.length - 1] > maxX) {
+    adjusted[adjusted.length - 1] = maxX;
+    for (let index = adjusted.length - 2; index >= 0; index -= 1) {
+      adjusted[index] = Math.min(adjusted[index], adjusted[index + 1] - effectiveGap);
+    }
+    if (adjusted[0] < minX) {
+      adjusted[0] = minX;
+      for (let index = 1; index < adjusted.length; index += 1) {
+        adjusted[index] = Math.max(adjusted[index], adjusted[index - 1] + effectiveGap);
+      }
+    }
+  }
+  return adjusted.map((value) => clamp(value, minX, maxX));
+}
+
+function buildDateAxisLabels(minDateValue, maxDateValue, minX, maxX) {
+  if (!Number.isFinite(minDateValue) || !Number.isFinite(maxDateValue) || maxDateValue <= minDateValue) {
+    return [];
+  }
+  const fractions = [0, 0.25, 0.5, 0.75, 1];
+  return fractions.map((fraction) => {
+    const dateValue = minDateValue + (maxDateValue - minDateValue) * fraction;
+    const x = minX + (maxX - minX) * fraction;
+    return {
+      x,
+      text: formatDate(new Date(dateValue)),
+    };
+  });
 }
 
 function drawLineChart(canvas, points, options = {}) {
@@ -3851,7 +4079,30 @@ function drawLineChart(canvas, points, options = {}) {
   const paddingLeft = 36;
   const paddingRight = 36;
   const paddingTop = 18;
-  const paddingBottom = 18;
+  const datedValues = series
+    .map((point) => (Number.isFinite(point.xValue) ? point.xValue : null))
+    .filter((value) => Number.isFinite(value));
+  const hasDateScale = datedValues.length >= 2;
+  const minDateValue = hasDateScale ? Math.min(...datedValues) : null;
+  const maxDateValue = hasDateScale ? Math.max(...datedValues) : null;
+  const canScaleByDate =
+    hasDateScale &&
+    Number.isFinite(minDateValue) &&
+    Number.isFinite(maxDateValue) &&
+    maxDateValue > minDateValue;
+  const hasAxisLabels = showAxis && (series.some((point) => point.axisLabel) || canScaleByDate);
+  const paddingBottom = hasAxisLabels ? 30 : 18;
+  const fallbackDenom = Math.max(series.length - 1, 1);
+  const resolveX = (point, index) => {
+    if (canScaleByDate && Number.isFinite(point.xValue)) {
+      return (
+        paddingLeft +
+        ((point.xValue - minDateValue) / (maxDateValue - minDateValue)) *
+          (width - paddingLeft - paddingRight)
+      );
+    }
+    return paddingLeft + ((width - paddingLeft - paddingRight) / fallbackDenom) * index;
+  };
   const valueRange = getValueRange(series, { min: 0, max: 100 });
   const ticks = buildTicks(valueRange.min, valueRange.max, 4);
 
@@ -3865,56 +4116,103 @@ function drawLineChart(canvas, points, options = {}) {
         paddingBottom -
         ((tick - valueRange.min) / (valueRange.max - valueRange.min)) *
           (height - paddingTop - paddingBottom);
-    ctx.textAlign = 'left';
-    ctx.fillText(`${Math.round(tick)}`, 4, y);
-    ctx.textAlign = 'right';
-    ctx.fillText(`${Math.round(tick)}`, width - 4, y);
-  });
-}
+      ctx.textAlign = 'left';
+      ctx.fillText(`${Math.round(tick)}`, 4, y);
+      ctx.textAlign = 'right';
+      ctx.fillText(`${Math.round(tick)}`, width - 4, y);
+    });
+    if (hasAxisLabels) {
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      ctx.font = '10px "Red Hat Display", sans-serif';
+      if (canScaleByDate) {
+        const axisLabelPoints = buildDateAxisLabels(
+          minDateValue,
+          maxDateValue,
+          paddingLeft,
+          width - paddingRight
+        );
+        axisLabelPoints.forEach((item) => {
+          ctx.fillText(item.text, item.x, height - 5);
+        });
+      } else {
+        series.forEach((point, index) => {
+          if (!point.axisLabel) return;
+          const x = resolveX(point, index);
+          ctx.fillText(point.axisLabel, x, height - 5);
+        });
+      }
+      ctx.font = '12px "Red Hat Display", sans-serif';
+      ctx.textBaseline = 'middle';
+    }
+  }
 
-  if (!series || series.length < 2) {
-    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-    ctx.beginPath();
-    ctx.moveTo(paddingLeft, height - paddingBottom);
-    ctx.lineTo(width - paddingRight, paddingTop);
-    ctx.stroke();
+  if (!series || series.length === 0) {
+    canvas._chartPoints = [];
+    bindChartHover(canvas);
     return;
   }
 
   const stroke = options.stroke || '#2aa9ff';
   const max = valueRange.max;
   const min = valueRange.min;
+  const lineSmoothness = state.graphSmoothness;
   const chartPoints = series.map((point, index) => {
-    const x = paddingLeft + ((width - paddingLeft - paddingRight) / (series.length - 1)) * index;
-    const y =
-      height -
-      paddingBottom -
-      ((point.value - min) / (max - min)) * (height - paddingTop - paddingBottom);
+    const x = resolveX(point, index);
+    const y = Number.isFinite(point.value)
+      ? height - paddingBottom - ((point.value - min) / (max - min)) * (height - paddingTop - paddingBottom)
+      : null;
     return {
       x,
       y,
       value: point.value,
       label: point.label,
+      xValue: Number.isFinite(point.xValue) ? point.xValue : null,
     };
   });
+  const drawablePoints = chartPoints.filter((point) => Number.isFinite(point.y));
+  if (canScaleByDate && drawablePoints.length > 2) {
+    const adjusted = spreadDenseXCoordinates(drawablePoints, paddingLeft, width - paddingRight, 6);
+    drawablePoints.forEach((point, index) => {
+      point.x = adjusted[index];
+    });
+  }
+  if (drawablePoints.length < 1) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.beginPath();
+    ctx.moveTo(paddingLeft, height - paddingBottom);
+    ctx.lineTo(width - paddingRight, paddingTop);
+    ctx.stroke();
+    canvas._chartPoints = [];
+    bindChartHover(canvas);
+    return;
+  }
 
   ctx.lineWidth = 2.5;
   ctx.strokeStyle = stroke;
-  traceSmoothLine(ctx, chartPoints, state.graphSmoothness);
-  ctx.stroke();
+  if (drawablePoints.length > 1) {
+    traceSmoothLine(ctx, drawablePoints, lineSmoothness);
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.arc(drawablePoints[0].x, drawablePoints[0].y, 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = stroke;
+    ctx.fill();
+  }
 
   const gradient = ctx.createLinearGradient(0, paddingTop, 0, height - paddingBottom);
   gradient.addColorStop(0, withAlpha(stroke, 0.35));
   gradient.addColorStop(1, withAlpha(stroke, 0.05));
+  if (drawablePoints.length > 2) {
+    ctx.fillStyle = gradient;
+    traceSmoothLine(ctx, drawablePoints, lineSmoothness);
+    ctx.lineTo(drawablePoints[drawablePoints.length - 1].x, height - paddingBottom);
+    ctx.lineTo(drawablePoints[0].x, height - paddingBottom);
+    ctx.closePath();
+    ctx.fill();
+  }
 
-  traceSmoothLine(ctx, chartPoints, state.graphSmoothness);
-  ctx.lineTo(width - paddingRight, height - paddingBottom);
-  ctx.lineTo(paddingLeft, height - paddingBottom);
-  ctx.closePath();
-  ctx.fillStyle = gradient;
-  ctx.fill();
-
-  canvas._chartPoints = chartPoints;
+  canvas._chartPoints = drawablePoints;
   bindChartHover(canvas);
 }
 
@@ -3937,8 +4235,21 @@ function drawMultiLineChart(canvas, series) {
   const paddingTop = 18;
   const paddingBottom = 18;
   const allSeriesPoints = series.flatMap((line) => line.points || []);
-  const valueRange = getValueRange(allSeriesPoints, { min: 0, max: 100 });
-  const ticks = buildTicks(valueRange.min, valueRange.max, 4);
+  const chartSpan = width - paddingLeft - paddingRight;
+  const valueRange = getValueRange(allSeriesPoints, {
+    min: 0,
+    max: 100,
+    paddingRatio: 0.08,
+    minPadding: 1.5,
+    roundToStep: 5,
+  });
+  const tickStep = 5;
+  const tickMin = Math.floor(valueRange.min / tickStep) * tickStep;
+  const tickMax = Math.ceil(valueRange.max / tickStep) * tickStep;
+  const ticks = [];
+  for (let value = tickMin; value <= tickMax + 0.0001; value += tickStep) {
+    ticks.push(value);
+  }
   const axisColor = getComputedStyle(document.documentElement).getPropertyValue('--text-tertiary').trim() || '#7a8292';
 
   ctx.fillStyle = axisColor;
@@ -3957,11 +4268,8 @@ function drawMultiLineChart(canvas, series) {
   });
 
   if (!series || series.length === 0) {
-    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-    ctx.beginPath();
-    ctx.moveTo(paddingLeft, height - paddingBottom);
-    ctx.lineTo(width - paddingRight, paddingTop);
-    ctx.stroke();
+    canvas._chartPoints = [];
+    bindChartHover(canvas);
     return;
   }
 
@@ -3971,26 +4279,58 @@ function drawMultiLineChart(canvas, series) {
     if (!points.length) return;
     ctx.lineWidth = 2.2;
     ctx.strokeStyle = line.color || '#2aa9ff';
+    const denom = Math.max(points.length - 1, 1);
+    const lineDateValues = points
+      .map((point) => (Number.isFinite(point.xValue) ? point.xValue : null))
+      .filter((value) => Number.isFinite(value));
+    const hasLineDateScale = lineDateValues.length >= 2;
+    const lineMinDateValue = hasLineDateScale ? Math.min(...lineDateValues) : null;
+    const lineMaxDateValue = hasLineDateScale ? Math.max(...lineDateValues) : null;
+    const canScaleLineByDate =
+      hasLineDateScale &&
+      Number.isFinite(lineMinDateValue) &&
+      Number.isFinite(lineMaxDateValue) &&
+      lineMaxDateValue > lineMinDateValue;
     const chartPoints = points.map((point, index) => {
-      const fallbackDenom = Math.max(points.length - 1, 1);
-      const x = paddingLeft + ((width - paddingLeft - paddingRight) / fallbackDenom) * index;
-      const y =
-        height -
-        paddingBottom -
-        ((point.value - valueRange.min) / (valueRange.max - valueRange.min)) *
-          (height - paddingTop - paddingBottom);
+      const x = canScaleLineByDate && Number.isFinite(point.xValue)
+        ? paddingLeft +
+          ((point.xValue - lineMinDateValue) / (lineMaxDateValue - lineMinDateValue)) *
+            chartSpan
+        : paddingLeft + (chartSpan / denom) * index;
+      const y = Number.isFinite(point.value)
+        ? height -
+          paddingBottom -
+          ((point.value - valueRange.min) / (valueRange.max - valueRange.min)) *
+            (height - paddingTop - paddingBottom)
+        : null;
       const entry = {
         x,
         y,
         value: point.value,
         label: point.label ? `${line.name}: ${point.label}` : line.name,
+        xValue: Number.isFinite(point.xValue) ? point.xValue : null,
       };
-      allPoints.push(entry);
+      if (Number.isFinite(entry.y)) {
+        allPoints.push(entry);
+      }
       return entry;
     });
-
-    traceSmoothLine(ctx, chartPoints, state.graphSmoothness);
-    ctx.stroke();
+    const drawablePoints = chartPoints.filter((point) => Number.isFinite(point.y));
+    if (canScaleLineByDate && drawablePoints.length > 2) {
+      const adjusted = spreadDenseXCoordinates(drawablePoints, paddingLeft, width - paddingRight, 6);
+      drawablePoints.forEach((point, index) => {
+        point.x = adjusted[index];
+      });
+    }
+    if (drawablePoints.length > 1) {
+      traceSmoothLine(ctx, drawablePoints, state.graphSmoothness);
+      ctx.stroke();
+    } else if (drawablePoints.length === 1) {
+      ctx.beginPath();
+      ctx.arc(drawablePoints[0].x, drawablePoints[0].y, 2.2, 0, Math.PI * 2);
+      ctx.fillStyle = line.color || '#2aa9ff';
+      ctx.fill();
+    }
   });
 
   canvas._chartPoints = allPoints;
@@ -4008,6 +4348,126 @@ function dateStringValue(value) {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return 0;
   return Date.UTC(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+}
+
+function getAssessmentDateParts(assessment) {
+  const dateValue = dateStringValue(assessment?.date);
+  if (!dateValue) return null;
+  const date = new Date(dateValue);
+  return {
+    year: date.getUTCFullYear(),
+    month: date.getUTCMonth(),
+  };
+}
+
+function getLatestAssessmentYear(items) {
+  const years = (items || [])
+    .map((item) => getAssessmentDateParts(item)?.year)
+    .filter((year) => Number.isFinite(year));
+  return years.length ? Math.max(...years) : new Date().getFullYear();
+}
+
+function buildMonthlyAveragePoints(items, options = {}) {
+  const weighted = options.weighted === true;
+  const year = Number.isFinite(options.year) ? options.year : getLatestAssessmentYear(items);
+  const buckets = Array.from({ length: 12 }, () => ({
+    sum: 0,
+    totalWeight: 0,
+    count: 0,
+    names: [],
+  }));
+
+  sortAssessments(items || []).forEach((assessment) => {
+    const parts = getAssessmentDateParts(assessment);
+    if (!parts || parts.year !== year) return;
+    const percent = assessment.total > 0 ? (assessment.score / assessment.total) * 100 : 0;
+    const weight = weighted ? (assessment.weight === null ? 1 : assessment.weight) : 1;
+    const bucket = buckets[parts.month];
+    bucket.sum += percent * weight;
+    bucket.totalWeight += weight;
+    bucket.count += 1;
+    if (assessment.name) {
+      bucket.names.push(assessment.name);
+    }
+  });
+
+  const points = MONTH_AXIS_LABELS.map((axisLabel, monthIndex) => {
+    const bucket = buckets[monthIndex];
+    const value = bucket.totalWeight > 0 ? bucket.sum / bucket.totalWeight : null;
+    const monthBaseLabel = `${axisLabel} ${year}`;
+    let label = monthBaseLabel;
+    if (bucket.count === 1 && bucket.names[0]) {
+      label = `${monthBaseLabel} · ${bucket.names[0]}`;
+    } else if (bucket.count > 1) {
+      label = `${monthBaseLabel} · ${bucket.count} assessments`;
+    }
+    return {
+      value,
+      label,
+      axisLabel,
+    };
+  });
+
+  return { year, points };
+}
+
+function addTimelineEdgeLabels(points) {
+  if (!points.length) return points;
+  points[0].axisLabel = formatDate(points[0].xValue);
+  if (points.length > 1) {
+    points[points.length - 1].axisLabel = formatDate(points[points.length - 1].xValue);
+  }
+  return points;
+}
+
+function buildSubjectTimelinePoints(items) {
+  const sorted = sortAssessments(items || []);
+  let lastXValue = -Infinity;
+  const points = sorted.map((assessment) => {
+    const percent = assessment.total > 0 ? (assessment.score / assessment.total) * 100 : 0;
+    const dateLabel = formatDate(assessment.date);
+    let xValue = assessmentDateValue(assessment);
+    if (!Number.isFinite(xValue)) {
+      xValue = lastXValue + 1;
+    } else if (xValue <= lastXValue) {
+      xValue = lastXValue + 1;
+    }
+    lastXValue = xValue;
+    return {
+      value: percent,
+      label: `${dateLabel} · ${assessment.name}`,
+      xValue,
+    };
+  });
+  return addTimelineEdgeLabels(points);
+}
+
+function buildOverallTimelinePoints(items) {
+  const sorted = sortAssessments(items || []);
+  let runningWeight = 0;
+  let runningSum = 0;
+  let lastXValue = -Infinity;
+  const points = sorted.map((assessment) => {
+    const weight = assessment.weight === null ? 1 : assessment.weight;
+    const percent = assessment.total > 0 ? (assessment.score / assessment.total) * 100 : 0;
+    runningSum += (percent / 100) * weight;
+    runningWeight += weight;
+    const dateLabel = formatDate(assessment.date);
+    const name = assessment.subjectName ? `${assessment.subjectName}: ${assessment.name}` : assessment.name;
+    let xValue = assessmentDateValue(assessment);
+    if (!Number.isFinite(xValue)) {
+      xValue = lastXValue + 1;
+    } else if (xValue <= lastXValue) {
+      xValue = lastXValue + 1;
+    }
+    lastXValue = xValue;
+    return {
+      value: (runningSum / runningWeight) * 100,
+      label: `${dateLabel} · ${name}`,
+      xValue,
+    };
+  });
+  return addTimelineEdgeLabels(points);
 }
 
 function dateKeyFromParts(year, month, day) {

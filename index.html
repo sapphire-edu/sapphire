@@ -250,7 +250,7 @@
               Each subject plotted with its own color for quick comparison.
             </p>
             <div class="chart-wrap">
-              <canvas id="subjects-chart" height="220"></canvas>
+              <canvas id="subjects-chart" height="260"></canvas>
             </div>
             <div class="progress-legend" id="subjects-legend">
               No subject data yet.
@@ -261,17 +261,48 @@
           <section class="card assessment-card glow-soft">
             <div class="section-eyebrow">All assessments</div>
             <h2 class="section-title">Detailed breakdown</h2>
+            <div class="assessment-tools">
+              <label class="field assessment-search">
+                <span>Search assessment</span>
+                <input
+                  id="assessment-search"
+                  type="search"
+                  placeholder="Type an assessment name"
+                  autocomplete="off"
+                />
+              </label>
+            </div>
             <div class="table-wrap">
               <table>
                 <thead>
-                  <tr>
-                    <th>Subject</th>
+                  <tr id="assessment-table-head">
+                    <th aria-sort="none">
+                      <button class="table-sort" type="button" data-assessment-sort="subject">
+                        Subject <span class="table-sort-indicator" data-sort-indicator>↕</span>
+                      </button>
+                    </th>
                     <th>Assessment</th>
                     <th>Score</th>
-                    <th>Weight</th>
-                    <th>Percent</th>
-                    <th>Grade</th>
-                    <th>Date</th>
+                    <th aria-sort="none">
+                      <button class="table-sort" type="button" data-assessment-sort="weight">
+                        Weight <span class="table-sort-indicator" data-sort-indicator>↕</span>
+                      </button>
+                    </th>
+                    <th aria-sort="none">
+                      <button class="table-sort" type="button" data-assessment-sort="percent">
+                        Percent <span class="table-sort-indicator" data-sort-indicator>↕</span>
+                      </button>
+                    </th>
+                    <th aria-sort="none">
+                      <button class="table-sort" type="button" data-assessment-sort="grade">
+                        Grade <span class="table-sort-indicator" data-sort-indicator>↕</span>
+                      </button>
+                    </th>
+                    <th aria-sort="none">
+                      <button class="table-sort" type="button" data-assessment-sort="date">
+                        Date <span class="table-sort-indicator" data-sort-indicator>↕</span>
+                      </button>
+                    </th>
                     <th></th>
                   </tr>
                 </thead>
