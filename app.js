@@ -29,6 +29,111 @@ const palette = [
   '#9c4663',
   '#6d7573'
 ];
+const DEFAULT_SUBJECT_ICON = 'notebook';
+const SUBJECT_ICON_OPTIONS = [
+  { value: 'notebook', label: 'Notebook' },
+  { value: 'book', label: 'Book' },
+  { value: 'book-open', label: 'Book Open' },
+  { value: 'books', label: 'Books' },
+  { value: 'bookmark-simple', label: 'Bookmark' },
+  { value: 'pencil-simple', label: 'Pencil' },
+  { value: 'pen', label: 'Pen' },
+  { value: 'calculator', label: 'Calculator' },
+  { value: 'sigma', label: 'Sigma' },
+  { value: 'flask', label: 'Flask' },
+  { value: 'atom', label: 'Atom' },
+  { value: 'globe-hemisphere-west', label: 'Globe West' },
+  { value: 'globe', label: 'Globe' },
+  { value: 'map-trifold', label: 'Map' },
+  { value: 'compass', label: 'Compass' },
+  { value: 'heartbeat', label: 'Heartbeat' },
+  { value: 'hourglass', label: 'Hourglass' },
+  { value: 'broadcast', label: 'Broadcast' },
+  { value: 'jar', label: 'Jar' },
+  { value: 'baby', label: 'Baby' },
+  { value: 'shopping-cart', label: 'Shopping Cart' },
+  { value: 'laptop', label: 'Laptop' },
+  { value: 'desktop', label: 'Desktop' },
+  { value: 'terminal-window', label: 'Terminal' },
+  { value: 'code', label: 'Code' },
+  { value: 'music-notes', label: 'Music Notes' },
+  { value: 'music-note', label: 'Music Note' },
+  { value: 'microphone', label: 'Microphone' },
+  { value: 'wrench', label: 'Wrench' },
+  { value: 'hammer', label: 'Hammer' },
+  { value: 'scissors', label: 'Scissors' },
+  { value: 'paint-brush', label: 'Paint Brush' },
+  { value: 'palette', label: 'Palette' },
+  { value: 'camera', label: 'Camera' },
+  { value: 'film-strip', label: 'Film Strip' },
+  { value: 'translate', label: 'Translate' },
+  { value: 'fork-knife', label: 'Food' },
+  { value: 'barbell', label: 'Barbell' },
+  { value: 'brain', label: 'Brain' },
+  { value: 'leaf', label: 'Leaf' },
+  { value: 'lightbulb', label: 'Lightbulb' },
+  { value: 'target', label: 'Target' },
+  { value: 'trophy', label: 'Trophy' },
+  { value: 'medal', label: 'Medal' },
+  { value: 'rocket-launch', label: 'Rocket' },
+  { value: 'airplane', label: 'Airplane' },
+  { value: 'car', label: 'Car' },
+  { value: 'house', label: 'House' },
+  { value: 'storefront', label: 'Storefront' },
+  { value: 'star', label: 'Star' },
+];
+const SUBJECT_ICON_VALUES = new Set(SUBJECT_ICON_OPTIONS.map((option) => option.value));
+const CORE_SUBJECTS = ['English', 'Geography', 'History', 'Mathematics', 'PDHPE', 'Science'];
+const ELECTIVE_SUBJECTS = [
+  'Broadcast Media',
+  'Ceramics',
+  'Child Studies',
+  'Commerce',
+  'Computing Technology',
+  'Dance',
+  'Design and Technology',
+  'Drama',
+  'Food Technology',
+  'Languages',
+  'International Studies',
+  'Multimedia',
+  'Music',
+  'Photography',
+  'PASS',
+  'Psychology',
+  'Textiles Technology',
+  'Woodworking',
+  'Visual Arts',
+  'Visual Design',
+];
+const SUBJECT_ICON_PRESETS = {
+  english: 'book-open',
+  geography: 'globe-hemisphere-west',
+  history: 'hourglass',
+  mathematics: 'calculator',
+  pdhpe: 'heartbeat',
+  science: 'flask',
+  'broadcast media': 'broadcast',
+  ceramics: 'jar',
+  'child studies': 'baby',
+  commerce: 'bank',
+  'computing technology': 'laptop',
+  dance: 'music-notes',
+  'design and technology': 'wrench',
+  drama: 'microphone',
+  'food technology': 'fork-knife',
+  languages: 'translate',
+  'international studies': 'globe',
+  multimedia: 'film-strip',
+  music: 'music-note',
+  photography: 'camera',
+  pass: 'barbell',
+  psychology: 'brain',
+  'textiles technology': 'scissors',
+  woodworking: 'hammer',
+  'visual arts': 'palette',
+  'visual design': 'pen',
+};
 const LIGHT_THEMES = ['pearl', 'mint', 'sunrise', 'sky'];
 const DARK_THEMES = ['midnight', 'aurora', 'cosmic', 'sapphire'];
 
@@ -52,6 +157,7 @@ let syncStatusTimer = null;
 let syncStatusInterval = null;
 let confirmResolver = null;
 let confirmCleanup = null;
+let iconPickerResolver = null;
 
 const onboardingState = {
   step: 0,
@@ -150,7 +256,16 @@ const elements = {
   importRestore: document.getElementById('import-restore'),
   importMessage: document.getElementById('import-message'),
   resetData: document.getElementById('reset-data'),
-  subjectForm: document.getElementById('subject-form'),
+  addSubjectOpen: document.getElementById('add-subject-open'),
+  addSubjectModal: document.getElementById('add-subject-modal'),
+  addSubjectForm: document.getElementById('add-subject-form'),
+  addSubjectName: document.getElementById('add-subject-name'),
+  addSubjectIcon: document.getElementById('add-subject-icon'),
+  addSubjectIconPreview: document.getElementById('add-subject-icon-preview'),
+  addSubjectIconCarousel: document.getElementById('add-subject-icon-carousel'),
+  addSubjectColor: document.getElementById('add-subject-color'),
+  addSubjectColorValue: document.getElementById('add-subject-color-value'),
+  addSubjectSwatches: document.getElementById('add-subject-swatches'),
   subjectMessage: document.getElementById('subject-message'),
   subjectModal: document.getElementById('subject-modal'),
   subjectModalBody: document.getElementById('subject-modal-body'),
@@ -201,12 +316,19 @@ const elements = {
   onboardingGraphSmoothnessValue: document.getElementById('onboarding-graph-smoothness-value'),
   onboardingSmoothingPreview: document.getElementById('onboarding-smoothing-preview'),
   electiveGrid: document.getElementById('elective-grid'),
-  customElective: document.getElementById('custom-elective'),
+  customElectiveAdd: document.getElementById('custom-elective-add'),
+  customElectiveList: document.getElementById('custom-elective-list'),
   confirmModal: document.getElementById('confirm-modal'),
   confirmTitle: document.getElementById('confirm-title'),
   confirmMessage: document.getElementById('confirm-message'),
   confirmAccept: document.getElementById('confirm-accept'),
   confirmCancel: document.getElementById('confirm-cancel'),
+  iconPickerModal: document.getElementById('icon-picker-modal'),
+  iconPickerForm: document.getElementById('icon-picker-form'),
+  iconPickerInput: document.getElementById('icon-picker-input'),
+  iconPickerPreview: document.getElementById('icon-picker-preview'),
+  iconPickerMessage: document.getElementById('icon-picker-message'),
+  iconPickerCancel: document.getElementById('icon-picker-cancel'),
 };
 
 const now = new Date();
@@ -223,6 +345,7 @@ let currentOrderDropTarget = null;
 
 setTheme(state.theme.mode, state.theme.variant);
 initTabs();
+renderElectiveGrid();
 
 updateGreeting();
 maybeStartOnboarding();
@@ -317,8 +440,19 @@ if (elements.settingsModal) {
   });
 }
 
+if (elements.addSubjectOpen) {
+  elements.addSubjectOpen.addEventListener('click', () => {
+    if (elements.addSubjectModal?.classList.contains('is-open')) {
+      closeAddSubjectPopup();
+      return;
+    }
+    openAddSubjectPopup();
+  });
+}
+
 if (elements.subjectsOrderOpen) {
   elements.subjectsOrderOpen.addEventListener('click', () => {
+    closeAddSubjectPopup();
     renderSubjectsOrderList();
     openModal(elements.subjectsOrderModal);
   });
@@ -380,6 +514,85 @@ if (elements.subjectsOrderList) {
   });
 }
 
+if (elements.addSubjectModal) {
+  elements.addSubjectModal.addEventListener('click', async (event) => {
+    const actionTarget = event.target.closest('[data-action]');
+    if (!actionTarget) return;
+    const action = actionTarget.dataset.action;
+
+    if (action === 'close-add-subject') {
+      closeAddSubjectPopup();
+      return;
+    }
+
+    if (action === 'carousel-prev') {
+      scrollIconCarousel(actionTarget, -1);
+      return;
+    }
+
+    if (action === 'carousel-next') {
+      scrollIconCarousel(actionTarget, 1);
+      return;
+    }
+
+    if (action === 'set-add-subject-color') {
+      setAddSubjectColor(actionTarget.dataset.color);
+      return;
+    }
+
+    if (action === 'set-add-subject-icon') {
+      setAddSubjectIcon(actionTarget.dataset.icon);
+      return;
+    }
+
+    if (action === 'set-add-subject-icon-other') {
+      const current = normalizeSubjectIcon(elements.addSubjectIcon?.value);
+      const icon = await showCustomIconPicker(current);
+      if (!icon) return;
+      setAddSubjectIcon(icon);
+    }
+  });
+}
+
+if (elements.addSubjectForm) {
+  elements.addSubjectForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const formData = new FormData(elements.addSubjectForm);
+    const subjectName = String(formData.get('subjectName') || '').trim();
+    const icon = resolveSubjectIcon(formData.get('subjectIcon'), subjectName);
+    const color = normalizeColorValue(formData.get('subjectColor'))
+      || palette[state.data.subjects.length % palette.length];
+
+    if (!subjectName) {
+      return setSubjectMessage('Please enter a subject name.');
+    }
+
+    const existing = state.data.subjects.find(
+      (subject) => subject.name.toLowerCase() === subjectName.toLowerCase()
+    );
+    if (existing) {
+      return setSubjectMessage('That subject already exists.');
+    }
+
+    getOrCreateSubject(subjectName, { icon, color });
+    saveData(state.data);
+    render();
+    closeAddSubjectPopup();
+  });
+}
+
+if (elements.addSubjectModal) {
+  elements.addSubjectModal.addEventListener('input', (event) => {
+    const target = event.target;
+    if (target instanceof HTMLInputElement && target.name === 'subjectColor') {
+      setAddSubjectColor(target.value);
+    }
+    if (target === elements.addSubjectName) {
+      setSubjectMessage('');
+    }
+  });
+}
+
 if (elements.exportModal) {
   elements.exportModal.addEventListener('click', (event) => {
     const actionTarget = event.target.closest('[data-action]');
@@ -397,6 +610,39 @@ if (elements.confirmModal) {
     if (actionTarget.dataset.action === 'close-confirm') {
       dismissConfirm(false);
     }
+  });
+}
+
+if (elements.iconPickerModal) {
+  elements.iconPickerModal.addEventListener('click', (event) => {
+    const actionTarget = event.target.closest('[data-action]');
+    if (!actionTarget) return;
+    if (actionTarget.dataset.action === 'close-icon-picker') {
+      dismissIconPicker(null);
+    }
+  });
+}
+
+if (elements.iconPickerForm) {
+  elements.iconPickerForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    applyIconPickerSelection();
+  });
+}
+
+if (elements.iconPickerInput) {
+  elements.iconPickerInput.addEventListener('input', (event) => {
+    const value = String(event.target.value || '');
+    updateIconPickerPreview(value);
+    if (!value || normalizeSubjectIcon(value)) {
+      setIconPickerMessage('');
+    }
+  });
+}
+
+if (elements.iconPickerCancel) {
+  elements.iconPickerCancel.addEventListener('click', () => {
+    dismissIconPicker(null);
   });
 }
 
@@ -570,6 +816,63 @@ if (elements.onboardingImportApply) {
   });
 }
 
+if (elements.customElectiveAdd) {
+  elements.customElectiveAdd.addEventListener('click', () => {
+    addCustomElectiveRow();
+  });
+}
+
+if (elements.customElectiveList) {
+  elements.customElectiveList.addEventListener('click', async (event) => {
+    const actionTarget = event.target.closest('[data-action]');
+    if (!actionTarget) return;
+    const action = actionTarget.dataset.action;
+
+    if (action === 'carousel-prev') {
+      scrollIconCarousel(actionTarget, -1);
+      return;
+    }
+
+    if (action === 'carousel-next') {
+      scrollIconCarousel(actionTarget, 1);
+      return;
+    }
+
+    if (action === 'set-custom-elective-icon') {
+      const row = actionTarget.closest('[data-custom-elective-row]');
+      const hiddenInput = row?.querySelector('input[name="customElectiveIcon"]');
+      const icon = resolveSubjectIcon(actionTarget.dataset.icon, '');
+      if (hiddenInput) {
+        hiddenInput.value = icon;
+      }
+      const carousel = actionTarget.closest('[data-icon-carousel]');
+      setIconCarouselActive(carousel, icon);
+      return;
+    }
+
+    if (action === 'set-custom-elective-icon-other') {
+      const row = actionTarget.closest('[data-custom-elective-row]');
+      const hiddenInput = row?.querySelector('input[name="customElectiveIcon"]');
+      const current = normalizeSubjectIcon(hiddenInput?.value);
+      const icon = await showCustomIconPicker(current);
+      if (!icon) return;
+      if (hiddenInput) {
+        hiddenInput.value = icon;
+      }
+      const carousel = actionTarget.closest('[data-icon-carousel]');
+      setIconCarouselActive(carousel, icon);
+      return;
+    }
+
+    const button = event.target.closest('[data-action="remove-custom-elective"]');
+    if (!button) return;
+    const row = button.closest('[data-custom-elective-row]');
+    if (row) {
+      row.remove();
+    }
+  });
+}
+
 if (elements.resetData) {
   elements.resetData.addEventListener('click', async () => {
     const confirmed = await showConfirm({
@@ -643,29 +946,6 @@ if (elements.upcomingForm) {
   });
 }
 
-if (elements.subjectForm) {
-  elements.subjectForm.addEventListener('submit', (event) => {
-    event.preventDefault();
-    const formData = new FormData(elements.subjectForm);
-    const subjectName = String(formData.get('subjectName') || '').trim();
-
-    if (!subjectName) {
-      return setSubjectMessage('Please enter a subject name.');
-    }
-
-    const existing = state.data.subjects.find((subject) => subject.name.toLowerCase() === subjectName.toLowerCase());
-    if (existing) {
-      return setSubjectMessage('That subject already exists.');
-    }
-
-    getOrCreateSubject(subjectName);
-    saveData(state.data);
-    elements.subjectForm.reset();
-    setSubjectMessage('Subject added.');
-    render();
-  });
-}
-
 if (elements.subjectGrid) {
   elements.subjectGrid.addEventListener('click', (event) => {
     const openButton = event.target.closest('[data-action="open-subject"]');
@@ -680,6 +960,16 @@ if (elements.subjectModal) {
     const actionTarget = event.target.closest('[data-action]');
     if (!actionTarget) return;
     const action = actionTarget.dataset.action;
+
+    if (action === 'carousel-prev') {
+      scrollIconCarousel(actionTarget, -1);
+      return;
+    }
+
+    if (action === 'carousel-next') {
+      scrollIconCarousel(actionTarget, 1);
+      return;
+    }
 
     if (action === 'close-subject') {
       closeSubjectModal();
@@ -708,6 +998,27 @@ if (elements.subjectModal) {
       if (subjectId && color) {
         applySubjectColor(subjectId, color);
       }
+      return;
+    }
+
+    if (action === 'set-subject-icon') {
+      const subjectId = actionTarget.dataset.subjectId || activeSubjectId;
+      const icon = resolveSubjectIcon(actionTarget.dataset.icon, '');
+      if (subjectId && icon) {
+        applySubjectIcon(subjectId, icon);
+      }
+      return;
+    }
+
+    if (action === 'set-subject-icon-other') {
+      const subjectId = actionTarget.dataset.subjectId || activeSubjectId;
+      if (!subjectId) return;
+      const subject = state.data.subjects.find((item) => item.id === subjectId);
+      if (!subject) return;
+      const current = resolveSubjectIcon(subject.icon, subject.name);
+      const icon = await showCustomIconPicker(current);
+      if (!icon) return;
+      applySubjectIcon(subjectId, icon);
       return;
     }
 
@@ -763,12 +1074,12 @@ if (elements.subjectModal) {
 if (elements.subjectModal) {
   elements.subjectModal.addEventListener('input', (event) => {
     const target = event.target;
-    if (!(target instanceof HTMLInputElement)) return;
-    if (target.name !== 'subjectColor') return;
-    const subjectId = target.dataset.subjectId || activeSubjectId;
-    const color = target.value;
-    if (subjectId && color) {
-      applySubjectColor(subjectId, color);
+    if (target instanceof HTMLInputElement && target.name === 'subjectColor') {
+      const subjectId = target.dataset.subjectId || activeSubjectId;
+      const color = target.value;
+      if (subjectId && color) {
+        applySubjectColor(subjectId, color);
+      }
     }
   });
 }
@@ -874,8 +1185,16 @@ document.addEventListener('keydown', (event) => {
     dismissConfirm(false);
     return;
   }
+  if (elements.iconPickerModal?.classList.contains('is-open')) {
+    dismissIconPicker(null);
+    return;
+  }
   if (elements.authMenu?.classList.contains('is-open')) {
     closeAuthMenu();
+    return;
+  }
+  if (elements.addSubjectModal?.classList.contains('is-open')) {
+    closeAddSubjectPopup();
     return;
   }
   if (elements.settingsModal?.classList.contains('is-open')) {
@@ -1009,10 +1328,12 @@ function normalizeData(parsed) {
   const subjects = parsed.subjects.map((subject, index) => {
     const assessments = Array.isArray(subject.assessments) ? subject.assessments : [];
     const upcoming = Array.isArray(subject.upcoming) ? subject.upcoming : [];
+    const name = subject.name || 'Untitled Subject';
     return {
       id: subject.id || cryptoRandomId(),
-      name: subject.name || 'Untitled Subject',
+      name,
       color: subject.color || palette[index % palette.length],
+      icon: resolveSubjectIcon(subject.icon || subject.subjectIcon, name),
       assessments: assessments.map((assessment, assessmentIndex) => {
         const date = assessment.date || todayValue;
         const dateValue = new Date(date).getTime();
@@ -1136,7 +1457,7 @@ function updateAuthUI() {
     updateAuthMenu();
     if (elements.onboardingAuth) {
       elements.onboardingAuth.disabled = true;
-      elements.onboardingAuth.textContent = 'Sign in with Google';
+      elements.onboardingAuth.innerHTML = `${iconHtml('sign-in')}Sign in with Google`;
     }
     updateSyncStatus('Private • Stored on this device');
     return;
@@ -1151,7 +1472,7 @@ function updateAuthUI() {
     updateAuthMenu();
     if (elements.onboardingAuth) {
       elements.onboardingAuth.disabled = false;
-      elements.onboardingAuth.textContent = 'Sign in with Google';
+      elements.onboardingAuth.innerHTML = `${iconHtml('sign-in')}Sign in with Google`;
     }
     updateSyncStatus('Private • Stored on this device');
     return;
@@ -1164,7 +1485,7 @@ function updateAuthUI() {
   updateAuthMenu();
   if (elements.onboardingAuth) {
     elements.onboardingAuth.disabled = true;
-    elements.onboardingAuth.textContent = 'Signed in';
+    elements.onboardingAuth.innerHTML = `${iconHtml('check-circle')}Signed in`;
   }
   updateSyncStatus();
 }
@@ -1314,8 +1635,15 @@ function formatSyncTimestamp(timestamp) {
 }
 
 function buildCloudPayload() {
+  const subjects = (Array.isArray(state.data.subjects) ? state.data.subjects : []).map((subject) => {
+    const name = subject?.name || 'Untitled Subject';
+    return {
+      ...subject,
+      icon: resolveSubjectIcon(subject?.icon || subject?.subjectIcon, name),
+    };
+  });
   const payload = {
-    subjects: Array.isArray(state.data.subjects) ? state.data.subjects : [],
+    subjects,
     lastUpdatedAt: Number.isFinite(state.data.lastUpdatedAt)
       ? state.data.lastUpdatedAt
       : Date.now(),
@@ -1446,6 +1774,7 @@ async function pullOrSeedCloudData() {
       queueCloudSync(true);
       return;
     }
+    const remoteNeedsIconBackfill = payloadHasMissingSubjectIcons(remotePayload);
     const remoteData = normalizeData(remotePayload);
     const localSnapshot = normalizeData(loadData());
     const hasLocal =
@@ -1463,6 +1792,9 @@ async function pullOrSeedCloudData() {
     }
     if (hasRemote) {
       applyRemoteData(remoteData);
+      if (remoteNeedsIconBackfill) {
+        queueCloudSync(true);
+      }
       return;
     }
     if (hasLocal) {
@@ -1489,6 +1821,14 @@ function readRemotePayload(doc) {
     }
   }
   return doc.payload;
+}
+
+function payloadHasMissingSubjectIcons(payload) {
+  if (!payload || !Array.isArray(payload.subjects)) return false;
+  return payload.subjects.some((subject) => {
+    if (!subject || typeof subject !== 'object') return true;
+    return !normalizeSubjectIcon(subject.icon || subject.subjectIcon);
+  });
 }
 
 function applyRemoteData(remoteData) {
@@ -1775,6 +2115,80 @@ function closeModal(modal) {
   hideChartTooltip();
 }
 
+function buildAddSubjectSwatches(selectedColor) {
+  const activeColor = normalizeColorValue(selectedColor).toLowerCase();
+  return palette
+    .map((color) => {
+      const activeClass = color.toLowerCase() === activeColor ? ' is-active' : '';
+      return `
+        <button class="color-swatch${activeClass}" type="button" data-action="set-add-subject-color" data-color="${color}" style="--swatch:${color}" aria-label="Set subject color to ${color}"></button>
+      `;
+    })
+    .join('');
+}
+
+function setAddSubjectColor(color) {
+  if (!elements.addSubjectColor) return;
+  const normalized = normalizeColorValue(color)
+    || normalizeColorValue(elements.addSubjectColor.value)
+    || palette[state.data.subjects.length % palette.length];
+  elements.addSubjectColor.value = normalized;
+  if (elements.addSubjectColorValue) {
+    elements.addSubjectColorValue.textContent = normalized.toUpperCase();
+  }
+  if (elements.addSubjectIconPreview) {
+    elements.addSubjectIconPreview.style.background = normalized;
+  }
+  if (elements.addSubjectSwatches) {
+    elements.addSubjectSwatches.innerHTML = buildAddSubjectSwatches(normalized);
+  }
+}
+
+function setAddSubjectIcon(icon) {
+  if (!elements.addSubjectIcon) return;
+  const subjectName = String(elements.addSubjectName?.value || '').trim();
+  const resolved = resolveSubjectIcon(icon, subjectName);
+  elements.addSubjectIcon.value = resolved;
+  if (elements.addSubjectIconPreview) {
+    elements.addSubjectIconPreview.innerHTML = subjectIconHtml(resolved, '');
+  }
+  const carousel = elements.addSubjectIconCarousel?.querySelector('[data-icon-carousel]');
+  setIconCarouselActive(carousel, resolved);
+}
+
+function openAddSubjectPopup() {
+  if (!elements.addSubjectModal || !elements.addSubjectForm) return;
+  elements.addSubjectForm.reset();
+  setSubjectMessage('');
+
+  const defaultColor = palette[state.data.subjects.length % palette.length];
+  if (elements.addSubjectIconCarousel) {
+    elements.addSubjectIconCarousel.innerHTML = buildIconCarousel({
+      selectedIcon: DEFAULT_SUBJECT_ICON,
+      action: 'set-add-subject-icon',
+      otherAction: 'set-add-subject-icon-other',
+      ariaLabel: 'Subject icon options',
+    });
+  }
+  setAddSubjectIcon(DEFAULT_SUBJECT_ICON);
+  setAddSubjectColor(defaultColor);
+  const panel = elements.addSubjectModal.querySelector('.modal-panel');
+  if (panel) {
+    panel.style.left = '';
+    panel.style.top = '';
+  }
+  openModal(elements.addSubjectModal);
+  requestAnimationFrame(() => {
+    elements.addSubjectName?.focus();
+  });
+}
+
+function closeAddSubjectPopup() {
+  if (!elements.addSubjectModal) return;
+  closeModal(elements.addSubjectModal);
+  setSubjectMessage('');
+}
+
 function showConfirm(options) {
   if (!elements.confirmModal || !elements.confirmAccept || !elements.confirmCancel) {
     return Promise.resolve(false);
@@ -1836,6 +2250,14 @@ function openSubjectModal(subjectId) {
   const averageText = stats.average === null ? '--' : `${stats.average.toFixed(1)}%`;
   const gradeText = stats.grade ?? '--';
   const subjectColor = subject.color || palette[0];
+  const subjectIcon = resolveSubjectIcon(subject.icon, subject.name);
+  const iconCarouselHtml = buildIconCarousel({
+    selectedIcon: subjectIcon,
+    action: 'set-subject-icon',
+    otherAction: 'set-subject-icon-other',
+    dataAttrs: `data-subject-id="${subject.id}"`,
+    ariaLabel: `${subject.name} icon options`,
+  });
   const swatchHtml = palette
     .map((color) => {
       const activeClass = color.toLowerCase() === subjectColor.toLowerCase() ? ' is-active' : '';
@@ -1881,6 +2303,20 @@ function openSubjectModal(subjectId) {
         <canvas id="subject-modal-chart"></canvas>
       </div>
       <div class="subject-color-panel">
+        <div class="subject-color-header subject-icon-header">
+          <div>
+            <div class="section-eyebrow">Subject icon</div>
+            <div class="subject-color-meta">Shown on cards and the top subject.</div>
+          </div>
+          <div class="subject-icon-control">
+            <span class="subject-icon-preview" data-role="icon-preview" style="background:${subjectColor}">
+              ${subjectIconHtml(subjectIcon)}
+            </span>
+            <div class="subject-icon-carousel">
+              ${iconCarouselHtml}
+            </div>
+          </div>
+        </div>
         <div class="subject-color-header">
           <div>
             <div class="section-eyebrow">Subject color</div>
@@ -1896,9 +2332,18 @@ function openSubjectModal(subjectId) {
         </div>
       </div>
       <div class="modal-actions">
-        <button class="primary-button" type="button" data-action="open-assessment">Add Assessment</button>
-        <button class="ghost-button" type="button" data-action="open-upcoming">Add Upcoming</button>
-        <button class="ghost-button" type="button" data-action="delete-subject">Delete Subject</button>
+        <button class="primary-button with-icon" type="button" data-action="open-assessment">
+          ${iconHtml('plus-circle')}
+          Add Assessment
+        </button>
+        <button class="ghost-button with-icon" type="button" data-action="open-upcoming">
+          ${iconHtml('calendar')}
+          Add Upcoming
+        </button>
+        <button class="ghost-button with-icon" type="button" data-action="delete-subject">
+          ${iconHtml('trash')}
+          Delete Subject
+        </button>
       </div>
       <div class="subject-upcoming">
         <div class="history-title">Upcoming assessments</div>
@@ -2076,13 +2521,16 @@ function renderSubjectsOrderList() {
   }
   elements.subjectsOrderList.innerHTML = state.data.subjects
     .map((subject) => {
+      const subjectIcon = subjectIconHtml(resolveSubjectIcon(subject.icon, subject.name));
       return `
         <div class="order-item" data-order-item="true" data-id="${subject.id}" draggable="true">
           <div class="order-left">
-            <span class="order-swatch" style="--swatch:${subject.color}"></span>
+            <span class="order-icon" style="--swatch:${subject.color}">${subjectIcon}</span>
             <div class="order-name">${subject.name}</div>
           </div>
-          <div class="order-handle" aria-hidden="true">⠿</div>
+          <div class="order-handle" aria-hidden="true">
+            <i class="ph ph-dots-six-vertical"></i>
+          </div>
         </div>
       `;
     })
@@ -2137,6 +2585,264 @@ function maybeStartOnboarding() {
   openModal(elements.onboardingModal);
 }
 
+function normalizeSubjectNameKey(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function normalizeColorValue(value) {
+  const color = String(value || '').trim();
+  return /^#[0-9a-fA-F]{6}$/.test(color) ? color : '';
+}
+
+function normalizeSubjectIcon(value) {
+  const icon = String(value || '').trim().toLowerCase();
+  if (!icon) return '';
+  return /^[a-z0-9-]{1,64}$/.test(icon) ? icon : '';
+}
+
+function getSubjectPreset(name) {
+  const key = normalizeSubjectNameKey(name);
+  const presetIcon = SUBJECT_ICON_PRESETS[key];
+  return {
+    icon: normalizeSubjectIcon(presetIcon) || DEFAULT_SUBJECT_ICON,
+  };
+}
+
+function resolveSubjectIcon(icon, name) {
+  const direct = normalizeSubjectIcon(icon);
+  if (direct) return direct;
+  return getSubjectPreset(name).icon;
+}
+
+function iconHtml(name, className = 'button-icon', weight = 'regular') {
+  const safeName = /^[a-z0-9-]+$/.test(String(name || '').trim().toLowerCase())
+    ? String(name).trim().toLowerCase()
+    : 'star';
+  const classAttr = className ? ` ${className}` : '';
+  const weightClass = weight === 'bold' ? 'ph ph-bold' : 'ph';
+  return `<i class="${weightClass} ph-${safeName}${classAttr}" aria-hidden="true"></i>`;
+}
+
+function subjectIconHtml(name, className = 'button-icon') {
+  return iconHtml(name, className, 'bold');
+}
+
+function buildIconCarouselItems(selectedIcon, action, otherAction, dataAttrs = '') {
+  const selected = resolveSubjectIcon(selectedIcon);
+  const selectedInCatalog = SUBJECT_ICON_VALUES.has(selected);
+  return SUBJECT_ICON_OPTIONS
+    .map((option) => {
+      const activeClass = option.value === selected ? ' is-active' : '';
+      return `
+        <button
+          class="icon-carousel-item${activeClass}"
+          type="button"
+          data-action="${action}"
+          data-icon="${option.value}"
+          ${dataAttrs}
+          aria-label="${option.label}"
+          title="${option.label}"
+        >
+          ${iconHtml(option.value, '')}
+        </button>
+      `;
+    })
+    .join('') + `
+      <button
+        class="icon-carousel-item icon-carousel-item--other${selectedInCatalog ? '' : ' is-active'}"
+        type="button"
+        data-action="${otherAction}"
+        data-other="true"
+        ${dataAttrs}
+        aria-label="${selectedInCatalog ? 'Other icon' : `Other (${selected})`}"
+        title="${selectedInCatalog ? 'Other icon' : `Other (${selected})`}"
+      >
+        ${selectedInCatalog ? iconHtml('dots-three', '') : iconHtml(selected, '')}
+      </button>
+    `;
+}
+
+function buildIconCarousel({
+  selectedIcon,
+  action,
+  otherAction,
+  dataAttrs = '',
+  ariaLabel = 'Icon options',
+}) {
+  const items = buildIconCarouselItems(selectedIcon, action, otherAction, dataAttrs);
+  return `
+    <div class="icon-carousel" data-icon-carousel="true">
+      <button class="icon-carousel-nav" type="button" data-action="carousel-prev" aria-label="Scroll icons left">
+        ${iconHtml('caret-left', '')}
+      </button>
+      <div class="icon-carousel-track" data-role="icon-carousel-track" aria-label="${ariaLabel}">
+        ${items}
+      </div>
+      <button class="icon-carousel-nav" type="button" data-action="carousel-next" aria-label="Scroll icons right">
+        ${iconHtml('caret-right', '')}
+      </button>
+    </div>
+  `;
+}
+
+function scrollIconCarousel(actionTarget, direction) {
+  const carousel = actionTarget.closest('[data-icon-carousel]');
+  const track = carousel?.querySelector('[data-role="icon-carousel-track"]');
+  if (!track) return;
+  track.scrollBy({ left: 220 * direction, behavior: 'smooth' });
+}
+
+function setIconCarouselActive(carousel, icon) {
+  if (!carousel) return;
+  const selected = normalizeSubjectIcon(icon);
+  const selectedInCatalog = SUBJECT_ICON_VALUES.has(selected);
+  let activeButton = null;
+  carousel.querySelectorAll('.icon-carousel-item').forEach((button) => {
+    const isOther = button.dataset.other === 'true';
+    const active = isOther ? !selectedInCatalog : button.dataset.icon === selected;
+    button.classList.toggle('is-active', active);
+    if (isOther) {
+      button.innerHTML = selectedInCatalog ? iconHtml('dots-three', '') : iconHtml(selected, '');
+      const label = selectedInCatalog ? 'Other icon' : `Other (${selected})`;
+      button.setAttribute('aria-label', label);
+      button.setAttribute('title', label);
+    }
+    if (active) {
+      activeButton = button;
+    }
+  });
+  if (activeButton) {
+    activeButton.scrollIntoView({ block: 'nearest', inline: 'center' });
+  }
+}
+
+function showCustomIconPicker(initialValue = '') {
+  if (!elements.iconPickerModal || !elements.iconPickerInput) {
+    return Promise.resolve(null);
+  }
+
+  dismissIconPicker(null);
+
+  const initial = normalizeSubjectIcon(initialValue) || 'wave-sine';
+  elements.iconPickerInput.value = initial;
+  updateIconPickerPreview(initial);
+  setIconPickerMessage('');
+  openModal(elements.iconPickerModal);
+  requestAnimationFrame(() => {
+    elements.iconPickerInput?.focus();
+    elements.iconPickerInput?.select();
+  });
+
+  return new Promise((resolve) => {
+    iconPickerResolver = resolve;
+  });
+}
+
+function applyIconPickerSelection() {
+  if (!elements.iconPickerInput) return;
+  const normalized = normalizeSubjectIcon(elements.iconPickerInput.value);
+  if (!normalized) {
+    setIconPickerMessage('Use lowercase letters, numbers, and hyphens (example: wave-sine).');
+    return;
+  }
+  dismissIconPicker(normalized);
+}
+
+function updateIconPickerPreview(value) {
+  if (!elements.iconPickerPreview) return;
+  const normalized = normalizeSubjectIcon(value);
+  elements.iconPickerPreview.innerHTML = iconHtml(normalized || 'question', '');
+}
+
+function setIconPickerMessage(message) {
+  if (!elements.iconPickerMessage) return;
+  elements.iconPickerMessage.textContent = message;
+}
+
+function dismissIconPicker(value) {
+  if (!elements.iconPickerModal) return;
+  closeModal(elements.iconPickerModal);
+  setIconPickerMessage('');
+  if (iconPickerResolver) {
+    const resolve = iconPickerResolver;
+    iconPickerResolver = null;
+    resolve(value || null);
+    return;
+  }
+  iconPickerResolver = null;
+}
+
+function buildSubjectSeed(name, options = {}) {
+  const normalizedName = String(name || '').trim();
+  const preset = getSubjectPreset(normalizedName);
+  return {
+    name: normalizedName,
+    icon: resolveSubjectIcon(options.icon || preset.icon, normalizedName),
+    color: normalizeColorValue(options.color),
+  };
+}
+
+function renderElectiveGrid() {
+  if (!elements.electiveGrid) return;
+  elements.electiveGrid.innerHTML = ELECTIVE_SUBJECTS
+    .map((subjectName) => {
+      const subjectIcon = resolveSubjectIcon('', subjectName);
+      return `
+        <label class="checkbox-item checkbox-item--icon">
+          <input type="checkbox" value="${subjectName}" />
+          <span class="checkbox-item-icon">${subjectIconHtml(subjectIcon, '')}</span>
+          <span>${subjectName}</span>
+        </label>
+      `;
+    })
+    .join('');
+}
+
+function addCustomElectiveRow(initial = {}) {
+  if (!elements.customElectiveList) return;
+  const colorIndex = (state.data.subjects.length + elements.customElectiveList.children.length) % palette.length;
+  const defaultColor = normalizeColorValue(initial.color) || palette[colorIndex];
+  const subjectName = String(initial.name || '').trim();
+  const subjectIcon = resolveSubjectIcon(initial.icon, subjectName);
+  const iconCarousel = buildIconCarousel({
+    selectedIcon: subjectIcon,
+    action: 'set-custom-elective-icon',
+    otherAction: 'set-custom-elective-icon-other',
+    ariaLabel: 'Custom elective icon options',
+  });
+  const row = document.createElement('div');
+  row.className = 'custom-elective-row';
+  row.dataset.customElectiveRow = 'true';
+  row.innerHTML = `
+    <input
+      class="custom-elective-name"
+      name="customElectiveName"
+      placeholder="Subject name"
+      value="${subjectName}"
+    />
+    <input type="hidden" name="customElectiveIcon" value="${subjectIcon}" />
+    <div class="custom-elective-carousel">
+      ${iconCarousel}
+    </div>
+    <input
+      class="custom-elective-color"
+      type="color"
+      name="customElectiveColor"
+      value="${defaultColor}"
+      aria-label="Custom elective color"
+    />
+    <button
+      class="icon-button icon-button--small"
+      type="button"
+      data-action="remove-custom-elective"
+      aria-label="Remove custom elective"
+    >
+      ${iconHtml('x', '')}
+    </button>
+  `;
+  elements.customElectiveList.appendChild(row);
+}
+
 function applyImportedProfile(payload) {
   if (!payload || !payload.profile || !payload.profile.name) return;
   const existing = loadUserName();
@@ -2165,6 +2871,7 @@ function buildExportPayload(scope) {
       id,
       name,
       color: subject.color || subject.subjectColor || palette[subjects.length % palette.length],
+      icon: resolveSubjectIcon(subject.icon || subject.subjectIcon, name),
     });
   };
 
@@ -2177,6 +2884,7 @@ function buildExportPayload(scope) {
           subjectId: assessment.subjectId,
           subjectName: assessment.subjectName,
           subjectColor: assessment.subjectColor,
+          subjectIcon: assessment.subjectIcon,
           name: assessment.name,
           score: assessment.score,
           total: assessment.total,
@@ -2194,6 +2902,7 @@ function buildExportPayload(scope) {
           subjectId: item.subjectId,
           subjectName: item.subjectName,
           subjectColor: item.subjectColor,
+          subjectIcon: item.subjectIcon,
           name: item.name,
           date: item.date,
           notes: item.notes,
@@ -2262,6 +2971,7 @@ function buildDataFromExportPayload(payload) {
       id,
       name: subject.name || subject.subjectName || 'Untitled Subject',
       color: subject.color || subject.subjectColor || palette[subjects.length % palette.length],
+      icon: resolveSubjectIcon(subject.icon || subject.subjectIcon, subject.name || subject.subjectName),
       assessments: [],
       upcoming: [],
     };
@@ -2294,6 +3004,7 @@ function buildDataFromExportPayload(payload) {
       const target = named || (assessment.subjectName ? addSubject({
         subjectName: assessment.subjectName,
         subjectColor: assessment.subjectColor,
+        subjectIcon: assessment.subjectIcon,
       }) : null);
       if (!target) return;
       target.assessments.push({
@@ -2315,6 +3026,7 @@ function buildDataFromExportPayload(payload) {
       const target = named || (item.subjectName ? addSubject({
         subjectName: item.subjectName,
         subjectColor: item.subjectColor,
+        subjectIcon: item.subjectIcon,
       }) : null);
       if (!target) return;
       target.upcoming.push({
@@ -2369,6 +3081,12 @@ function mergeData(existing, incoming) {
     ].join('|');
 
   const mergeSubjectItems = (target, source) => {
+    if (!target.color && source.color) {
+      target.color = source.color;
+    }
+    if (!target.icon && source.icon) {
+      target.icon = resolveSubjectIcon(source.icon, source.name);
+    }
     const assessmentIds = new Set(target.assessments.map((item) => item.id));
     const upcomingIds = new Set(target.upcoming.map((item) => item.id));
     const assessmentSignatures = new Set(target.assessments.map(assessmentSignature));
@@ -2447,12 +3165,23 @@ function finishOnboarding(options) {
   }
 
   if (state.data.subjects.length === 0) {
-    const coreSubjects = ['English', 'Geography', 'History', 'Mathematics', 'PDHPE', 'Science'];
-    const electives = options?.skipElectives ? [] : getSelectedElectives();
-    const custom = options?.skipElectives ? [] : getCustomElectives();
-    const allSubjects = [...coreSubjects, ...electives, ...custom];
-    const unique = Array.from(new Set(allSubjects.map((item) => item.trim()).filter(Boolean)));
-    unique.forEach((subject) => getOrCreateSubject(subject));
+    const seeds = [
+      ...CORE_SUBJECTS.map((name) => buildSubjectSeed(name)),
+      ...(options?.skipElectives ? [] : getSelectedElectives().map((name) => buildSubjectSeed(name))),
+      ...(options?.skipElectives ? [] : getCustomElectives()),
+    ];
+    const unique = new Map();
+    seeds.forEach((seed) => {
+      const key = normalizeSubjectNameKey(seed.name);
+      if (!key) return;
+      unique.set(key, seed);
+    });
+    unique.forEach((seed) => {
+      getOrCreateSubject(seed.name, {
+        color: seed.color,
+        icon: seed.icon,
+      });
+    });
     saveData(state.data);
   }
 
@@ -2471,20 +3200,36 @@ function getSelectedElectives() {
 }
 
 function getCustomElectives() {
-  if (!elements.customElective) return [];
-  return String(elements.customElective.value || '')
-    .split(',')
-    .map((item) => item.trim())
+  if (!elements.customElectiveList) return [];
+  return Array.from(elements.customElectiveList.querySelectorAll('[data-custom-elective-row]'))
+    .map((row) => {
+      const nameInput = row.querySelector('input[name="customElectiveName"]');
+      const iconInput = row.querySelector('input[name="customElectiveIcon"]');
+      const colorInput = row.querySelector('input[name="customElectiveColor"]');
+      const name = String(nameInput?.value || '').trim();
+      if (!name) return null;
+      return {
+        name,
+        icon: resolveSubjectIcon(iconInput?.value, name),
+        color: normalizeColorValue(colorInput?.value),
+      };
+    })
     .filter(Boolean);
 }
 
-function getOrCreateSubject(name) {
-  const existing = state.data.subjects.find((subject) => subject.name.toLowerCase() === name.toLowerCase());
+function getOrCreateSubject(name, options = {}) {
+  const normalizedName = String(name || '').trim();
+  if (!normalizedName) return null;
+  const existing = state.data.subjects.find(
+    (subject) => subject.name.toLowerCase() === normalizedName.toLowerCase()
+  );
   if (existing) return existing;
   const subject = {
     id: cryptoRandomId(),
-    name,
-    color: palette[state.data.subjects.length % palette.length],
+    name: normalizedName,
+    color: normalizeColorValue(options.color)
+      || palette[state.data.subjects.length % palette.length],
+    icon: resolveSubjectIcon(options.icon, normalizedName),
     assessments: [],
     upcoming: [],
   };
@@ -2507,7 +3252,7 @@ function removeUpcoming(subjectId, upcomingId) {
 function applySubjectColor(subjectId, color) {
   const subject = state.data.subjects.find((item) => item.id === subjectId);
   if (!subject || !color) return;
-  const normalized = String(color).trim();
+  const normalized = normalizeColorValue(color);
   if (!normalized) return;
   if (subject.color && subject.color.toLowerCase() === normalized.toLowerCase()) {
     updateSubjectColorUI(subjectId, normalized);
@@ -2530,6 +3275,10 @@ function updateSubjectColorUI(subjectId, color) {
   if (valueLabel) {
     valueLabel.textContent = color.toUpperCase();
   }
+  const iconPreview = elements.subjectModal.querySelector('[data-role="icon-preview"]');
+  if (iconPreview) {
+    iconPreview.style.background = color;
+  }
   elements.subjectModal.querySelectorAll('.color-swatch').forEach((swatch) => {
     swatch.classList.toggle(
       'is-active',
@@ -2545,6 +3294,31 @@ function updateSubjectColorUI(subjectId, color) {
       label: assessment.name,
     }));
     drawLineChart(chartCanvas, points, { stroke: subject.color, showAxis: true });
+  }
+}
+
+function applySubjectIcon(subjectId, icon) {
+  const subject = state.data.subjects.find((item) => item.id === subjectId);
+  if (!subject || !icon) return;
+  const normalized = resolveSubjectIcon(icon, subject.name);
+  if (subject.icon && subject.icon === normalized) {
+    updateSubjectIconUI(subjectId, normalized);
+    return;
+  }
+  subject.icon = normalized;
+  saveData(state.data);
+  render();
+  updateSubjectIconUI(subjectId, normalized);
+}
+
+function updateSubjectIconUI(subjectId, icon) {
+  if (!elements.subjectModal?.classList.contains('is-open')) return;
+  if (activeSubjectId !== subjectId) return;
+  const carousel = elements.subjectModal.querySelector('[data-icon-carousel]');
+  setIconCarouselActive(carousel, icon);
+  const preview = elements.subjectModal.querySelector('[data-role="icon-preview"]');
+  if (preview) {
+    preview.innerHTML = subjectIconHtml(icon);
   }
 }
 
@@ -2585,13 +3359,13 @@ function renderOverview() {
     elements.topSubjectName.textContent = topSubject.name;
     elements.topSubjectGrade.textContent = `${stats.average.toFixed(1)}% · ${stats.grade}`;
     elements.topSubjectFooter.textContent = `${topSubject.assessments.length} assessments logged.`;
-    elements.topSubjectIcon.textContent = initials(topSubject.name);
+    elements.topSubjectIcon.innerHTML = subjectIconHtml(resolveSubjectIcon(topSubject.icon, topSubject.name));
     elements.topSubjectIcon.style.background = topSubject.color;
   } else {
     elements.topSubjectName.textContent = 'No data yet';
     elements.topSubjectGrade.textContent = '--';
     elements.topSubjectFooter.textContent = 'Add assessments to see your leading subject.';
-    elements.topSubjectIcon.textContent = '★';
+    elements.topSubjectIcon.innerHTML = subjectIconHtml('star');
     elements.topSubjectIcon.style.background = 'linear-gradient(135deg, var(--logo-gradient-1), var(--logo-gradient-2))';
   }
 
@@ -2663,12 +3437,15 @@ function renderSubjects() {
   elements.subjectGrid.innerHTML = state.data.subjects
     .map((subject) => {
       const stats = subjectStats(subject);
+      const averageValue = stats.average === null ? 0 : Math.max(0, Math.min(100, stats.average));
+      const averageText = stats.average === null ? '--' : `${stats.average.toFixed(1)}%`;
+      const subjectIcon = subjectIconHtml(resolveSubjectIcon(subject.icon, subject.name));
       return `
         <button class="subject-button" type="button" data-action="open-subject" data-id="${subject.id}">
           <div class="card subject-card glow-soft" data-id="${subject.id}">
             <div class="subject-header">
               <div class="subject-info">
-                <div class="subject-icon" style="background:${subject.color}">${initials(subject.name)}</div>
+                <div class="subject-icon" style="background:${subject.color}">${subjectIcon}</div>
                 <div>
                   <div class="subject-title">${subject.name}</div>
                   <div class="subject-meta">${subject.assessments.length} assessments</div>
@@ -2678,11 +3455,26 @@ function renderSubjects() {
             <div class="subject-stats">
               <div class="stat-box">
                 <span>Average</span>
-                <strong>${stats.average === null ? '--' : `${stats.average.toFixed(1)}%`}</strong>
+                <strong>${averageText}</strong>
               </div>
               <div class="stat-box">
                 <span>Grade</span>
                 <strong>${stats.grade ?? '--'}</strong>
+              </div>
+            </div>
+            <div
+              class="subject-average-progress"
+              role="progressbar"
+              aria-label="${subject.name} average"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow="${averageValue.toFixed(1)}"
+            >
+              <div class="subject-average-progress-track">
+                <div
+                  class="subject-average-progress-fill"
+                  style="width:${averageValue}%; --subject-color:${subject.color};"
+                ></div>
               </div>
             </div>
           </div>
@@ -2815,6 +3607,7 @@ function renderSubjectsChart() {
     .map((subject) => ({
       name: subject.name,
       color: subject.color,
+      icon: resolveSubjectIcon(subject.icon, subject.name),
       points: sortAssessments(subject.assessments).map((assessment) => ({
         value: assessment.total > 0 ? (assessment.score / assessment.total) * 100 : 0,
         label: assessment.name,
@@ -3273,6 +4066,7 @@ function getAllAssessments() {
       subjectId: subject.id,
       subjectName: subject.name,
       subjectColor: subject.color,
+      subjectIcon: resolveSubjectIcon(subject.icon, subject.name),
       order: index,
     }))
   );
@@ -3284,6 +4078,7 @@ function expandUpcomingItems(subject) {
     subjectId: subject.id,
     subjectName: subject.name,
     subjectColor: subject.color,
+    subjectIcon: resolveSubjectIcon(subject.icon, subject.name),
     order: index,
   }));
 }

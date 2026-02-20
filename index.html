@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
     <link rel="icon" href="favicon.png" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css"
+    />
     <title>Sapphire</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
@@ -19,21 +27,26 @@
           </div>
         </div>
         <nav class="app-nav">
-          <button class="nav-item is-active" data-tab="dashboard" type="button">
+          <button class="nav-item is-active with-icon" data-tab="dashboard" type="button">
+            <i class="ph ph-squares-four button-icon" aria-hidden="true"></i>
             Dashboard
           </button>
-          <button class="nav-item" data-tab="analytics" type="button">
+          <button class="nav-item with-icon" data-tab="analytics" type="button">
+            <i class="ph ph-chart-line-up button-icon" aria-hidden="true"></i>
             Analytics
           </button>
-          <button class="nav-item" data-tab="calendar" type="button">
+          <button class="nav-item with-icon" data-tab="calendar" type="button">
+            <i class="ph ph-calendar button-icon" aria-hidden="true"></i>
             Calendar
           </button>
         </nav>
         <div class="app-actions">
-          <button id="export-open" class="ghost-button" type="button">
+          <button id="export-open" class="ghost-button with-icon" type="button">
+            <i class="ph ph-share-network button-icon" aria-hidden="true"></i>
             Share
           </button>
-          <button id="settings-open" class="ghost-button" type="button">
+          <button id="settings-open" class="ghost-button with-icon" type="button">
+            <i class="ph ph-gear-six button-icon" aria-hidden="true"></i>
             Settings
           </button>
           <div class="profile-menu">
@@ -131,7 +144,9 @@
               <div class="hero-side">
                 <div class="card top-subject-card glow-soft">
                   <div class="top-subject-header">
-                    <div class="subject-icon" id="top-subject-icon">★</div>
+                    <div class="subject-icon" id="top-subject-icon">
+                      <i class="ph ph-star" aria-hidden="true"></i>
+                    </div>
                     <div>
                       <div class="section-eyebrow">Top Subject</div>
                       <div class="top-subject-name" id="top-subject-name">
@@ -163,9 +178,10 @@
               <div class="upcoming-footer">
                 <button
                   id="upcoming-add"
-                  class="ghost-button ghost-button--small"
+                  class="ghost-button ghost-button--small with-icon"
                   type="button"
                 >
+                  <i class="ph ph-plus-circle button-icon" aria-hidden="true"></i>
                   Add upcoming
                 </button>
               </div>
@@ -182,40 +198,24 @@
                 Add assessments inside each subject card.
               </div>
             </div>
-            <div class="card subject-card subject-add glow-soft">
-              <div class="section-eyebrow">New Subject</div>
-              <h3 class="section-title">Add a subject</h3>
-              <form id="subject-form" autocomplete="off">
-                <label class="field">
-                  <span>Subject name</span>
-                  <input
-                    name="subjectName"
-                    list="subject-list"
-                    placeholder="e.g. Mathematics Advanced"
-                    required
-                  />
-                </label>
-                <div class="form-actions">
-                  <button class="primary-button" type="submit">
-                    Add Subject
-                  </button>
-                  <span
-                    class="form-message"
-                    id="subject-message"
-                    aria-live="polite"
-                  ></span>
-                </div>
-              </form>
-            </div>
             <div class="subjects-toolbar">
               <button
                 id="subjects-order-open"
-                class="ghost-button ghost-button--small"
+                class="ghost-button ghost-button--small with-icon"
                 type="button"
               >
+                <i class="ph ph-arrows-down-up button-icon" aria-hidden="true"></i>
                 Edit order
               </button>
               <span class="section-meta">Reorder subjects in a list view.</span>
+              <button
+                id="add-subject-open"
+                class="primary-button with-icon subjects-add-button"
+                type="button"
+              >
+                <i class="ph ph-plus-circle button-icon" aria-hidden="true"></i>
+                New subject
+              </button>
             </div>
             <div id="subjects-grid" class="subjects-grid"></div>
           </section>
@@ -293,11 +293,11 @@
               </div>
               <div class="calendar-controls">
                 <button class="calendar-nav" type="button" id="calendar-prev">
-                  ←
+                  <i class="ph ph-caret-left" aria-hidden="true"></i>
                 </button>
                 <div class="calendar-month" id="calendar-month">Month</div>
                 <button class="calendar-nav" type="button" id="calendar-next">
-                  →
+                  <i class="ph ph-caret-right" aria-hidden="true"></i>
                 </button>
               </div>
             </div>
@@ -338,7 +338,7 @@
             data-action="close-subject"
             id="subject-modal-close"
           >
-            ✕
+            <i class="ph ph-x" aria-hidden="true"></i>
           </button>
         </div>
         <div class="modal-body" id="subject-modal-body"></div>
@@ -367,7 +367,7 @@
             data-action="close-assessment"
             id="assessment-modal-close"
           >
-            ✕
+            <i class="ph ph-x" aria-hidden="true"></i>
           </button>
         </div>
         <form id="assessment-form" class="modal-body" autocomplete="off">
@@ -447,7 +447,7 @@
             data-action="close-upcoming"
             id="upcoming-modal-close"
           >
-            ✕
+            <i class="ph ph-x" aria-hidden="true"></i>
           </button>
         </div>
         <form id="upcoming-form" class="modal-body" autocomplete="off">
@@ -507,7 +507,7 @@
             </div>
           </div>
           <button class="icon-button" type="button" data-action="close-export">
-            ✕
+            <i class="ph ph-x" aria-hidden="true"></i>
           </button>
         </div>
         <div class="modal-body export-grid">
@@ -526,7 +526,8 @@
               </select>
             </label>
             <div class="form-actions">
-              <button class="primary-button" type="button" id="export-generate">
+              <button class="primary-button with-icon" type="button" id="export-generate">
+                <i class="ph ph-link-simple button-icon" aria-hidden="true"></i>
                 Generate string
               </button>
               <span
@@ -546,10 +547,11 @@
             </label>
             <div class="form-actions">
               <button
-                class="ghost-button ghost-button--small"
+                class="ghost-button ghost-button--small with-icon"
                 type="button"
                 id="export-copy"
               >
+                <i class="ph ph-copy button-icon" aria-hidden="true"></i>
                 Copy
               </button>
             </div>
@@ -573,7 +575,8 @@
               ></textarea>
             </label>
             <div class="form-actions">
-              <button class="primary-button" type="button" id="import-restore">
+              <button class="primary-button with-icon" type="button" id="import-restore">
+                <i class="ph ph-download-simple button-icon" aria-hidden="true"></i>
                 Import data
               </button>
               <span
@@ -608,7 +611,7 @@
             type="button"
             data-action="close-settings"
           >
-            ✕
+            <i class="ph ph-x" aria-hidden="true"></i>
           </button>
         </div>
         <div class="modal-body">
@@ -633,7 +636,8 @@
                     />
                   </label>
                   <div class="form-actions">
-                    <button class="primary-button" type="submit">
+                    <button class="primary-button with-icon" type="submit">
+                      <i class="ph ph-check-circle button-icon" aria-hidden="true"></i>
                       Save name
                     </button>
                     <span
@@ -751,7 +755,8 @@
                   <div class="section-eyebrow">Reset</div>
                   <div class="settings-title">Clear stored data</div>
                 </div>
-                <button id="reset-data" class="danger-button" type="button">
+                <button id="reset-data" class="danger-button with-icon" type="button">
+                  <i class="ph ph-trash button-icon" aria-hidden="true"></i>
                   Reset data
                 </button>
               </section>
@@ -784,12 +789,89 @@
             type="button"
             data-action="close-subjects-order"
           >
-            ✕
+            <i class="ph ph-x" aria-hidden="true"></i>
           </button>
         </div>
         <div class="modal-body">
           <div class="order-list" id="subjects-order-list"></div>
         </div>
+      </div>
+    </div>
+
+    <div class="modal" id="add-subject-modal" aria-hidden="true">
+      <div class="modal-backdrop" data-action="close-add-subject"></div>
+      <div
+        class="modal-panel modal-panel--large"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-subject-title"
+      >
+        <div class="modal-header">
+          <div>
+            <div class="section-eyebrow">New subject</div>
+            <h2 class="section-title" id="add-subject-title">Add subject</h2>
+            <div class="modal-meta">Set the name, icon, and color before creating it.</div>
+          </div>
+          <button
+            class="icon-button"
+            type="button"
+            data-action="close-add-subject"
+          >
+            <i class="ph ph-x" aria-hidden="true"></i>
+          </button>
+        </div>
+        <form id="add-subject-form" class="modal-body" autocomplete="off">
+          <label class="field">
+            <span>Subject name</span>
+            <input
+              id="add-subject-name"
+              name="subjectName"
+              list="subject-list"
+              placeholder="e.g. Mathematics Advanced"
+              required
+            />
+          </label>
+          <input type="hidden" id="add-subject-icon" name="subjectIcon" value="notebook" />
+          <div class="subject-color-panel">
+            <div class="subject-color-header subject-icon-header">
+              <div>
+                <div class="section-eyebrow">Subject icon</div>
+                <div class="subject-color-meta">Shown on cards and charts.</div>
+              </div>
+              <div class="subject-icon-control">
+                <span class="subject-icon-preview" id="add-subject-icon-preview">
+                  <i class="ph ph-notebook" aria-hidden="true"></i>
+                </span>
+                <div class="subject-icon-carousel" id="add-subject-icon-carousel"></div>
+              </div>
+            </div>
+            <div class="subject-color-header">
+              <div>
+                <div class="section-eyebrow">Subject color</div>
+                <div class="subject-color-meta">Used across cards and charts.</div>
+              </div>
+              <div class="color-control">
+                <input class="color-input" id="add-subject-color" type="color" name="subjectColor" value="#57A8D3" aria-label="Subject color" />
+                <span class="color-value" id="add-subject-color-value">#57A8D3</span>
+              </div>
+            </div>
+            <div class="color-swatches" id="add-subject-swatches"></div>
+          </div>
+          <div class="form-actions">
+            <button class="ghost-button" type="button" data-action="close-add-subject">
+              Cancel
+            </button>
+            <button class="primary-button with-icon" type="submit">
+              <i class="ph ph-plus-circle button-icon" aria-hidden="true"></i>
+              Add Subject
+            </button>
+            <span
+              class="form-message"
+              id="subject-message"
+              aria-live="polite"
+            ></span>
+          </div>
+        </form>
       </div>
     </div>
 
@@ -831,24 +913,27 @@
               </div>
               <div class="form-actions">
                 <button
-                  class="primary-button"
+                  class="primary-button with-icon"
                   type="button"
                   id="onboarding-auth"
                 >
+                  <i class="ph ph-sign-in button-icon" aria-hidden="true"></i>
                   Sign in with Google
                 </button>
                 <button
-                  class="ghost-button"
+                  class="ghost-button with-icon"
                   type="button"
                   id="onboarding-guest"
                 >
+                  <i class="ph ph-user-circle button-icon" aria-hidden="true"></i>
                   Continue as guest
                 </button>
                 <button
-                  class="ghost-button ghost-button--small mini-button"
+                  class="ghost-button ghost-button--small mini-button with-icon"
                   type="button"
                   id="onboarding-import-open"
                 >
+                  <i class="ph ph-qr-code button-icon" aria-hidden="true"></i>
                   Enter share code
                 </button>
               </div>
@@ -983,99 +1068,35 @@
                 <p class="muted">Core subjects are added automatically.</p>
               </div>
               <div class="elective-grid" id="elective-grid">
-                <label class="checkbox-item"
-                  ><input type="checkbox" value="Broadcast Media" />Broadcast
-                  Media</label
-                >
-                <label class="checkbox-item"
-                  ><input type="checkbox" value="Ceramics" />Ceramics</label
-                >
-                <label class="checkbox-item"
-                  ><input type="checkbox" value="Child Studies" />Child
-                  Studies</label
-                >
-                <label class="checkbox-item"
-                  ><input type="checkbox" value="Commerce" />Commerce</label
-                >
-                <label class="checkbox-item"
-                  ><input type="checkbox" value="Computing Technology" />Computing
-                  Technology</label
-                >
-                <label class="checkbox-item"
-                  ><input type="checkbox" value="Dance" />Dance</label
-                >
-                <label class="checkbox-item"
-                  ><input type="checkbox" value="Design and Technology" />Design
-                  and Technology</label
-                >
-                <label class="checkbox-item"
-                  ><input type="checkbox" value="Drama" />Drama</label
-                >
-                <label class="checkbox-item"
-                  ><input type="checkbox" value="Food Technology" />Food
-                  Technology</label
-                >
-                <label class="checkbox-item"
-                  ><input type="checkbox" value="French" />French</label
-                >
-                <label class="checkbox-item"
-                  ><input type="checkbox" value="Indonesian" />Indonesian</label
-                >
-                <label class="checkbox-item"
-                  ><input
-                    type="checkbox"
-                    value="International Studies"
-                  />International Studies</label
-                >
-                <label class="checkbox-item"
-                  ><input type="checkbox" value="Multimedia" />Multimedia</label
-                >
-                <label class="checkbox-item"
-                  ><input type="checkbox" value="Music" />Music</label
-                >
-                <label class="checkbox-item"
-                  ><input type="checkbox" value="Photography" />Photography</label
-                >
-                <label class="checkbox-item"
-                  ><input type="checkbox" value="PASS" />PASS</label
-                >
-                <label class="checkbox-item"
-                  ><input type="checkbox" value="Psychology" />Psychology</label
-                >
-                <label class="checkbox-item"
-                  ><input type="checkbox" value="Textiles Technology" />Textiles
-                  Technology</label
-                >
-                <label class="checkbox-item"
-                  ><input type="checkbox" value="Woodworking" />Woodworking</label
-                >
-                <label class="checkbox-item"
-                  ><input type="checkbox" value="Visual Arts" />Visual Arts</label
-                >
-                <label class="checkbox-item"
-                  ><input type="checkbox" value="Visual Design" />Visual
-                  Design</label
-                >
               </div>
-              <label class="field">
-                <span>Custom elective (optional)</span>
-                <input
-                  id="custom-elective"
-                  name="customElective"
-                  placeholder="Add one or more, separated by commas"
-                />
-              </label>
+              <div class="custom-elective-panel">
+                <div class="custom-elective-toolbar">
+                  <span>Custom electives (optional)</span>
+                  <button
+                    id="custom-elective-add"
+                    class="ghost-button ghost-button--small with-icon"
+                    type="button"
+                  >
+                    <i class="ph ph-plus button-icon" aria-hidden="true"></i>
+                    Add custom elective
+                  </button>
+                </div>
+                <div class="custom-elective-list" id="custom-elective-list"></div>
+              </div>
             </div>
           </div>
 
           <div class="form-actions onboarding-nav">
-            <button class="ghost-button" type="button" id="onboarding-back">
+            <button class="ghost-button with-icon" type="button" id="onboarding-back">
+              <i class="ph ph-caret-left button-icon" aria-hidden="true"></i>
               Back
             </button>
-            <button class="ghost-button" type="button" id="onboarding-next">
+            <button class="ghost-button with-icon" type="button" id="onboarding-next">
+              <i class="ph ph-caret-right button-icon" aria-hidden="true"></i>
               Next
             </button>
-            <button class="primary-button" type="submit" id="onboarding-finish">
+            <button class="primary-button with-icon" type="submit" id="onboarding-finish">
+              <i class="ph ph-check-circle button-icon" aria-hidden="true"></i>
               Finish setup
             </button>
             <span
@@ -1109,7 +1130,7 @@
             type="button"
             data-action="close-onboarding-import"
           >
-            ✕
+            <i class="ph ph-x" aria-hidden="true"></i>
           </button>
         </div>
         <div class="modal-body">
@@ -1123,10 +1144,11 @@
           </label>
           <div class="form-actions">
             <button
-              class="primary-button"
+              class="primary-button with-icon"
               type="button"
               id="onboarding-import-apply"
             >
+              <i class="ph ph-arrow-bend-up-right button-icon" aria-hidden="true"></i>
               Use code and skip
             </button>
             <span
@@ -1146,6 +1168,54 @@
       aria-hidden="true"
     ></div>
 
+    <div class="modal" id="icon-picker-modal" aria-hidden="true">
+      <div class="modal-backdrop" data-action="close-icon-picker"></div>
+      <div
+        class="modal-panel modal-panel--small"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="icon-picker-title"
+      >
+        <div class="modal-header">
+          <div>
+            <div class="section-eyebrow">Custom icon</div>
+            <h2 class="section-title" id="icon-picker-title">Enter icon name</h2>
+            <div class="modal-meta">Use a Phosphor icon slug like <code>wave-sine</code>.</div>
+          </div>
+          <button class="icon-button" type="button" data-action="close-icon-picker">
+            <i class="ph ph-x" aria-hidden="true"></i>
+          </button>
+        </div>
+        <form id="icon-picker-form" class="modal-body icon-picker-body" autocomplete="off">
+          <div class="icon-picker-preview-wrap">
+            <span class="icon-picker-preview" id="icon-picker-preview">
+              <i class="ph ph-wave-sine" aria-hidden="true"></i>
+            </span>
+          </div>
+          <label class="field">
+            <span>Phosphor icon name</span>
+            <input
+              id="icon-picker-input"
+              name="iconName"
+              placeholder="wave-sine"
+              spellcheck="false"
+              required
+            />
+          </label>
+          <div class="form-message icon-picker-message" id="icon-picker-message" aria-live="polite"></div>
+          <div class="form-actions">
+            <button id="icon-picker-cancel" class="ghost-button" type="button">
+              Cancel
+            </button>
+            <button id="icon-picker-apply" class="primary-button with-icon" type="submit">
+              <i class="ph ph-check button-icon" aria-hidden="true"></i>
+              Use Icon
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <div class="modal" id="confirm-modal" aria-hidden="true">
       <div class="modal-backdrop" data-action="close-confirm"></div>
       <div
@@ -1160,7 +1230,7 @@
             <h2 class="section-title" id="confirm-title">Are you sure?</h2>
           </div>
           <button class="icon-button" type="button" data-action="close-confirm">
-            ✕
+            <i class="ph ph-x" aria-hidden="true"></i>
           </button>
         </div>
         <div class="modal-body confirm-body">
