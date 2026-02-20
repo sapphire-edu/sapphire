@@ -4011,6 +4011,40 @@ function buildTicks(min, max, steps = 4, options = {}) {
   return ticks.length ? ticks : [roundedMin, roundedMax];
 }
 
+function drawEmptyChartState(ctx, width, height, options = {}) {
+  if (!ctx) return;
+  const paddingLeft = Number.isFinite(options.paddingLeft) ? options.paddingLeft : 36;
+  const paddingRight = Number.isFinite(options.paddingRight) ? options.paddingRight : 36;
+  const paddingTop = Number.isFinite(options.paddingTop) ? options.paddingTop : 18;
+  const paddingBottom = Number.isFinite(options.paddingBottom) ? options.paddingBottom : 18;
+  const showAxis = options.showAxis !== false;
+  const axisColor = options.axisColor || '#7a8292';
+  const lineColor = options.lineColor || withAlpha(axisColor, 0.45);
+  if (showAxis) {
+    const ticks = [0, 25, 50, 75, 100];
+    ctx.fillStyle = axisColor;
+    ctx.font = '12px "Red Hat Display", sans-serif';
+    ctx.textBaseline = 'middle';
+    ticks.forEach((tick) => {
+      const y =
+        height -
+        paddingBottom -
+        (tick / 100) *
+          (height - paddingTop - paddingBottom);
+      ctx.textAlign = 'left';
+      ctx.fillText(`${tick}`, 4, y);
+      ctx.textAlign = 'right';
+      ctx.fillText(`${tick}`, width - 4, y);
+    });
+  }
+  ctx.strokeStyle = lineColor;
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(paddingLeft, height - paddingBottom);
+  ctx.lineTo(width - paddingRight, paddingTop);
+  ctx.stroke();
+}
+
 function spreadDenseXCoordinates(points, minX, maxX, minGap = 6) {
   if (!points || points.length < 2) {
     return (points || []).map((point) => point.x);
@@ -4075,6 +4109,21 @@ function drawLineChart(canvas, points, options = {}) {
   canvas.height = height * dpr;
   ctx.scale(dpr, dpr);
   ctx.clearRect(0, 0, width, height);
+
+  const hasPlottableValues = series.some((point) => Number.isFinite(point?.value));
+  if (!hasPlottableValues) {
+    drawEmptyChartState(ctx, width, height, {
+      paddingLeft: 36,
+      paddingRight: 36,
+      paddingTop: 18,
+      paddingBottom: 18,
+      axisColor,
+      showAxis,
+    });
+    canvas._chartPoints = [];
+    bindChartHover(canvas);
+    return;
+  }
 
   const paddingLeft = 36;
   const paddingRight = 36;
@@ -4145,12 +4194,6 @@ function drawLineChart(canvas, points, options = {}) {
       ctx.font = '12px "Red Hat Display", sans-serif';
       ctx.textBaseline = 'middle';
     }
-  }
-
-  if (!series || series.length === 0) {
-    canvas._chartPoints = [];
-    bindChartHover(canvas);
-    return;
   }
 
   const stroke = options.stroke || '#2aa9ff';
@@ -4235,6 +4278,21 @@ function drawMultiLineChart(canvas, series) {
   const paddingTop = 18;
   const paddingBottom = 18;
   const allSeriesPoints = series.flatMap((line) => line.points || []);
+  const hasPlottableValues = allSeriesPoints.some((point) => Number.isFinite(point?.value));
+  if (!series || series.length === 0 || !hasPlottableValues) {
+    const axisColor = getComputedStyle(document.documentElement).getPropertyValue('--text-tertiary').trim() || '#7a8292';
+    drawEmptyChartState(ctx, width, height, {
+      paddingLeft,
+      paddingRight,
+      paddingTop,
+      paddingBottom,
+      axisColor,
+      showAxis: true,
+    });
+    canvas._chartPoints = [];
+    bindChartHover(canvas);
+    return;
+  }
   const chartSpan = width - paddingLeft - paddingRight;
   const valueRange = getValueRange(allSeriesPoints, {
     min: 0,
@@ -4266,12 +4324,6 @@ function drawMultiLineChart(canvas, series) {
     ctx.textAlign = 'right';
     ctx.fillText(`${Math.round(tick)}`, width - 4, y);
   });
-
-  if (!series || series.length === 0) {
-    canvas._chartPoints = [];
-    bindChartHover(canvas);
-    return;
-  }
 
   const allPoints = [];
   series.forEach((line) => {
