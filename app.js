@@ -6,7 +6,7 @@ const GRAPH_SMOOTHNESS_KEY = 'sapphire-graph-smoothness';
 const USER_NAME_KEY = 'sapphire-user-name';
 const APPWRITE_SYNC_KEY = 'sapphire-last-sync';
 
-const APPWRITE_ENDPOINT = 'https://syd.cloud.appwrite.io/v1';
+const APPWRITE_ENDPOINT = 'https://auth.sapphire.neonxsl.dev/v1';
 const APPWRITE_PROJECT_ID = 'sapphire';
 const APPWRITE_DATABASE_ID = 'sapphire-storage';
 const APPWRITE_COLLECTION_ID = 'sapphire-storage';
