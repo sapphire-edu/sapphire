@@ -10,7 +10,7 @@ Access it here: https://app.sapphire.neonxsl.dev/
 **Highlights**
 
 - Local-first storage (saved in the browser via `localStorage`/`sessionStorage`).
-- Optional Google sign-in for cloud sync (Appwrite). Continue as a guest to stay local-only.
+- Optional Google sign-in for cloud sync. Continue as a guest to stay local-only.
 - Step-by-step onboarding: sign-in, name, theme + smoothing preview, electives (core subjects included).
 - Add subjects and assessments (score, total, weight, date).
 - Calendar for upcoming assessments and reminders.
