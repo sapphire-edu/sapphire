@@ -5,7 +5,7 @@
 
 Sapphire is a lightweight gradebook designed for NSW high school students. It runs in the browser with fast local storage, and now supports optional cloud sync via Google sign-in, so your data can follow you across devices.
 
-Access it here: https://app.sapphire.neonxsl.dev/
+Access it here: https://sapphire.neonxsl.dev/
 
 **Highlights**
 
