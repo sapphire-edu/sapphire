@@ -4713,6 +4713,16 @@ function cleanTimetableSubject(value) {
   return withoutYear || normalized;
 }
 
+function normalizeTimetableDisplayName(value) {
+  const normalized = String(value || '').replace(/\s+/g, ' ').trim();
+  if (!normalized) return '';
+  const key = normalized.toLowerCase();
+  if (key.includes('sport')) return 'Sport';
+  if (key.includes('connect')) return 'Connect';
+  if (key.includes('assem')) return 'Assembly';
+  return normalized;
+}
+
 function extractTaggedLine(text, label) {
   const expression = new RegExp(`^${label}:\\s*(.+)$`, 'im');
   const match = String(text || '').match(expression);
@@ -5085,7 +5095,10 @@ function resolveTimetableLessonPresentation(lesson, timetable = state.data.timet
   const fallbackSubject = state.data.subjects.find(
     (subject) => normalizeSubjectNameKey(subject.name) === lessonKey
   );
-  const displayName = linkedSubject?.name || profile.name || lesson.subject || 'Lesson';
+  const displayName = linkedSubject?.name
+    || profile.name
+    || normalizeTimetableDisplayName(lesson.subject)
+    || 'Lesson';
   const color = linkedSubject?.color
     || profile.color
     || fallbackSubject?.color
@@ -5330,7 +5343,10 @@ function renderTimetableMapList(timetable) {
       const subject = profile.subjectId && profile.subjectId !== '__none__'
         ? state.data.subjects.find((item) => item.id === profile.subjectId) || null
         : null;
-      const displayName = subject?.name || profile.name || row.subject || 'Class';
+      const displayName = subject?.name
+        || profile.name
+        || normalizeTimetableDisplayName(row.subject)
+        || 'Class';
       const displayColor = subject?.color || profile.color || getTimetableClassDefaultColor(row);
       const displayIcon = subject
         ? resolveSubjectIcon(subject.icon, subject.name)
