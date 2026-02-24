@@ -39,6 +39,10 @@
             <i class="ph ph-calendar button-icon" aria-hidden="true"></i>
             Calendar
           </button>
+          <button class="nav-item with-icon" data-tab="timetable" type="button">
+            <i class="ph ph-clock-countdown button-icon" aria-hidden="true"></i>
+            Timetable
+          </button>
         </nav>
         <div class="app-actions">
           <button id="export-open" class="ghost-button with-icon" type="button">
@@ -184,6 +188,14 @@
                   <i class="ph ph-plus-circle button-icon" aria-hidden="true"></i>
                   Add upcoming
                 </button>
+              </div>
+            </section>
+
+            <section class="card timetable-dashboard-card glow-soft">
+              <div class="section-eyebrow">Timetable</div>
+              <h2 class="section-title" id="timetable-today-title">Today</h2>
+              <div class="timetable-dashboard-list" id="timetable-today-list">
+                <div class="empty-state">Import your timetable to see today&apos;s classes.</div>
               </div>
             </section>
           </div>
@@ -342,6 +354,80 @@
               <span>Sun</span>
             </div>
             <div class="calendar-grid" id="calendar-grid"></div>
+          </section>
+        </section>
+
+        <section class="view" data-view="timetable">
+          <section class="card timetable-card glow-soft" id="timetable-import-card">
+            <div class="timetable-header">
+              <div>
+                <div class="section-eyebrow">Sentral timetable</div>
+                <h2 class="section-title">Week A / Week B</h2>
+                <p class="muted">
+                  Upload your Sentral ICS export to generate your alternating timetable and today view.
+                </p>
+              </div>
+            </div>
+            <div id="timetable-import-controls">
+              <div class="timetable-import-row">
+                <div class="field timetable-file-field">
+                  <span>Upload .ics file</span>
+                  <div class="timetable-file-control">
+                    <label class="timetable-file-trigger with-icon" for="timetable-upload">
+                      <i class="ph ph-upload-simple button-icon" aria-hidden="true"></i>
+                      Timetable
+                    </label>
+                    <span class="timetable-file-note">Sentral export (.ics)</span>
+                    <input
+                      id="timetable-upload"
+                      class="timetable-file-input"
+                      type="file"
+                      accept=".ics,text/calendar"
+                    />
+                  </div>
+                </div>
+                <div class="timetable-import-actions">
+                  <button id="timetable-clear" class="ghost-button ghost-button--small with-icon" type="button">
+                    <i class="ph ph-trash button-icon" aria-hidden="true"></i>
+                    Clear
+                  </button>
+                </div>
+              </div>
+              <div class="form-message" id="timetable-import-message" aria-live="polite"></div>
+            </div>
+            <p class="muted timetable-import-moved-note" id="timetable-import-moved-note" hidden>
+              Timetable import has moved to Settings. Open Settings to replace or clear your uploaded file.
+            </p>
+            <div class="timetable-meta" id="timetable-source-meta">No timetable imported yet.</div>
+          </section>
+
+          <section class="card timetable-week-card glow-soft">
+            <div class="timetable-week-header">
+              <div>
+                <div class="section-eyebrow">Weekly view</div>
+                <h3 class="section-title" id="timetable-week-title">Week A</h3>
+                <div class="timetable-week-range" id="timetable-week-range"></div>
+              </div>
+              <div class="timetable-week-switch" id="timetable-week-switch">
+                <button class="chip is-active" type="button" data-timetable-week="current">Current</button>
+                <button class="chip" type="button" data-timetable-week="A">Week A</button>
+                <button class="chip" type="button" data-timetable-week="B">Week B</button>
+                <button class="chip with-icon" type="button" id="timetable-swap-weeks">
+                  <i class="ph ph-arrows-counter-clockwise button-icon" aria-hidden="true"></i>
+                  Swap A/B
+                </button>
+              </div>
+            </div>
+            <div class="timetable-week-grid-wrap">
+              <div class="timetable-week-grid" id="timetable-week-grid"></div>
+            </div>
+          </section>
+
+          <section class="card timetable-map-card glow-soft">
+            <div class="section-eyebrow">Subject linking</div>
+            <h3 class="section-title">Class to subject assignments</h3>
+            <p class="muted">Classes are auto-linked on import. Click a class card to link it or set a custom name, color, and icon.</p>
+            <div class="timetable-map-list" id="timetable-map-list"></div>
           </section>
         </section>
       </main>
@@ -513,6 +599,79 @@
               id="upcoming-message"
               aria-live="polite"
             ></span>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal" id="timetable-class-modal" aria-hidden="true">
+      <div class="modal-backdrop" data-action="close-timetable-class"></div>
+      <div
+        class="modal-panel modal-panel--large"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="timetable-class-title"
+      >
+        <div class="modal-header">
+          <div>
+            <div class="section-eyebrow">Class setup</div>
+            <h2 class="section-title" id="timetable-class-title">Class</h2>
+            <div class="modal-meta" id="timetable-class-meta"></div>
+          </div>
+          <button
+            class="icon-button"
+            type="button"
+            data-action="close-timetable-class"
+          >
+            <i class="ph ph-x" aria-hidden="true"></i>
+          </button>
+        </div>
+        <form id="timetable-class-form" class="modal-body timetable-class-form" autocomplete="off">
+          <input type="hidden" id="timetable-class-key" name="classKey" />
+          <label class="field">
+            <span>Link to subject</span>
+            <select id="timetable-class-subject" name="subjectId"></select>
+            <small>When linked, timetable name, color, and icon use the subject settings.</small>
+            <small id="timetable-class-lock-note" class="timetable-class-lock-note" hidden></small>
+          </label>
+          <div class="timetable-class-customize" id="timetable-class-customize">
+            <label class="field">
+              <span>Class name on timetable</span>
+              <input id="timetable-class-name" name="className" placeholder="Custom class name" />
+              <small>Used only when this class is not linked to a subject.</small>
+            </label>
+            <section class="subject-color-panel timetable-class-style-panel">
+              <div class="subject-color-header subject-icon-header">
+                <div>
+                  <div class="section-eyebrow">Custom style</div>
+                  <div class="settings-title">Color and icon</div>
+                  <div class="subject-color-meta">Used only when this class is not linked.</div>
+                </div>
+                <div class="subject-icon-control">
+                  <div class="subject-icon-preview" id="timetable-class-icon-preview"></div>
+                  <div class="subject-icon-carousel" id="timetable-class-icon-carousel"></div>
+                </div>
+              </div>
+              <input type="hidden" id="timetable-class-icon" name="classIcon" />
+              <div class="color-control">
+                <input
+                  id="timetable-class-color"
+                  class="color-input"
+                  type="color"
+                  name="classColor"
+                  value="#57a8d3"
+                />
+                <span class="color-value" id="timetable-class-color-value">#57A8D3</span>
+              </div>
+              <div class="color-swatches" id="timetable-class-swatches"></div>
+            </section>
+          </div>
+          <div class="form-actions">
+            <button class="primary-button with-icon" type="submit">
+              <i class="ph ph-check-circle button-icon" aria-hidden="true"></i>
+              Save class setup
+            </button>
+            <span class="form-message" id="timetable-class-message" aria-live="polite"></span>
           </div>
         </form>
       </div>
@@ -780,6 +939,38 @@
                     >
                   </div>
                 </div>
+              </section>
+              <section class="settings-block" id="settings-timetable-block" hidden>
+                <div>
+                  <div class="section-eyebrow">Timetable</div>
+                  <div class="settings-title">Manage uploaded timetable</div>
+                </div>
+                <div class="timetable-import-row">
+                  <div class="field timetable-file-field">
+                    <span>Replace .ics file</span>
+                    <div class="timetable-file-control">
+                      <label class="timetable-file-trigger with-icon" for="settings-timetable-upload">
+                        <i class="ph ph-upload-simple button-icon" aria-hidden="true"></i>
+                        Timetable
+                      </label>
+                      <span class="timetable-file-note">Sentral export (.ics)</span>
+                      <input
+                        id="settings-timetable-upload"
+                        class="timetable-file-input"
+                        type="file"
+                        accept=".ics,text/calendar"
+                      />
+                    </div>
+                  </div>
+                  <div class="timetable-import-actions">
+                    <button id="settings-timetable-clear" class="ghost-button ghost-button--small with-icon" type="button">
+                      <i class="ph ph-trash button-icon" aria-hidden="true"></i>
+                      Clear
+                    </button>
+                  </div>
+                </div>
+                <div class="form-message" id="settings-timetable-message" aria-live="polite"></div>
+                <div class="timetable-meta" id="settings-timetable-source-meta">No timetable imported yet.</div>
               </section>
               <section class="settings-block">
                 <div>
@@ -1092,6 +1283,34 @@
           </div>
 
           <div class="onboarding-step" data-onboarding-step="3">
+            <div class="onboarding-section">
+              <div>
+                <div class="section-eyebrow">Timetable</div>
+                <h3 class="section-title">Add your timetable (optional)</h3>
+                <p class="muted">Upload your Sentral ICS now, or skip and do it later.</p>
+              </div>
+              <div class="field">
+                <span>Upload .ics file</span>
+                <div class="timetable-file-control">
+                  <label class="timetable-file-trigger with-icon" for="onboarding-timetable-upload">
+                    <i class="ph ph-upload-simple button-icon" aria-hidden="true"></i>
+                    Timetable
+                  </label>
+                  <span class="timetable-file-note">Sentral export (.ics)</span>
+                  <input
+                    id="onboarding-timetable-upload"
+                    class="timetable-file-input"
+                    type="file"
+                    accept=".ics,text/calendar"
+                  />
+                </div>
+                <small>You can leave this empty and continue.</small>
+              </div>
+              <div class="form-message" id="onboarding-timetable-message" aria-live="polite"></div>
+            </div>
+          </div>
+
+          <div class="onboarding-step" data-onboarding-step="4">
             <div class="onboarding-section">
               <div>
                 <div class="section-eyebrow">Electives</div>

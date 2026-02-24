@@ -1,5 +1,9 @@
 @import url("https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@300;400;500;600;700;800&display=swap");
 
+[hidden] {
+  display: none !important;
+}
+
 :root {
   color-scheme: light dark;
   --bg-primary: #f8f8f8;
@@ -64,6 +68,8 @@
   --popup-border-start: color-mix(in srgb, var(--accent) 60%, transparent);
   --text-on-accent: #ffffff;
   --glow-soft-strength: 18%;
+  --timetable-progress-track-opacity: 0.28;
+  --timetable-progress-fill-opacity: 0.62;
 }
 
 html[data-theme="dark"] {
@@ -140,6 +146,8 @@ html[data-theme="dark"] {
   --popup-border: color-mix(in srgb, var(--accent) 30%, var(--card-border));
   --popup-border-start: color-mix(in srgb, var(--accent) 65%, transparent);
   --glow-soft-strength: 10%;
+  --timetable-progress-track-opacity: 0.36;
+  --timetable-progress-fill-opacity: 0.78;
 }
 
 html[data-theme-variant="pearl"] {
@@ -2052,6 +2060,510 @@ canvas {
   gap: 16px;
 }
 
+.timetable-card {
+  display: grid;
+  gap: 12px;
+}
+
+.timetable-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.timetable-import-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.timetable-file-field {
+  min-width: 260px;
+  flex: 1 1 320px;
+}
+
+.timetable-file-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.timetable-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.timetable-file-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 9px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.timetable-file-trigger:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.timetable-file-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.timetable-file-note {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.timetable-import-actions {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.timetable-import-moved-note {
+  margin: 0;
+}
+
+.timetable-meta {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.timetable-dashboard-card,
+.timetable-week-card {
+  display: grid;
+  gap: 14px;
+}
+
+.timetable-week-card {
+  margin-top: 18px;
+}
+
+.timetable-dashboard-list {
+  --today-grid-gap: 10px;
+  display: grid;
+  grid-template-columns: var(--today-lesson-widths, repeat(var(--today-lesson-columns, 1), minmax(0, 1fr)));
+  gap: var(--today-grid-gap);
+  padding-bottom: 2px;
+}
+
+.timetable-dashboard-list .muted {
+  grid-column: 1 / -1;
+}
+
+.timetable-dashboard-list .empty-state {
+  grid-column: 1 / -1;
+}
+
+.today-lesson-card {
+  border-radius: 14px;
+  min-width: 0;
+  border: 1px solid var(--lesson-border, var(--card-border));
+  background: var(--lesson-bg, var(--surface-elevated));
+  padding: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.today-lesson-card .lesson-subject {
+  width: 100%;
+}
+
+.today-lesson-card.is-current {
+  box-shadow: 0 0 0 1px var(--lesson-border, var(--accent));
+}
+
+.timetable-progress-wrap {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+}
+
+.timetable-progress {
+  height: 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--card-border) 58%, transparent);
+  overflow: hidden;
+  position: relative;
+  background: color-mix(in srgb, var(--surface-soft) 30%, transparent);
+}
+
+.timetable-progress-track {
+  position: absolute;
+  inset: 0;
+  opacity: var(--timetable-progress-track-opacity);
+  filter: none;
+}
+
+.timetable-progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  opacity: var(--timetable-progress-fill-opacity);
+  filter: none;
+  transition: width 1s linear;
+  box-shadow: none;
+}
+
+.timetable-progress-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.timetable-week-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.timetable-week-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--text-secondary);
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.chip:hover {
+  border-color: var(--accent-border);
+  color: var(--text-primary);
+}
+
+.chip.is-active {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--text-primary);
+}
+
+.timetable-week-range {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-top: 6px;
+}
+
+.timetable-week-grid-wrap {
+  overflow-x: auto;
+}
+
+.timetable-week-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(210px, 1fr));
+  gap: 10px;
+  min-width: 1080px;
+}
+
+.timetable-day-column {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.timetable-grid-head {
+  font-weight: 700;
+  color: var(--text-primary);
+  border: 1px solid var(--card-border);
+  background: var(--surface-soft);
+  border-radius: 16px;
+  padding: 12px;
+}
+
+.timetable-grid-head .sub {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.timetable-day-list {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.timetable-map-card {
+  margin-top: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.timetable-map-list {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(280px, 360px);
+  gap: 10px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 2px;
+  padding-bottom: 6px;
+  scrollbar-width: thin;
+}
+
+.timetable-map-list::-webkit-scrollbar {
+  height: 8px;
+}
+
+.timetable-map-list::-webkit-scrollbar-track {
+  background: color-mix(in srgb, var(--surface-soft) 70%, transparent);
+  border-radius: 999px;
+}
+
+.timetable-map-list::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--accent-border) 58%, var(--card-border));
+  border-radius: 999px;
+}
+
+.timetable-map-class-card {
+  appearance: none;
+  color: var(--text-primary);
+  text-align: left;
+  border: 1px solid color-mix(in srgb, var(--class-color, var(--card-border)) 44%, var(--card-border));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--class-color, var(--surface-soft)) 18%, var(--surface-soft));
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+  cursor: pointer;
+  scroll-snap-align: start;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.timetable-map-class-card:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--class-color, var(--accent)) 66%, var(--accent-border));
+}
+
+.timetable-map-class-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.timetable-map-class-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.timetable-map-class-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  color: var(--text-primary);
+  border: 1px solid color-mix(in srgb, var(--class-color, var(--card-border)) 64%, var(--card-border));
+  background: color-mix(in srgb, var(--class-color, var(--surface-elevated)) 28%, var(--surface-elevated));
+}
+
+.timetable-map-class-icon .ph {
+  font-size: 16px;
+}
+
+.timetable-map-class-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.timetable-map-row {
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  background: var(--surface-soft);
+  padding: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 240px);
+  gap: 10px;
+  align-items: center;
+}
+
+.timetable-map-title {
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.timetable-map-meta {
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.timetable-map-select {
+  width: 100%;
+  padding: 10px 12px;
+  padding-right: 40px;
+  border-radius: 12px;
+  border: 1px solid var(--input-border);
+  background-color: var(--input-bg);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--text-secondary) 50%),
+    linear-gradient(135deg, var(--text-secondary) 50%, transparent 50%);
+  background-position:
+    calc(100% - 20px) 50%,
+    calc(100% - 14px) 50%;
+  background-size:
+    6px 6px,
+    6px 6px;
+  background-repeat: no-repeat;
+  color: var(--text-primary);
+  font-size: 14px;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.timetable-map-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--input-focus);
+}
+
+.timetable-map-select option {
+  background: var(--surface-elevated);
+  color: var(--text-primary);
+}
+
+.lesson-card {
+  border-radius: 14px;
+  padding: 10px;
+  border: 1px solid var(--lesson-border, var(--card-border));
+  background: var(--lesson-bg, var(--surface-elevated));
+  display: grid;
+  gap: 5px;
+}
+
+.lesson-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.lesson-period {
+  font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lesson-time {
+  font-weight: 600;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.lesson-subject {
+  font-weight: 800;
+  line-height: 1.2;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.lesson-subject-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lesson-icon-wrap {
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--lesson-border, var(--accent)) 26%, transparent);
+  color: var(--text-primary);
+  flex: 0 0 auto;
+}
+
+.lesson-subject-icon.ph {
+  font-size: 14px;
+}
+
+.lesson-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.25;
+}
+
+.timetable-class-form {
+  display: grid;
+  gap: 14px;
+}
+
+.timetable-class-lock-note {
+  color: var(--text-tertiary);
+}
+
+.timetable-class-customize {
+  display: grid;
+  gap: 14px;
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+.timetable-class-form.is-linked-lock .timetable-class-customize {
+  opacity: 0.48;
+  filter: saturate(0.35);
+  pointer-events: none;
+  user-select: none;
+}
+
+.timetable-class-customize.is-locked .field small,
+.timetable-class-customize.is-locked .subject-color-meta {
+  color: color-mix(in srgb, var(--text-tertiary) 82%, transparent);
+}
+
+.timetable-class-style-panel {
+  gap: 10px;
+}
+
+.timetable-class-style-panel .subject-icon-carousel.is-disabled {
+  opacity: 0.55;
+}
+
 .calendar-header {
   display: flex;
   align-items: flex-end;
@@ -2659,6 +3171,14 @@ tbody tr:hover {
   .main {
     padding: 24px;
   }
+
+  .timetable-week-grid {
+    grid-template-columns: repeat(5, minmax(180px, 1fr));
+  }
+
+  .timetable-dashboard-list {
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  }
 }
 
 @media (max-width: 620px) {
@@ -2681,5 +3201,18 @@ tbody tr:hover {
   .custom-elective-row .icon-button--small {
     justify-self: stretch;
     width: 100%;
+  }
+
+  .timetable-import-actions {
+    width: 100%;
+  }
+
+  .timetable-import-actions .ghost-button {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .timetable-map-list {
+    grid-auto-columns: minmax(84vw, 320px);
   }
 }
