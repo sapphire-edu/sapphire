@@ -1680,6 +1680,10 @@ body.modal-open {
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 
+.upcoming-card--wide.is-expanded .upcoming-list {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
 .upcoming-card--wide .upcoming-item {
   height: 100%;
 }
@@ -1694,7 +1698,8 @@ body.modal-open {
   border-radius: 16px;
   padding: 10px 12px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 12px;
   border: 1px solid var(--card-border);
@@ -1708,12 +1713,23 @@ body.modal-open {
   transform: translateY(-1px);
 }
 
+.upcoming-item[data-action="edit-upcoming"] {
+  cursor: pointer;
+}
+
+.upcoming-item[data-action="edit-upcoming"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .upcoming-name {
   font-weight: 600;
   font-size: 14px;
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
+  word-break: break-word;
 }
 
 .upcoming-dot {
@@ -1726,11 +1742,15 @@ body.modal-open {
 .upcoming-meta {
   font-size: 12px;
   color: var(--text-secondary);
+  word-break: break-word;
 }
 
 .upcoming-right {
   display: inline-flex;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  margin-left: auto;
   gap: 8px;
 }
 
@@ -1759,7 +1779,10 @@ body.modal-open {
 
 .upcoming-footer {
   display: flex;
+  align-items: center;
+  gap: 8px;
   justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 .main-grid {
@@ -2008,7 +2031,10 @@ canvas {
   color: inherit;
   font: inherit;
   cursor: pointer;
-  transition: opacity 160ms ease, border-color 160ms ease, transform 160ms ease;
+  transition:
+    opacity 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
 }
 
 .chart-key-item:hover {
@@ -2117,7 +2143,10 @@ canvas {
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    transform 0.2s ease;
 }
 
 .timetable-file-trigger:hover {
@@ -2163,7 +2192,10 @@ canvas {
 .timetable-dashboard-list {
   --today-grid-gap: 10px;
   display: grid;
-  grid-template-columns: var(--today-lesson-widths, repeat(var(--today-lesson-columns, 1), minmax(0, 1fr)));
+  grid-template-columns: var(
+    --today-lesson-widths,
+    repeat(var(--today-lesson-columns, 1), minmax(0, 1fr))
+  );
   gap: var(--today-grid-gap);
   padding-bottom: 2px;
 }
@@ -2354,20 +2386,36 @@ canvas {
   appearance: none;
   color: var(--text-primary);
   text-align: left;
-  border: 1px solid color-mix(in srgb, var(--class-color, var(--card-border)) 44%, var(--card-border));
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--class-color, var(--card-border)) 44%,
+      var(--card-border)
+    );
   border-radius: 14px;
-  background: color-mix(in srgb, var(--class-color, var(--surface-soft)) 18%, var(--surface-soft));
+  background: color-mix(
+    in srgb,
+    var(--class-color, var(--surface-soft)) 18%,
+    var(--surface-soft)
+  );
   padding: 12px;
   display: grid;
   gap: 8px;
   cursor: pointer;
   scroll-snap-align: start;
-  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .timetable-map-class-card:hover {
   transform: translateY(-1px);
-  border-color: color-mix(in srgb, var(--class-color, var(--accent)) 66%, var(--accent-border));
+  border-color: color-mix(
+    in srgb,
+    var(--class-color, var(--accent)) 66%,
+    var(--accent-border)
+  );
 }
 
 .timetable-map-class-card:focus-visible {
@@ -2388,8 +2436,17 @@ canvas {
   display: grid;
   place-items: center;
   color: var(--text-primary);
-  border: 1px solid color-mix(in srgb, var(--class-color, var(--card-border)) 64%, var(--card-border));
-  background: color-mix(in srgb, var(--class-color, var(--surface-elevated)) 28%, var(--surface-elevated));
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--class-color, var(--card-border)) 64%,
+      var(--card-border)
+    );
+  background: color-mix(
+    in srgb,
+    var(--class-color, var(--surface-elevated)) 28%,
+    var(--surface-elevated)
+  );
 }
 
 .timetable-map-class-icon .ph {
@@ -2514,7 +2571,11 @@ canvas {
   border-radius: 8px;
   display: grid;
   place-items: center;
-  background: color-mix(in srgb, var(--lesson-border, var(--accent)) 26%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--lesson-border, var(--accent)) 26%,
+    transparent
+  );
   color: var(--text-primary);
   flex: 0 0 auto;
 }
@@ -2541,7 +2602,9 @@ canvas {
 .timetable-class-customize {
   display: grid;
   gap: 14px;
-  transition: opacity 0.2s ease, filter 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    filter 0.2s ease;
 }
 
 .timetable-class-form.is-linked-lock .timetable-class-customize {
@@ -2665,6 +2728,22 @@ canvas {
     color-mix(in srgb, var(--event-color) 60%, var(--bg-secondary));
   font-size: 11px;
   color: var(--text-primary);
+  text-align: left;
+  font-family: inherit;
+  width: 100%;
+}
+
+button.calendar-event {
+  cursor: pointer;
+}
+
+button.calendar-event:hover {
+  border-color: color-mix(in srgb, var(--event-color) 78%, var(--bg-secondary));
+}
+
+button.calendar-event:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .calendar-event.is-completed {
@@ -2673,7 +2752,14 @@ canvas {
 
 .calendar-event-title {
   font-weight: 600;
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.calendar-event-type-icon {
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 
 .calendar-event-sub {

@@ -209,6 +209,7 @@ const state = {
   data: loadData(),
   theme: loadThemeSettings(),
   graphSmoothness: loadGraphSmoothness(),
+  upcomingExpanded: false,
   timetableView: {
     selectedWeek: 'current',
   },
@@ -244,7 +245,9 @@ const elements = {
   latestName: document.getElementById('latest-name'),
   latestScore: document.getElementById('latest-score'),
   latestMeta: document.getElementById('latest-meta'),
+  upcomingCard: document.getElementById('upcoming-card'),
   upcomingList: document.getElementById('upcoming-list'),
+  upcomingToggle: document.getElementById('upcoming-toggle'),
   upcomingAdd: document.getElementById('upcoming-add'),
   subjectGrid: document.getElementById('subjects-grid'),
   assessmentTable: document.getElementById('assessment-table'),
@@ -292,7 +295,14 @@ const elements = {
   upcomingModal: document.getElementById('upcoming-modal'),
   upcomingForm: document.getElementById('upcoming-form'),
   upcomingMessage: document.getElementById('upcoming-message'),
+  upcomingModalEyebrow: document.getElementById('upcoming-modal-eyebrow'),
+  upcomingModalTitle: document.getElementById('upcoming-modal-title'),
+  upcomingModalMeta: document.getElementById('upcoming-modal-meta'),
+  upcomingSubmit: document.getElementById('upcoming-submit'),
   upcomingSubjectSelect: document.getElementById('upcoming-subject-select'),
+  upcomingTypeSelect: document.getElementById('upcoming-type-select'),
+  upcomingWeightField: document.getElementById('upcoming-weight-field'),
+  upcomingWeightInput: document.getElementById('upcoming-weight-input'),
   chartTooltip: document.getElementById('chart-tooltip'),
   themeButtons: document.querySelectorAll('[data-theme-variant]'),
   navItems: document.querySelectorAll('[data-tab]'),
@@ -394,6 +404,8 @@ let activeSubjectId = null;
 let activeTimetableClassKey = null;
 let draggingOrderId = null;
 let currentOrderDropTarget = null;
+let pendingAssessmentConversion = null;
+let pendingUpcomingEdit = null;
 const hiddenSubjectsChartIds = new Set();
 const ASSESSMENT_SORT_KEYS = new Set(['subject', 'weight', 'percent', 'grade', 'date']);
 const GRADE_SORT_ORDER = new Map([
@@ -968,6 +980,13 @@ if (elements.upcomingAdd) {
   });
 }
 
+if (elements.upcomingToggle) {
+  elements.upcomingToggle.addEventListener('click', () => {
+    state.upcomingExpanded = !state.upcomingExpanded;
+    renderUpcomingDashboard();
+  });
+}
+
 if (elements.upcomingModal) {
   elements.upcomingModal.addEventListener('click', (event) => {
     const actionTarget = event.target.closest('[data-action]');
@@ -983,7 +1002,10 @@ if (elements.upcomingForm) {
     event.preventDefault();
     const formData = new FormData(elements.upcomingForm);
     const subjectId = String(formData.get('subjectId') || '').trim();
+    const upcomingType = normalizeUpcomingType(formData.get('upcomingType'));
     const upcomingName = String(formData.get('upcomingName') || '').trim();
+    const upcomingWeightInput = formData.get('upcomingWeight');
+    const upcomingWeight = upcomingWeightInput === '' ? null : parseFloat(upcomingWeightInput);
     const upcomingDate = String(formData.get('upcomingDate') || '').trim();
     const upcomingNotes = String(formData.get('upcomingNotes') || '').trim();
 
@@ -997,18 +1019,53 @@ if (elements.upcomingForm) {
     if (!upcomingName) {
       return setUpcomingMessage('Please enter an assessment name.');
     }
+    if (upcomingType === 'assessment' && upcomingWeight !== null && (!Number.isFinite(upcomingWeight) || upcomingWeight < 0)) {
+      return setUpcomingMessage('Weighting must be a positive number.');
+    }
     if (!upcomingDate) {
       return setUpcomingMessage('Please choose a due date.');
     }
 
+    const editContext = pendingUpcomingEdit;
     subject.upcoming = Array.isArray(subject.upcoming) ? subject.upcoming : [];
-    subject.upcoming.push({
-      id: cryptoRandomId(),
-      name: upcomingName,
-      date: upcomingDate,
-      notes: upcomingNotes,
-      createdAt: Date.now(),
-    });
+    if (editContext) {
+      const sourceSubject = state.data.subjects.find((item) => item.id === editContext.subjectId);
+      if (!sourceSubject) {
+        return setUpcomingMessage('Could not find the original subject for this upcoming item.');
+      }
+      sourceSubject.upcoming = Array.isArray(sourceSubject.upcoming) ? sourceSubject.upcoming : [];
+      const sourceIndex = sourceSubject.upcoming.findIndex((item) => item.id === editContext.upcomingId);
+      if (sourceIndex < 0) {
+        return setUpcomingMessage('Could not find that upcoming item.');
+      }
+      const existingItem = sourceSubject.upcoming[sourceIndex];
+      const updatedUpcoming = {
+        id: existingItem.id,
+        name: upcomingName,
+        type: upcomingType,
+        weight: upcomingType === 'assessment' ? upcomingWeight : null,
+        date: upcomingDate,
+        notes: upcomingNotes,
+        createdAt: Number.isFinite(existingItem.createdAt) ? existingItem.createdAt : Date.now(),
+      };
+
+      if (subjectId === editContext.subjectId) {
+        sourceSubject.upcoming[sourceIndex] = updatedUpcoming;
+      } else {
+        sourceSubject.upcoming.splice(sourceIndex, 1);
+        subject.upcoming.push(updatedUpcoming);
+      }
+    } else {
+      subject.upcoming.push({
+        id: cryptoRandomId(),
+        name: upcomingName,
+        type: upcomingType,
+        weight: upcomingType === 'assessment' ? upcomingWeight : null,
+        date: upcomingDate,
+        notes: upcomingNotes,
+        createdAt: Date.now(),
+      });
+    }
 
     saveData(state.data);
     render();
@@ -1142,6 +1199,20 @@ if (elements.subjectModal) {
       openSubjectModal(subjectId);
     }
 
+    if (action === 'complete-upcoming') {
+      const subjectId = actionTarget.dataset.subjectId;
+      const upcomingId = actionTarget.dataset.upcomingId;
+      openAssessmentForUpcoming(subjectId, upcomingId);
+      return;
+    }
+
+    if (action === 'edit-upcoming') {
+      const subjectId = actionTarget.dataset.subjectId;
+      const upcomingId = actionTarget.dataset.upcomingId;
+      openUpcomingEditor(subjectId, upcomingId);
+      return;
+    }
+
     if (action === 'delete-upcoming') {
       const subjectId = actionTarget.dataset.subjectId;
       const upcomingId = actionTarget.dataset.upcomingId;
@@ -1185,6 +1256,18 @@ if (elements.upcomingList) {
   elements.upcomingList.addEventListener('click', async (event) => {
     const actionTarget = event.target.closest('[data-action]');
     if (!actionTarget) return;
+    if (actionTarget.dataset.action === 'edit-upcoming') {
+      const subjectId = actionTarget.dataset.subjectId;
+      const upcomingId = actionTarget.dataset.upcomingId;
+      openUpcomingEditor(subjectId, upcomingId);
+      return;
+    }
+    if (actionTarget.dataset.action === 'complete-upcoming') {
+      const subjectId = actionTarget.dataset.subjectId;
+      const upcomingId = actionTarget.dataset.upcomingId;
+      openAssessmentForUpcoming(subjectId, upcomingId);
+      return;
+    }
     if (actionTarget.dataset.action === 'delete-upcoming') {
       const subjectId = actionTarget.dataset.subjectId;
       const upcomingId = actionTarget.dataset.upcomingId;
@@ -1197,6 +1280,16 @@ if (elements.upcomingList) {
       if (!confirmed) return;
       removeUpcoming(subjectId, upcomingId);
     }
+  });
+}
+
+if (elements.calendarGrid) {
+  elements.calendarGrid.addEventListener('click', (event) => {
+    const actionTarget = event.target.closest('[data-action="edit-upcoming"]');
+    if (!actionTarget) return;
+    const subjectId = actionTarget.dataset.subjectId;
+    const upcomingId = actionTarget.dataset.upcomingId;
+    openUpcomingEditor(subjectId, upcomingId);
   });
 }
 
@@ -1397,6 +1490,9 @@ if (elements.assessmentForm) {
     if (weight !== null && (!Number.isFinite(weight) || weight < 0)) {
       return setAssessmentMessage('Weighting must be a positive number.');
     }
+    if (pendingAssessmentConversion?.requiresWeight && (!Number.isFinite(weight) || weight <= 0)) {
+      return setAssessmentMessage('Weighting is required when converting an upcoming assessment.');
+    }
 
     subject.assessments.push({
       id: cryptoRandomId(),
@@ -1408,10 +1504,24 @@ if (elements.assessmentForm) {
       createdAt: Date.now(),
     });
 
+    if (pendingAssessmentConversion?.subjectId === subjectId && pendingAssessmentConversion.upcomingId) {
+      subject.upcoming = Array.isArray(subject.upcoming)
+        ? subject.upcoming.filter((item) => item.id !== pendingAssessmentConversion.upcomingId)
+        : [];
+    }
+
     saveData(state.data);
     render();
     closeAssessmentModal();
-    openSubjectModal(subjectId);
+    if (elements.subjectModal?.classList.contains('is-open') && activeSubjectId === subjectId) {
+      openSubjectModal(subjectId);
+    }
+  });
+}
+
+if (elements.upcomingTypeSelect) {
+  elements.upcomingTypeSelect.addEventListener('change', () => {
+    updateUpcomingTypeFields();
   });
 }
 
@@ -1645,6 +1755,8 @@ function normalizeData(parsed) {
         return {
           id: item.id || cryptoRandomId(),
           name: item.name || 'Upcoming assessment',
+          type: normalizeUpcomingType(item.type),
+          weight: Number.isFinite(item.weight) ? item.weight : null,
           date,
           notes: item.notes || '',
           createdAt,
@@ -2700,10 +2812,18 @@ function closeSubjectModal() {
   activeSubjectId = null;
 }
 
-function openAssessmentModal(subjectId) {
+function openAssessmentModal(subjectId, options = {}) {
   if (!elements.assessmentModal || !elements.assessmentForm) return;
   const subject = state.data.subjects.find((item) => item.id === subjectId);
   if (!subject) return;
+  const assessmentNameInput = elements.assessmentForm.querySelector('input[name="assessment"]');
+  const scoreInput = elements.assessmentForm.querySelector('input[name="score"]');
+  const totalInput = elements.assessmentForm.querySelector('input[name="total"]');
+  const weightInput = elements.assessmentForm.querySelector('input[name="weight"]');
+  const dateInput = elements.assessmentForm.querySelector('input[name="date"]');
+  const prefill = options.prefill || null;
+
+  pendingAssessmentConversion = options.conversion || null;
   activeSubjectId = subjectId;
   elements.assessmentForm.reset();
   if (elements.assessmentSubjectId) {
@@ -2712,42 +2832,133 @@ function openAssessmentModal(subjectId) {
   if (elements.assessmentSubjectName) {
     elements.assessmentSubjectName.textContent = subject.name;
   }
-  const dateInput = elements.assessmentForm.querySelector('input[name="date"]');
+  if (assessmentNameInput && prefill?.name) {
+    assessmentNameInput.value = prefill.name;
+  }
+  if (scoreInput) {
+    scoreInput.value = '';
+  }
+  if (totalInput) {
+    totalInput.value = '';
+  }
+  if (weightInput) {
+    if (Number.isFinite(prefill?.weight)) {
+      weightInput.value = String(prefill.weight);
+    } else {
+      weightInput.value = '';
+    }
+    weightInput.required = Boolean(pendingAssessmentConversion?.requiresWeight);
+  }
   if (dateInput) {
-    dateInput.value = today;
+    dateInput.value = prefill?.date || today;
   }
   setAssessmentMessage('');
   openModal(elements.assessmentModal);
 }
 
 function closeAssessmentModal() {
+  pendingAssessmentConversion = null;
+  const weightInput = elements.assessmentForm?.querySelector('input[name="weight"]');
+  if (weightInput) {
+    weightInput.required = false;
+  }
   closeModal(elements.assessmentModal);
   setAssessmentMessage('');
 }
 
-function openUpcomingModal(subjectId = null) {
+function openUpcomingModal(options = {}) {
   if (!elements.upcomingModal || !elements.upcomingForm) return;
   if (!state.data.subjects.length) {
     setUpcomingMessage('Add a subject first.');
     return;
   }
+  const normalizedOptions = typeof options === 'string' || options === null
+    ? { subjectId: options || null, upcomingId: null }
+    : options;
+  const editSubjectId = String(normalizedOptions.subjectId || '').trim() || null;
+  const editUpcomingId = String(normalizedOptions.upcomingId || '').trim() || null;
+
   elements.upcomingForm.reset();
   renderUpcomingSubjectSelect();
+
+  let editingItem = null;
+  let editingSubject = null;
+  if (editSubjectId && editUpcomingId) {
+    const selected = getUpcomingItem(editSubjectId, editUpcomingId);
+    if (!selected) {
+      setUpcomingMessage('Could not find that upcoming item.');
+      return;
+    }
+    editingSubject = selected.subject;
+    editingItem = selected.upcoming;
+    pendingUpcomingEdit = {
+      subjectId: editingSubject.id,
+      upcomingId: editingItem.id,
+    };
+  } else {
+    pendingUpcomingEdit = null;
+  }
+
   if (elements.upcomingSubjectSelect) {
-    const preferred = subjectId || elements.upcomingSubjectSelect.value;
+    const preferred = editingSubject?.id || editSubjectId || elements.upcomingSubjectSelect.value;
     if (preferred) {
       elements.upcomingSubjectSelect.value = preferred;
     }
   }
   const dateInput = elements.upcomingForm.querySelector('input[name="upcomingDate"]');
-  if (dateInput) {
-    dateInput.value = today;
+  if (elements.upcomingTypeSelect) {
+    elements.upcomingTypeSelect.value = normalizeUpcomingType(editingItem?.type);
   }
+  if (elements.upcomingWeightInput) {
+    elements.upcomingWeightInput.value = Number.isFinite(editingItem?.weight)
+      ? String(editingItem.weight)
+      : '';
+  }
+  const nameInput = elements.upcomingForm.querySelector('input[name="upcomingName"]');
+  if (nameInput) {
+    nameInput.value = editingItem?.name || '';
+  }
+  const notesInput = elements.upcomingForm.querySelector('input[name="upcomingNotes"]');
+  if (notesInput) {
+    notesInput.value = editingItem?.notes || '';
+  }
+  if (dateInput) {
+    dateInput.value = editingItem?.date || today;
+  }
+
+  if (elements.upcomingModalEyebrow) {
+    elements.upcomingModalEyebrow.textContent = editingItem ? 'Edit upcoming' : 'Upcoming assessment';
+  }
+  if (elements.upcomingModalTitle) {
+    elements.upcomingModalTitle.textContent = editingItem ? 'Update Item' : 'Schedule';
+  }
+  if (elements.upcomingModalMeta) {
+    elements.upcomingModalMeta.textContent = editingItem
+      ? 'Click save after changing type, name, description, weighting, or due date.'
+      : 'Add a reminder for what is next.';
+  }
+  if (elements.upcomingSubmit) {
+    elements.upcomingSubmit.textContent = editingItem ? 'Save Changes' : 'Save Upcoming';
+  }
+  updateUpcomingTypeFields();
   setUpcomingMessage('');
   openModal(elements.upcomingModal);
 }
 
 function closeUpcomingModal() {
+  pendingUpcomingEdit = null;
+  if (elements.upcomingModalEyebrow) {
+    elements.upcomingModalEyebrow.textContent = 'Upcoming assessment';
+  }
+  if (elements.upcomingModalTitle) {
+    elements.upcomingModalTitle.textContent = 'Schedule';
+  }
+  if (elements.upcomingModalMeta) {
+    elements.upcomingModalMeta.textContent = 'Add a reminder for what is next.';
+  }
+  if (elements.upcomingSubmit) {
+    elements.upcomingSubmit.textContent = 'Save Upcoming';
+  }
   closeModal(elements.upcomingModal);
   setUpcomingMessage('');
 }
@@ -2814,6 +3025,24 @@ function setAssessmentMessage(message) {
 
 function setUpcomingMessage(message) {
   setInlineMessage(elements.upcomingMessage, message);
+}
+
+function normalizeUpcomingType(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  return normalized === 'homework' ? 'homework' : 'assessment';
+}
+
+function updateUpcomingTypeFields() {
+  const upcomingType = normalizeUpcomingType(elements.upcomingTypeSelect?.value);
+  if (elements.upcomingWeightField) {
+    elements.upcomingWeightField.hidden = upcomingType !== 'assessment';
+  }
+  if (elements.upcomingWeightInput) {
+    if (upcomingType !== 'assessment') {
+      elements.upcomingWeightInput.value = '';
+    }
+    elements.upcomingWeightInput.required = false;
+  }
 }
 
 function setExportMessage(message) {
@@ -3748,6 +3977,52 @@ function getOrCreateSubject(name, options = {}) {
   return subject;
 }
 
+function getUpcomingItem(subjectId, upcomingId) {
+  if (!subjectId || !upcomingId) return null;
+  const subject = state.data.subjects.find((item) => item.id === subjectId);
+  if (!subject || !Array.isArray(subject.upcoming)) return null;
+  const upcoming = subject.upcoming.find((item) => item.id === upcomingId);
+  if (!upcoming) return null;
+  return { subject, upcoming };
+}
+
+function openAssessmentForUpcoming(subjectId, upcomingId) {
+  const selected = getUpcomingItem(subjectId, upcomingId);
+  if (!selected) {
+    setUpcomingMessage('Could not find that upcoming item.');
+    return;
+  }
+  const { subject, upcoming } = selected;
+  if (normalizeUpcomingType(upcoming.type) !== 'assessment') {
+    setUpcomingMessage('Only assessment items can be converted to marks.');
+    return;
+  }
+  openAssessmentModal(subject.id, {
+    prefill: {
+      name: upcoming.name,
+      date: upcoming.date,
+      weight: upcoming.weight,
+    },
+    conversion: {
+      subjectId: subject.id,
+      upcomingId: upcoming.id,
+      requiresWeight: true,
+    },
+  });
+}
+
+function openUpcomingEditor(subjectId, upcomingId) {
+  const selected = getUpcomingItem(subjectId, upcomingId);
+  if (!selected) {
+    setUpcomingMessage('Could not find that upcoming item.');
+    return;
+  }
+  openUpcomingModal({
+    subjectId: selected.subject.id,
+    upcomingId: selected.upcoming.id,
+  });
+}
+
 function removeUpcoming(subjectId, upcomingId) {
   if (!subjectId || !upcomingId) return;
   const subject = state.data.subjects.find((item) => item.id === subjectId);
@@ -4134,14 +4409,26 @@ function renderAssessments() {
 function renderUpcomingDashboard() {
   if (!elements.upcomingList) return;
   const upcoming = sortUpcoming(getUpcomingAssessments());
+  const maxItems = 4;
+  const canExpand = upcoming.length > maxItems;
+  const visible = state.upcomingExpanded ? upcoming : upcoming.slice(0, maxItems);
+
+  if (elements.upcomingCard) {
+    elements.upcomingCard.classList.toggle('is-expanded', state.upcomingExpanded && canExpand);
+  }
+
+  if (elements.upcomingToggle) {
+    elements.upcomingToggle.hidden = !canExpand;
+    elements.upcomingToggle.setAttribute('aria-expanded', state.upcomingExpanded && canExpand ? 'true' : 'false');
+    elements.upcomingToggle.innerHTML = state.upcomingExpanded && canExpand
+      ? `${iconHtml('caret-up')}Show less`
+      : `${iconHtml('caret-down')}See all`;
+  }
+
   if (upcoming.length === 0) {
     elements.upcomingList.innerHTML = '<div class="empty-state">No upcoming assessments yet.</div>';
   } else {
-    const maxItems = 4;
-    const visible = upcoming.slice(0, maxItems);
-    const moreCount = upcoming.length - visible.length;
-    const moreHtml = moreCount > 0 ? `<div class="upcoming-more">+${moreCount} more scheduled</div>` : '';
-    elements.upcomingList.innerHTML = `${buildUpcomingList(visible, { showSubject: true, allowRemove: true })}${moreHtml}`;
+    elements.upcomingList.innerHTML = buildUpcomingList(visible, { showSubject: true, allowRemove: true });
   }
   if (elements.upcomingAdd) {
     elements.upcomingAdd.disabled = state.data.subjects.length === 0;
@@ -4301,12 +4588,24 @@ function renderCalendar() {
           ${events
             .slice(0, 3)
             .map(
-              (event) => `
-                <div class="calendar-event${event.type === 'completed' ? ' is-completed' : ''}" style="--event-color:${event.color}">
-                  <span class="calendar-event-title">${event.name}</span>
+              (event) => {
+                const typeIcon = event.upcomingType === 'homework'
+                  ? iconHtml('notebook', 'calendar-event-type-icon')
+                  : iconHtml('file-text', 'calendar-event-type-icon');
+                return `
+                <button
+                  class="calendar-event${event.type === 'completed' ? ' is-completed' : ''}"
+                  type="button"
+                  style="--event-color:${event.color}"
+                  data-action="edit-upcoming"
+                  data-subject-id="${event.subjectId}"
+                  data-upcoming-id="${event.upcomingId}"
+                >
+                  <span class="calendar-event-title">${typeIcon}${event.name}</span>
                   <span class="calendar-event-sub">${event.subject}</span>
-                </div>
-              `
+                </button>
+              `;
+              }
             )
             .join('')}
           ${events.length > 3 ? `<div class="calendar-more">+${events.length - 3} more</div>` : ''}
@@ -6286,6 +6585,8 @@ function buildUpcomingList(items, options = {}) {
   }
   return items
     .map((item) => {
+      const upcomingType = normalizeUpcomingType(item.type);
+      const isAssessment = upcomingType === 'assessment';
       const metaParts = [];
       if (options.showSubject && item.subjectName) {
         metaParts.push(item.subjectName);
@@ -6295,8 +6596,12 @@ function buildUpcomingList(items, options = {}) {
         metaParts.push(item.notes);
       }
       const metaText = metaParts.join(' · ');
-      const overdue = isPastDate(item.date);
-      const tagHtml = overdue ? '<span class="upcoming-tag is-overdue">Overdue</span>' : '';
+      const overdue = !isAssessment && isPastDate(item.date);
+      const typeTagHtml = `<span class="upcoming-tag">${isAssessment ? 'Assessment' : 'Homework'}</span>`;
+      const overdueTagHtml = overdue ? '<span class="upcoming-tag is-overdue">Overdue</span>' : '';
+      const completeHtml = isAssessment
+        ? `<button class="ghost-button ghost-button--small" type="button" data-action="complete-upcoming" data-subject-id="${item.subjectId}" data-upcoming-id="${item.id}">Add marks</button>`
+        : '';
       const removeHtml = options.allowRemove
         ? `<button class="delete-button" data-action="delete-upcoming" data-subject-id="${item.subjectId}" data-upcoming-id="${item.id}">Remove</button>`
         : '';
@@ -6304,13 +6609,23 @@ function buildUpcomingList(items, options = {}) {
         ? `<span class="upcoming-dot" style="--swatch:${item.subjectColor}"></span>`
         : '';
       return `
-        <div class="upcoming-item">
+        <div
+          class="upcoming-item"
+          data-action="edit-upcoming"
+          data-subject-id="${item.subjectId}"
+          data-upcoming-id="${item.id}"
+          role="button"
+          tabindex="0"
+          aria-label="Edit ${item.name}"
+        >
           <div>
             <div class="upcoming-name">${dotHtml}${item.name}</div>
             <div class="upcoming-meta">${metaText}</div>
           </div>
           <div class="upcoming-right">
-            ${tagHtml}
+            ${typeTagHtml}
+            ${overdueTagHtml}
+            ${completeHtml}
             ${removeHtml}
           </div>
         </div>
@@ -6335,6 +6650,12 @@ function buildCalendarEvents() {
       name: item.name,
       subject: item.subjectName,
       color: item.subjectColor || 'var(--accent)',
+      subjectId: item.subjectId,
+      upcomingId: item.id,
+      upcomingType: normalizeUpcomingType(item.type),
+      notes: item.notes || '',
+      weight: Number.isFinite(item.weight) ? item.weight : null,
+      dueDate: item.date,
     });
   });
 

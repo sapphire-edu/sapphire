@@ -27,7 +27,11 @@
           </div>
         </div>
         <nav class="app-nav">
-          <button class="nav-item is-active with-icon" data-tab="dashboard" type="button">
+          <button
+            class="nav-item is-active with-icon"
+            data-tab="dashboard"
+            type="button"
+          >
             <i class="ph ph-squares-four button-icon" aria-hidden="true"></i>
             Dashboard
           </button>
@@ -49,7 +53,11 @@
             <i class="ph ph-share-network button-icon" aria-hidden="true"></i>
             Share
           </button>
-          <button id="settings-open" class="ghost-button with-icon" type="button">
+          <button
+            id="settings-open"
+            class="ghost-button with-icon"
+            type="button"
+          >
             <i class="ph ph-gear-six button-icon" aria-hidden="true"></i>
             Settings
           </button>
@@ -81,11 +89,19 @@
                     alt=""
                     loading="lazy"
                   />
-                  <span id="profile-card-fallback" class="profile-card-fallback">?</span>
+                  <span id="profile-card-fallback" class="profile-card-fallback"
+                    >?</span
+                  >
                 </div>
-                <div id="profile-card-name" class="profile-card-name">Not signed in</div>
+                <div id="profile-card-name" class="profile-card-name">
+                  Not signed in
+                </div>
               </div>
-              <button id="auth-menu-action" class="profile-menu-action" type="button">
+              <button
+                id="auth-menu-action"
+                class="profile-menu-action"
+                type="button"
+              >
                 Sign in
               </button>
             </div>
@@ -176,16 +192,33 @@
               </div>
             </section>
 
-            <section class="card upcoming-card upcoming-card--wide glow-soft">
+            <section
+              class="card upcoming-card upcoming-card--wide glow-soft"
+              id="upcoming-card"
+            >
               <div class="section-eyebrow">Upcoming</div>
               <div class="upcoming-list" id="upcoming-list"></div>
               <div class="upcoming-footer">
+                <button
+                  id="upcoming-toggle"
+                  class="ghost-button ghost-button--small with-icon"
+                  type="button"
+                >
+                  <i
+                    class="ph ph-caret-down button-icon"
+                    aria-hidden="true"
+                  ></i>
+                  See all
+                </button>
                 <button
                   id="upcoming-add"
                   class="ghost-button ghost-button--small with-icon"
                   type="button"
                 >
-                  <i class="ph ph-plus-circle button-icon" aria-hidden="true"></i>
+                  <i
+                    class="ph ph-plus-circle button-icon"
+                    aria-hidden="true"
+                  ></i>
                   Add upcoming
                 </button>
               </div>
@@ -195,7 +228,9 @@
               <div class="section-eyebrow">Timetable</div>
               <h2 class="section-title" id="timetable-today-title">Today</h2>
               <div class="timetable-dashboard-list" id="timetable-today-list">
-                <div class="empty-state">Import your timetable to see today&apos;s classes.</div>
+                <div class="empty-state">
+                  Import your timetable to see today&apos;s classes.
+                </div>
               </div>
             </section>
           </div>
@@ -216,7 +251,10 @@
                 class="ghost-button ghost-button--small with-icon"
                 type="button"
               >
-                <i class="ph ph-arrows-down-up button-icon" aria-hidden="true"></i>
+                <i
+                  class="ph ph-arrows-down-up button-icon"
+                  aria-hidden="true"
+                ></i>
                 Edit order
               </button>
               <span class="section-meta">Reorder subjects in a list view.</span>
@@ -289,30 +327,65 @@
                 <thead>
                   <tr id="assessment-table-head">
                     <th aria-sort="none">
-                      <button class="table-sort" type="button" data-assessment-sort="subject">
-                        Subject <span class="table-sort-indicator" data-sort-indicator>↕</span>
+                      <button
+                        class="table-sort"
+                        type="button"
+                        data-assessment-sort="subject"
+                      >
+                        Subject
+                        <span class="table-sort-indicator" data-sort-indicator
+                          >↕</span
+                        >
                       </button>
                     </th>
                     <th>Assessment</th>
                     <th>Score</th>
                     <th aria-sort="none">
-                      <button class="table-sort" type="button" data-assessment-sort="weight">
-                        Weight <span class="table-sort-indicator" data-sort-indicator>↕</span>
+                      <button
+                        class="table-sort"
+                        type="button"
+                        data-assessment-sort="weight"
+                      >
+                        Weight
+                        <span class="table-sort-indicator" data-sort-indicator
+                          >↕</span
+                        >
                       </button>
                     </th>
                     <th aria-sort="none">
-                      <button class="table-sort" type="button" data-assessment-sort="percent">
-                        Percent <span class="table-sort-indicator" data-sort-indicator>↕</span>
+                      <button
+                        class="table-sort"
+                        type="button"
+                        data-assessment-sort="percent"
+                      >
+                        Percent
+                        <span class="table-sort-indicator" data-sort-indicator
+                          >↕</span
+                        >
                       </button>
                     </th>
                     <th aria-sort="none">
-                      <button class="table-sort" type="button" data-assessment-sort="grade">
-                        Grade <span class="table-sort-indicator" data-sort-indicator>↕</span>
+                      <button
+                        class="table-sort"
+                        type="button"
+                        data-assessment-sort="grade"
+                      >
+                        Grade
+                        <span class="table-sort-indicator" data-sort-indicator
+                          >↕</span
+                        >
                       </button>
                     </th>
                     <th aria-sort="none">
-                      <button class="table-sort" type="button" data-assessment-sort="date">
-                        Date <span class="table-sort-indicator" data-sort-indicator>↕</span>
+                      <button
+                        class="table-sort"
+                        type="button"
+                        data-assessment-sort="date"
+                      >
+                        Date
+                        <span class="table-sort-indicator" data-sort-indicator
+                          >↕</span
+                        >
                       </button>
                     </th>
                     <th></th>
@@ -358,13 +431,17 @@
         </section>
 
         <section class="view" data-view="timetable">
-          <section class="card timetable-card glow-soft" id="timetable-import-card">
+          <section
+            class="card timetable-card glow-soft"
+            id="timetable-import-card"
+          >
             <div class="timetable-header">
               <div>
                 <div class="section-eyebrow">Sentral timetable</div>
                 <h2 class="section-title">Week A / Week B</h2>
                 <p class="muted">
-                  Upload your Sentral ICS export to generate your alternating timetable and today view.
+                  Upload your Sentral ICS export to generate your alternating
+                  timetable and today view.
                 </p>
               </div>
             </div>
@@ -373,11 +450,19 @@
                 <div class="field timetable-file-field">
                   <span>Upload .ics file</span>
                   <div class="timetable-file-control">
-                    <label class="timetable-file-trigger with-icon" for="timetable-upload">
-                      <i class="ph ph-upload-simple button-icon" aria-hidden="true"></i>
+                    <label
+                      class="timetable-file-trigger with-icon"
+                      for="timetable-upload"
+                    >
+                      <i
+                        class="ph ph-upload-simple button-icon"
+                        aria-hidden="true"
+                      ></i>
                       Timetable
                     </label>
-                    <span class="timetable-file-note">Sentral export (.ics)</span>
+                    <span class="timetable-file-note"
+                      >Sentral export (.ics)</span
+                    >
                     <input
                       id="timetable-upload"
                       class="timetable-file-input"
@@ -387,18 +472,33 @@
                   </div>
                 </div>
                 <div class="timetable-import-actions">
-                  <button id="timetable-clear" class="ghost-button ghost-button--small with-icon" type="button">
+                  <button
+                    id="timetable-clear"
+                    class="ghost-button ghost-button--small with-icon"
+                    type="button"
+                  >
                     <i class="ph ph-trash button-icon" aria-hidden="true"></i>
                     Clear
                   </button>
                 </div>
               </div>
-              <div class="form-message" id="timetable-import-message" aria-live="polite"></div>
+              <div
+                class="form-message"
+                id="timetable-import-message"
+                aria-live="polite"
+              ></div>
             </div>
-            <p class="muted timetable-import-moved-note" id="timetable-import-moved-note" hidden>
-              Timetable import has moved to Settings. Open Settings to replace or clear your uploaded file.
+            <p
+              class="muted timetable-import-moved-note"
+              id="timetable-import-moved-note"
+              hidden
+            >
+              Timetable import has moved to Settings. Open Settings to replace
+              or clear your uploaded file.
             </p>
-            <div class="timetable-meta" id="timetable-source-meta">No timetable imported yet.</div>
+            <div class="timetable-meta" id="timetable-source-meta">
+              No timetable imported yet.
+            </div>
           </section>
 
           <section class="card timetable-week-card glow-soft">
@@ -406,14 +506,34 @@
               <div>
                 <div class="section-eyebrow">Weekly view</div>
                 <h3 class="section-title" id="timetable-week-title">Week A</h3>
-                <div class="timetable-week-range" id="timetable-week-range"></div>
+                <div
+                  class="timetable-week-range"
+                  id="timetable-week-range"
+                ></div>
               </div>
               <div class="timetable-week-switch" id="timetable-week-switch">
-                <button class="chip is-active" type="button" data-timetable-week="current">Current</button>
-                <button class="chip" type="button" data-timetable-week="A">Week A</button>
-                <button class="chip" type="button" data-timetable-week="B">Week B</button>
-                <button class="chip with-icon" type="button" id="timetable-swap-weeks">
-                  <i class="ph ph-arrows-counter-clockwise button-icon" aria-hidden="true"></i>
+                <button
+                  class="chip is-active"
+                  type="button"
+                  data-timetable-week="current"
+                >
+                  Current
+                </button>
+                <button class="chip" type="button" data-timetable-week="A">
+                  Week A
+                </button>
+                <button class="chip" type="button" data-timetable-week="B">
+                  Week B
+                </button>
+                <button
+                  class="chip with-icon"
+                  type="button"
+                  id="timetable-swap-weeks"
+                >
+                  <i
+                    class="ph ph-arrows-counter-clockwise button-icon"
+                    aria-hidden="true"
+                  ></i>
                   Swap A/B
                 </button>
               </div>
@@ -426,7 +546,10 @@
           <section class="card timetable-map-card glow-soft">
             <div class="section-eyebrow">Subject linking</div>
             <h3 class="section-title">Class to subject assignments</h3>
-            <p class="muted">Classes are auto-linked on import. Click a class card to link it or set a custom name, color, and icon.</p>
+            <p class="muted">
+              Classes are auto-linked on import. Click a class card to link it
+              or set a custom name, color, and icon.
+            </p>
             <div class="timetable-map-list" id="timetable-map-list"></div>
           </section>
         </section>
@@ -554,9 +677,9 @@
       >
         <div class="modal-header">
           <div>
-            <div class="section-eyebrow">Upcoming assessment</div>
+            <div class="section-eyebrow" id="upcoming-modal-eyebrow">Upcoming assessment</div>
             <h2 class="section-title" id="upcoming-modal-title">Schedule</h2>
-            <div class="modal-meta">Add a reminder for what is next.</div>
+            <div class="modal-meta" id="upcoming-modal-meta">Add a reminder for what is next.</div>
           </div>
           <button
             class="icon-button"
@@ -577,12 +700,31 @@
             ></select>
           </label>
           <label class="field">
+            <span>Type</span>
+            <select name="upcomingType" id="upcoming-type-select" required>
+              <option value="assessment">Assessment</option>
+              <option value="homework">Homework</option>
+            </select>
+          </label>
+          <label class="field">
             <span>Assessment name</span>
             <input
               name="upcomingName"
               placeholder="e.g. Revision quiz"
               required
             />
+          </label>
+          <label class="field" id="upcoming-weight-field">
+            <span>Weighting (optional)</span>
+            <input
+              name="upcomingWeight"
+              id="upcoming-weight-input"
+              type="number"
+              min="0"
+              step="0.1"
+              placeholder="20"
+            />
+            <small>Only used for assessments.</small>
           </label>
           <label class="field">
             <span>Due date</span>
@@ -593,7 +735,7 @@
             <input name="upcomingNotes" placeholder="e.g. Chapter 6 and 7" />
           </label>
           <div class="form-actions">
-            <button class="primary-button" type="submit">Save Upcoming</button>
+            <button class="primary-button" id="upcoming-submit" type="submit">Save Upcoming</button>
             <span
               class="form-message"
               id="upcoming-message"
@@ -626,30 +768,55 @@
             <i class="ph ph-x" aria-hidden="true"></i>
           </button>
         </div>
-        <form id="timetable-class-form" class="modal-body timetable-class-form" autocomplete="off">
+        <form
+          id="timetable-class-form"
+          class="modal-body timetable-class-form"
+          autocomplete="off"
+        >
           <input type="hidden" id="timetable-class-key" name="classKey" />
           <label class="field">
             <span>Link to subject</span>
             <select id="timetable-class-subject" name="subjectId"></select>
-            <small>When linked, timetable name, color, and icon use the subject settings.</small>
-            <small id="timetable-class-lock-note" class="timetable-class-lock-note" hidden></small>
+            <small
+              >When linked, timetable name, color, and icon use the subject
+              settings.</small
+            >
+            <small
+              id="timetable-class-lock-note"
+              class="timetable-class-lock-note"
+              hidden
+            ></small>
           </label>
           <div class="timetable-class-customize" id="timetable-class-customize">
             <label class="field">
               <span>Class name on timetable</span>
-              <input id="timetable-class-name" name="className" placeholder="Custom class name" />
-              <small>Used only when this class is not linked to a subject.</small>
+              <input
+                id="timetable-class-name"
+                name="className"
+                placeholder="Custom class name"
+              />
+              <small
+                >Used only when this class is not linked to a subject.</small
+              >
             </label>
             <section class="subject-color-panel timetable-class-style-panel">
               <div class="subject-color-header subject-icon-header">
                 <div>
                   <div class="section-eyebrow">Custom style</div>
                   <div class="settings-title">Color and icon</div>
-                  <div class="subject-color-meta">Used only when this class is not linked.</div>
+                  <div class="subject-color-meta">
+                    Used only when this class is not linked.
+                  </div>
                 </div>
                 <div class="subject-icon-control">
-                  <div class="subject-icon-preview" id="timetable-class-icon-preview"></div>
-                  <div class="subject-icon-carousel" id="timetable-class-icon-carousel"></div>
+                  <div
+                    class="subject-icon-preview"
+                    id="timetable-class-icon-preview"
+                  ></div>
+                  <div
+                    class="subject-icon-carousel"
+                    id="timetable-class-icon-carousel"
+                  ></div>
                 </div>
               </div>
               <input type="hidden" id="timetable-class-icon" name="classIcon" />
@@ -661,7 +828,9 @@
                   name="classColor"
                   value="#57a8d3"
                 />
-                <span class="color-value" id="timetable-class-color-value">#57A8D3</span>
+                <span class="color-value" id="timetable-class-color-value"
+                  >#57A8D3</span
+                >
               </div>
               <div class="color-swatches" id="timetable-class-swatches"></div>
             </section>
@@ -671,7 +840,11 @@
               <i class="ph ph-check-circle button-icon" aria-hidden="true"></i>
               Save class setup
             </button>
-            <span class="form-message" id="timetable-class-message" aria-live="polite"></span>
+            <span
+              class="form-message"
+              id="timetable-class-message"
+              aria-live="polite"
+            ></span>
           </div>
         </form>
       </div>
@@ -716,7 +889,11 @@
               </select>
             </label>
             <div class="form-actions">
-              <button class="primary-button with-icon" type="button" id="export-generate">
+              <button
+                class="primary-button with-icon"
+                type="button"
+                id="export-generate"
+              >
                 <i class="ph ph-link-simple button-icon" aria-hidden="true"></i>
                 Generate string
               </button>
@@ -765,8 +942,15 @@
               ></textarea>
             </label>
             <div class="form-actions">
-              <button class="primary-button with-icon" type="button" id="import-restore">
-                <i class="ph ph-download-simple button-icon" aria-hidden="true"></i>
+              <button
+                class="primary-button with-icon"
+                type="button"
+                id="import-restore"
+              >
+                <i
+                  class="ph ph-download-simple button-icon"
+                  aria-hidden="true"
+                ></i>
                 Import data
               </button>
               <span
@@ -827,7 +1011,10 @@
                   </label>
                   <div class="form-actions">
                     <button class="primary-button with-icon" type="submit">
-                      <i class="ph ph-check-circle button-icon" aria-hidden="true"></i>
+                      <i
+                        class="ph ph-check-circle button-icon"
+                        aria-hidden="true"
+                      ></i>
                       Save name
                     </button>
                     <span
@@ -940,7 +1127,11 @@
                   </div>
                 </div>
               </section>
-              <section class="settings-block" id="settings-timetable-block" hidden>
+              <section
+                class="settings-block"
+                id="settings-timetable-block"
+                hidden
+              >
                 <div>
                   <div class="section-eyebrow">Timetable</div>
                   <div class="settings-title">Manage uploaded timetable</div>
@@ -949,11 +1140,19 @@
                   <div class="field timetable-file-field">
                     <span>Replace .ics file</span>
                     <div class="timetable-file-control">
-                      <label class="timetable-file-trigger with-icon" for="settings-timetable-upload">
-                        <i class="ph ph-upload-simple button-icon" aria-hidden="true"></i>
+                      <label
+                        class="timetable-file-trigger with-icon"
+                        for="settings-timetable-upload"
+                      >
+                        <i
+                          class="ph ph-upload-simple button-icon"
+                          aria-hidden="true"
+                        ></i>
                         Timetable
                       </label>
-                      <span class="timetable-file-note">Sentral export (.ics)</span>
+                      <span class="timetable-file-note"
+                        >Sentral export (.ics)</span
+                      >
                       <input
                         id="settings-timetable-upload"
                         class="timetable-file-input"
@@ -963,21 +1162,35 @@
                     </div>
                   </div>
                   <div class="timetable-import-actions">
-                    <button id="settings-timetable-clear" class="ghost-button ghost-button--small with-icon" type="button">
+                    <button
+                      id="settings-timetable-clear"
+                      class="ghost-button ghost-button--small with-icon"
+                      type="button"
+                    >
                       <i class="ph ph-trash button-icon" aria-hidden="true"></i>
                       Clear
                     </button>
                   </div>
                 </div>
-                <div class="form-message" id="settings-timetable-message" aria-live="polite"></div>
-                <div class="timetable-meta" id="settings-timetable-source-meta">No timetable imported yet.</div>
+                <div
+                  class="form-message"
+                  id="settings-timetable-message"
+                  aria-live="polite"
+                ></div>
+                <div class="timetable-meta" id="settings-timetable-source-meta">
+                  No timetable imported yet.
+                </div>
               </section>
               <section class="settings-block">
                 <div>
                   <div class="section-eyebrow">Reset</div>
                   <div class="settings-title">Clear stored data</div>
                 </div>
-                <button id="reset-data" class="danger-button with-icon" type="button">
+                <button
+                  id="reset-data"
+                  class="danger-button with-icon"
+                  type="button"
+                >
                   <i class="ph ph-trash button-icon" aria-hidden="true"></i>
                   Reset data
                 </button>
@@ -1032,7 +1245,9 @@
           <div>
             <div class="section-eyebrow">New subject</div>
             <h2 class="section-title" id="add-subject-title">Add subject</h2>
-            <div class="modal-meta">Set the name, icon, and color before creating it.</div>
+            <div class="modal-meta">
+              Set the name, icon, and color before creating it.
+            </div>
           </div>
           <button
             class="icon-button"
@@ -1053,7 +1268,12 @@
               required
             />
           </label>
-          <input type="hidden" id="add-subject-icon" name="subjectIcon" value="notebook" />
+          <input
+            type="hidden"
+            id="add-subject-icon"
+            name="subjectIcon"
+            value="notebook"
+          />
           <div class="subject-color-panel">
             <div class="subject-color-header subject-icon-header">
               <div>
@@ -1061,26 +1281,47 @@
                 <div class="subject-color-meta">Shown on cards and charts.</div>
               </div>
               <div class="subject-icon-control">
-                <span class="subject-icon-preview" id="add-subject-icon-preview">
+                <span
+                  class="subject-icon-preview"
+                  id="add-subject-icon-preview"
+                >
                   <i class="ph ph-notebook" aria-hidden="true"></i>
                 </span>
-                <div class="subject-icon-carousel" id="add-subject-icon-carousel"></div>
+                <div
+                  class="subject-icon-carousel"
+                  id="add-subject-icon-carousel"
+                ></div>
               </div>
             </div>
             <div class="subject-color-header">
               <div>
                 <div class="section-eyebrow">Subject color</div>
-                <div class="subject-color-meta">Used across cards and charts.</div>
+                <div class="subject-color-meta">
+                  Used across cards and charts.
+                </div>
               </div>
               <div class="color-control">
-                <input class="color-input" id="add-subject-color" type="color" name="subjectColor" value="#57A8D3" aria-label="Subject color" />
-                <span class="color-value" id="add-subject-color-value">#57A8D3</span>
+                <input
+                  class="color-input"
+                  id="add-subject-color"
+                  type="color"
+                  name="subjectColor"
+                  value="#57A8D3"
+                  aria-label="Subject color"
+                />
+                <span class="color-value" id="add-subject-color-value"
+                  >#57A8D3</span
+                >
               </div>
             </div>
             <div class="color-swatches" id="add-subject-swatches"></div>
           </div>
           <div class="form-actions">
-            <button class="ghost-button" type="button" data-action="close-add-subject">
+            <button
+              class="ghost-button"
+              type="button"
+              data-action="close-add-subject"
+            >
               Cancel
             </button>
             <button class="primary-button with-icon" type="submit">
@@ -1117,7 +1358,10 @@
           </div>
         </div>
         <div class="onboarding-progress">
-          <div class="onboarding-progress-bar" id="onboarding-progress-bar"></div>
+          <div
+            class="onboarding-progress-bar"
+            id="onboarding-progress-bar"
+          ></div>
         </div>
         <form
           id="onboarding-form"
@@ -1130,7 +1374,8 @@
                 <div class="section-eyebrow">Sign in</div>
                 <h3 class="section-title">Sync your gradebook</h3>
                 <p class="muted">
-                  Sign in to back up across devices. Continue as a guest to keep data only on this device.
+                  Sign in to back up across devices. Continue as a guest to keep
+                  data only on this device.
                 </p>
               </div>
               <div class="form-actions">
@@ -1147,7 +1392,10 @@
                   type="button"
                   id="onboarding-guest"
                 >
-                  <i class="ph ph-user-circle button-icon" aria-hidden="true"></i>
+                  <i
+                    class="ph ph-user-circle button-icon"
+                    aria-hidden="true"
+                  ></i>
                   Continue as guest
                 </button>
                 <button
@@ -1257,10 +1505,15 @@
               <div class="theme-controls">
                 <div>
                   <div class="section-eyebrow">Graph smoothing</div>
-                  <div class="theme-control-meta">Adjust the curve softness.</div>
+                  <div class="theme-control-meta">
+                    Adjust the curve softness.
+                  </div>
                 </div>
                 <div class="chart-wrap chart-wrap--compact">
-                  <canvas id="onboarding-smoothing-preview" height="120"></canvas>
+                  <canvas
+                    id="onboarding-smoothing-preview"
+                    height="120"
+                  ></canvas>
                 </div>
                 <div class="theme-slider-row">
                   <input
@@ -1287,13 +1540,21 @@
               <div>
                 <div class="section-eyebrow">Timetable</div>
                 <h3 class="section-title">Add your timetable (optional)</h3>
-                <p class="muted">Upload your Sentral ICS now, or skip and do it later.</p>
+                <p class="muted">
+                  Upload your Sentral ICS now, or skip and do it later.
+                </p>
               </div>
               <div class="field">
                 <span>Upload .ics file</span>
                 <div class="timetable-file-control">
-                  <label class="timetable-file-trigger with-icon" for="onboarding-timetable-upload">
-                    <i class="ph ph-upload-simple button-icon" aria-hidden="true"></i>
+                  <label
+                    class="timetable-file-trigger with-icon"
+                    for="onboarding-timetable-upload"
+                  >
+                    <i
+                      class="ph ph-upload-simple button-icon"
+                      aria-hidden="true"
+                    ></i>
                     Timetable
                   </label>
                   <span class="timetable-file-note">Sentral export (.ics)</span>
@@ -1306,7 +1567,11 @@
                 </div>
                 <small>You can leave this empty and continue.</small>
               </div>
-              <div class="form-message" id="onboarding-timetable-message" aria-live="polite"></div>
+              <div
+                class="form-message"
+                id="onboarding-timetable-message"
+                aria-live="polite"
+              ></div>
             </div>
           </div>
 
@@ -1317,8 +1582,7 @@
                 <h3 class="section-title">Choose your electives</h3>
                 <p class="muted">Core subjects are added automatically.</p>
               </div>
-              <div class="elective-grid" id="elective-grid">
-              </div>
+              <div class="elective-grid" id="elective-grid"></div>
               <div class="custom-elective-panel">
                 <div class="custom-elective-toolbar">
                   <span>Custom electives (optional)</span>
@@ -1331,21 +1595,36 @@
                     Add custom elective
                   </button>
                 </div>
-                <div class="custom-elective-list" id="custom-elective-list"></div>
+                <div
+                  class="custom-elective-list"
+                  id="custom-elective-list"
+                ></div>
               </div>
             </div>
           </div>
 
           <div class="form-actions onboarding-nav">
-            <button class="ghost-button with-icon" type="button" id="onboarding-back">
+            <button
+              class="ghost-button with-icon"
+              type="button"
+              id="onboarding-back"
+            >
               <i class="ph ph-caret-left button-icon" aria-hidden="true"></i>
               Back
             </button>
-            <button class="ghost-button with-icon" type="button" id="onboarding-next">
+            <button
+              class="ghost-button with-icon"
+              type="button"
+              id="onboarding-next"
+            >
               <i class="ph ph-caret-right button-icon" aria-hidden="true"></i>
               Next
             </button>
-            <button class="primary-button with-icon" type="submit" id="onboarding-finish">
+            <button
+              class="primary-button with-icon"
+              type="submit"
+              id="onboarding-finish"
+            >
               <i class="ph ph-check-circle button-icon" aria-hidden="true"></i>
               Finish setup
             </button>
@@ -1398,7 +1677,10 @@
               type="button"
               id="onboarding-import-apply"
             >
-              <i class="ph ph-arrow-bend-up-right button-icon" aria-hidden="true"></i>
+              <i
+                class="ph ph-arrow-bend-up-right button-icon"
+                aria-hidden="true"
+              ></i>
               Use code and skip
             </button>
             <span
@@ -1429,14 +1711,26 @@
         <div class="modal-header">
           <div>
             <div class="section-eyebrow">Custom icon</div>
-            <h2 class="section-title" id="icon-picker-title">Enter icon name</h2>
-            <div class="modal-meta">Use a Phosphor icon slug like <code>wave-sine</code>.</div>
+            <h2 class="section-title" id="icon-picker-title">
+              Enter icon name
+            </h2>
+            <div class="modal-meta">
+              Use a Phosphor icon slug like <code>wave-sine</code>.
+            </div>
           </div>
-          <button class="icon-button" type="button" data-action="close-icon-picker">
+          <button
+            class="icon-button"
+            type="button"
+            data-action="close-icon-picker"
+          >
             <i class="ph ph-x" aria-hidden="true"></i>
           </button>
         </div>
-        <form id="icon-picker-form" class="modal-body icon-picker-body" autocomplete="off">
+        <form
+          id="icon-picker-form"
+          class="modal-body icon-picker-body"
+          autocomplete="off"
+        >
           <div class="icon-picker-preview-wrap">
             <span class="icon-picker-preview" id="icon-picker-preview">
               <i class="ph ph-wave-sine" aria-hidden="true"></i>
@@ -1452,12 +1746,20 @@
               required
             />
           </label>
-          <div class="form-message icon-picker-message" id="icon-picker-message" aria-live="polite"></div>
+          <div
+            class="form-message icon-picker-message"
+            id="icon-picker-message"
+            aria-live="polite"
+          ></div>
           <div class="form-actions">
             <button id="icon-picker-cancel" class="ghost-button" type="button">
               Cancel
             </button>
-            <button id="icon-picker-apply" class="primary-button with-icon" type="submit">
+            <button
+              id="icon-picker-apply"
+              class="primary-button with-icon"
+              type="submit"
+            >
               <i class="ph ph-check button-icon" aria-hidden="true"></i>
               Use Icon
             </button>
@@ -1484,9 +1786,7 @@
           </button>
         </div>
         <div class="modal-body confirm-body">
-          <p id="confirm-message" class="muted">
-            This action can’t be undone.
-          </p>
+          <p id="confirm-message" class="muted">This action can’t be undone.</p>
           <div class="form-actions">
             <button id="confirm-cancel" class="ghost-button" type="button">
               Cancel
