@@ -287,6 +287,17 @@ const elements = {
   subjectModalBody: document.getElementById('subject-modal-body'),
   subjectModalTitle: document.getElementById('subject-modal-title'),
   subjectModalMeta: document.getElementById('subject-modal-meta'),
+  editSubjectModal: document.getElementById('edit-subject-modal'),
+  editSubjectForm: document.getElementById('edit-subject-form'),
+  editSubjectId: document.getElementById('edit-subject-id'),
+  editSubjectName: document.getElementById('edit-subject-name'),
+  editSubjectIcon: document.getElementById('edit-subject-icon'),
+  editSubjectIconPreview: document.getElementById('edit-subject-icon-preview'),
+  editSubjectIconCarousel: document.getElementById('edit-subject-icon-carousel'),
+  editSubjectColor: document.getElementById('edit-subject-color'),
+  editSubjectColorValue: document.getElementById('edit-subject-color-value'),
+  editSubjectSwatches: document.getElementById('edit-subject-swatches'),
+  editSubjectMessage: document.getElementById('edit-subject-message'),
   assessmentModal: document.getElementById('assessment-modal'),
   assessmentForm: document.getElementById('assessment-form'),
   assessmentMessage: document.getElementById('assessment-message'),
@@ -311,6 +322,7 @@ const elements = {
   calendarGrid: document.getElementById('calendar-grid'),
   calendarPrev: document.getElementById('calendar-prev'),
   calendarNext: document.getElementById('calendar-next'),
+  calendarTypeFilters: document.querySelectorAll('[data-calendar-type-filter]'),
   timetableUpload: document.getElementById('timetable-upload'),
   timetableImportCard: document.getElementById('timetable-import-card'),
   timetableImportControls: document.getElementById('timetable-import-controls'),
@@ -398,6 +410,7 @@ const todayValue = dateStringValue(today);
 const calendarState = {
   year: new Date().getFullYear(),
   month: new Date().getMonth(),
+  filter: 'both',
 };
 
 let activeSubjectId = null;
@@ -1135,33 +1148,9 @@ if (elements.subjectModal) {
       return;
     }
 
-    if (action === 'set-subject-color') {
-      const subjectId = actionTarget.dataset.id || activeSubjectId;
-      const color = actionTarget.dataset.color;
-      if (subjectId && color) {
-        applySubjectColor(subjectId, color);
-      }
-      return;
-    }
-
-    if (action === 'set-subject-icon') {
-      const subjectId = actionTarget.dataset.subjectId || activeSubjectId;
-      const icon = resolveSubjectIcon(actionTarget.dataset.icon, '');
-      if (subjectId && icon) {
-        applySubjectIcon(subjectId, icon);
-      }
-      return;
-    }
-
-    if (action === 'set-subject-icon-other') {
-      const subjectId = actionTarget.dataset.subjectId || activeSubjectId;
-      if (!subjectId) return;
-      const subject = state.data.subjects.find((item) => item.id === subjectId);
-      if (!subject) return;
-      const current = resolveSubjectIcon(subject.icon, subject.name);
-      const icon = await showCustomIconPicker(current);
-      if (!icon) return;
-      applySubjectIcon(subjectId, icon);
+    if (action === 'open-edit-subject') {
+      if (!activeSubjectId) return;
+      openEditSubjectModal(activeSubjectId);
       return;
     }
 
@@ -1228,16 +1217,111 @@ if (elements.subjectModal) {
   });
 }
 
-if (elements.subjectModal) {
-  elements.subjectModal.addEventListener('input', (event) => {
-    const target = event.target;
-    if (target instanceof HTMLInputElement && target.name === 'subjectColor') {
-      const subjectId = target.dataset.subjectId || activeSubjectId;
-      const color = target.value;
-      if (subjectId && color) {
-        applySubjectColor(subjectId, color);
-      }
+if (elements.editSubjectModal) {
+  elements.editSubjectModal.addEventListener('click', async (event) => {
+    const actionTarget = event.target.closest('[data-action]');
+    if (!actionTarget) return;
+    const action = actionTarget.dataset.action;
+
+    if (action === 'close-edit-subject') {
+      closeEditSubjectModal();
+      return;
     }
+
+    if (action === 'carousel-prev') {
+      scrollIconCarousel(actionTarget, -1);
+      return;
+    }
+
+    if (action === 'carousel-next') {
+      scrollIconCarousel(actionTarget, 1);
+      return;
+    }
+
+    if (action === 'set-edit-subject-color') {
+      setEditSubjectColor(actionTarget.dataset.color);
+      return;
+    }
+
+    if (action === 'set-edit-subject-icon') {
+      const icon = resolveSubjectIcon(actionTarget.dataset.icon, elements.editSubjectName?.value || '');
+      setEditSubjectIcon(icon);
+      return;
+    }
+
+    if (action === 'set-edit-subject-icon-other') {
+      const current = normalizeSubjectIcon(elements.editSubjectIcon?.value);
+      const icon = await showCustomIconPicker(current);
+      if (!icon) return;
+      setEditSubjectIcon(icon);
+    }
+  });
+}
+
+if (elements.editSubjectModal) {
+  elements.editSubjectModal.addEventListener('input', (event) => {
+    const target = event.target;
+    if (target === elements.editSubjectColor) {
+      setEditSubjectColor(target.value);
+      return;
+    }
+    if (target === elements.editSubjectName) {
+      setEditSubjectMessage('');
+    }
+  });
+}
+
+if (elements.editSubjectForm) {
+  elements.editSubjectForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const subjectId = String(elements.editSubjectId?.value || '').trim();
+    if (!subjectId) {
+      setEditSubjectMessage('Could not find that subject.', true);
+      return;
+    }
+    const subject = state.data.subjects.find((item) => item.id === subjectId);
+    if (!subject) {
+      setEditSubjectMessage('Could not find that subject.', true);
+      return;
+    }
+
+    const nextName = String(elements.editSubjectName?.value || '').trim();
+    if (!nextName) {
+      setEditSubjectMessage('Please enter a subject name.', true);
+      return;
+    }
+
+    const hasDuplicate = state.data.subjects.some(
+      (item) => item.id !== subjectId
+        && normalizeSubjectNameKey(item.name) === normalizeSubjectNameKey(nextName)
+    );
+    if (hasDuplicate) {
+      setEditSubjectMessage('That subject name already exists.', true);
+      return;
+    }
+
+    const nextColor = normalizeColorValue(elements.editSubjectColor?.value)
+      || normalizeColorValue(subject.color)
+      || palette[0];
+    const nextIcon = resolveSubjectIcon(elements.editSubjectIcon?.value, nextName);
+
+    const unchanged = subject.name === nextName
+      && normalizeColorValue(subject.color).toLowerCase() === nextColor.toLowerCase()
+      && resolveSubjectIcon(subject.icon, subject.name) === nextIcon;
+    if (unchanged) {
+      setEditSubjectMessage('No changes to save.');
+      return;
+    }
+
+    subject.name = nextName;
+    subject.color = nextColor;
+    subject.icon = nextIcon;
+    saveData(state.data);
+    render();
+    if (elements.subjectModal?.classList.contains('is-open') && activeSubjectId === subjectId) {
+      openSubjectModal(subjectId);
+    }
+    closeEditSubjectModal();
   });
 }
 
@@ -1290,6 +1374,17 @@ if (elements.calendarGrid) {
     const subjectId = actionTarget.dataset.subjectId;
     const upcomingId = actionTarget.dataset.upcomingId;
     openUpcomingEditor(subjectId, upcomingId);
+  });
+}
+
+if (elements.calendarTypeFilters.length > 0) {
+  elements.calendarTypeFilters.forEach((button) => {
+    button.addEventListener('click', () => {
+      const nextFilter = button.dataset.calendarTypeFilter;
+      if (!['assessment', 'homework', 'both'].includes(nextFilter)) return;
+      calendarState.filter = nextFilter;
+      renderCalendar();
+    });
   });
 }
 
@@ -1553,6 +1648,10 @@ document.addEventListener('keydown', (event) => {
   }
   if (elements.upcomingModal?.classList.contains('is-open')) {
     closeUpcomingModal();
+    return;
+  }
+  if (elements.editSubjectModal?.classList.contains('is-open')) {
+    closeEditSubjectModal();
     return;
   }
   if (elements.assessmentModal?.classList.contains('is-open')) {
@@ -2565,6 +2664,90 @@ function buildAddSubjectSwatches(selectedColor) {
     .join('');
 }
 
+function buildEditSubjectSwatches(selectedColor) {
+  const activeColor = normalizeColorValue(selectedColor).toLowerCase();
+  return palette
+    .map((color) => {
+      const activeClass = color.toLowerCase() === activeColor ? ' is-active' : '';
+      return `
+        <button class="color-swatch${activeClass}" type="button" data-action="set-edit-subject-color" data-color="${color}" style="--swatch:${color}" aria-label="Set subject color to ${color}"></button>
+      `;
+    })
+    .join('');
+}
+
+function setEditSubjectMessage(message, isError = false) {
+  if (!elements.editSubjectMessage) return;
+  elements.editSubjectMessage.textContent = message || '';
+  elements.editSubjectMessage.style.color = isError ? 'var(--danger)' : '';
+}
+
+function setEditSubjectColor(color) {
+  if (!elements.editSubjectColor) return;
+  const normalized = normalizeColorValue(color)
+    || normalizeColorValue(elements.editSubjectColor.value)
+    || palette[0];
+  elements.editSubjectColor.value = normalized;
+  if (elements.editSubjectColorValue) {
+    elements.editSubjectColorValue.textContent = normalized.toUpperCase();
+  }
+  if (elements.editSubjectIconPreview) {
+    elements.editSubjectIconPreview.style.background = normalized;
+  }
+  if (elements.editSubjectSwatches) {
+    elements.editSubjectSwatches.innerHTML = buildEditSubjectSwatches(normalized);
+  }
+}
+
+function setEditSubjectIcon(icon) {
+  if (!elements.editSubjectIcon) return;
+  const subjectName = String(elements.editSubjectName?.value || '').trim();
+  const resolved = resolveSubjectIcon(icon, subjectName);
+  elements.editSubjectIcon.value = resolved;
+  if (elements.editSubjectIconPreview) {
+    elements.editSubjectIconPreview.innerHTML = subjectIconHtml(resolved, '');
+  }
+  const carousel = elements.editSubjectIconCarousel?.querySelector('[data-icon-carousel]');
+  setIconCarouselActive(carousel, resolved);
+}
+
+function openEditSubjectModal(subjectId = activeSubjectId) {
+  if (!elements.editSubjectModal || !elements.editSubjectForm) return;
+  const subject = state.data.subjects.find((item) => item.id === subjectId);
+  if (!subject) return;
+
+  const subjectColor = normalizeColorValue(subject.color) || palette[0];
+  const subjectIcon = resolveSubjectIcon(subject.icon, subject.name);
+  if (elements.editSubjectId) {
+    elements.editSubjectId.value = subject.id;
+  }
+  if (elements.editSubjectName) {
+    elements.editSubjectName.value = subject.name;
+  }
+  if (elements.editSubjectIconCarousel) {
+    elements.editSubjectIconCarousel.innerHTML = buildIconCarousel({
+      selectedIcon: subjectIcon,
+      action: 'set-edit-subject-icon',
+      otherAction: 'set-edit-subject-icon-other',
+      ariaLabel: `${subject.name} icon options`,
+    });
+  }
+  setEditSubjectIcon(subjectIcon);
+  setEditSubjectColor(subjectColor);
+  setEditSubjectMessage('');
+  openModal(elements.editSubjectModal);
+  requestAnimationFrame(() => {
+    elements.editSubjectName?.focus();
+    elements.editSubjectName?.select();
+  });
+}
+
+function closeEditSubjectModal() {
+  if (!elements.editSubjectModal) return;
+  closeModal(elements.editSubjectModal);
+  setEditSubjectMessage('');
+}
+
 function setAddSubjectColor(color) {
   if (!elements.addSubjectColor) return;
   const normalized = normalizeColorValue(color)
@@ -2687,23 +2870,6 @@ function openSubjectModal(subjectId) {
   const stats = subjectStats(subject);
   const averageText = stats.average === null ? '--' : `${stats.average.toFixed(1)}%`;
   const gradeText = stats.grade ?? '--';
-  const subjectColor = subject.color || palette[0];
-  const subjectIcon = resolveSubjectIcon(subject.icon, subject.name);
-  const iconCarouselHtml = buildIconCarousel({
-    selectedIcon: subjectIcon,
-    action: 'set-subject-icon',
-    otherAction: 'set-subject-icon-other',
-    dataAttrs: `data-subject-id="${subject.id}"`,
-    ariaLabel: `${subject.name} icon options`,
-  });
-  const swatchHtml = palette
-    .map((color) => {
-      const activeClass = color.toLowerCase() === subjectColor.toLowerCase() ? ' is-active' : '';
-      return `
-        <button class="color-swatch${activeClass}" type="button" data-action="set-subject-color" data-color="${color}" data-id="${subject.id}" style="--swatch:${color}" aria-label="Set subject color to ${color}"></button>
-      `;
-    })
-    .join('');
 
   elements.subjectModalTitle.textContent = subject.name;
   if (elements.subjectModalMeta) {
@@ -2733,46 +2899,46 @@ function openSubjectModal(subjectId) {
         .join('')
     : '<div class="empty-state">No assessments yet.</div>';
   const upcomingItems = sortUpcoming(expandUpcomingItems(subject));
-  const upcomingHtml = buildUpcomingList(upcomingItems, { showSubject: false, allowRemove: true });
+  const upcomingAssessmentItems = upcomingItems.filter((item) => {
+    if (normalizeUpcomingType(item.type) !== 'assessment') return false;
+    return !isPastDate(item.date);
+  });
+  const awaitingMarkAssessmentItems = upcomingItems.filter((item) => {
+    if (normalizeUpcomingType(item.type) !== 'assessment') return false;
+    return isPastDate(item.date);
+  });
+  const upcomingHomeworkItems = upcomingItems.filter(
+    (item) => normalizeUpcomingType(item.type) === 'homework'
+  );
+  const upcomingAssessmentsHtml = buildUpcomingList(upcomingAssessmentItems, {
+    showSubject: false,
+    allowRemove: true,
+    emptyMessage: 'No upcoming assessments.',
+  });
+  const upcomingHomeworkHtml = buildUpcomingList(upcomingHomeworkItems, {
+    showSubject: false,
+    allowRemove: true,
+    emptyMessage: 'No homework reminders.',
+  });
+  const awaitingMarksHtml = buildUpcomingList(awaitingMarkAssessmentItems, {
+    showSubject: false,
+    allowRemove: true,
+    emptyMessage: 'No assessments awaiting marks.',
+  });
 
   if (elements.subjectModalBody) {
     elements.subjectModalBody.innerHTML = `
       <div class="modal-chart">
         <canvas id="subject-modal-chart"></canvas>
       </div>
-      <div class="subject-color-panel">
-        <div class="subject-color-header subject-icon-header">
-          <div>
-            <div class="section-eyebrow">Subject icon</div>
-            <div class="subject-color-meta">Shown on cards and the top subject.</div>
-          </div>
-          <div class="subject-icon-control">
-            <span class="subject-icon-preview" data-role="icon-preview" style="background:${subjectColor}">
-              ${subjectIconHtml(subjectIcon)}
-            </span>
-            <div class="subject-icon-carousel">
-              ${iconCarouselHtml}
-            </div>
-          </div>
-        </div>
-        <div class="subject-color-header">
-          <div>
-            <div class="section-eyebrow">Subject color</div>
-            <div class="subject-color-meta">Used across cards and charts.</div>
-          </div>
-          <div class="color-control">
-            <input class="color-input" type="color" name="subjectColor" value="${subjectColor}" data-subject-id="${subject.id}" aria-label="Subject color" />
-            <span class="color-value" data-role="color-value">${subjectColor.toUpperCase()}</span>
-          </div>
-        </div>
-        <div class="color-swatches">
-          ${swatchHtml}
-        </div>
-      </div>
       <div class="modal-actions">
         <button class="primary-button with-icon" type="button" data-action="open-assessment">
           ${iconHtml('plus-circle')}
           Add Assessment
+        </button>
+        <button class="ghost-button with-icon" type="button" data-action="open-edit-subject">
+          ${iconHtml('pencil-simple')}
+          Edit Subject
         </button>
         <button class="ghost-button with-icon" type="button" data-action="open-upcoming">
           ${iconHtml('calendar')}
@@ -2783,10 +2949,24 @@ function openSubjectModal(subjectId) {
           Delete Subject
         </button>
       </div>
-      <div class="subject-upcoming">
-        <div class="history-title">Upcoming assessments</div>
-        <div class="upcoming-list">
-          ${upcomingHtml}
+      <div class="subject-upcoming-grid">
+        <div class="subject-upcoming">
+          <div class="history-title">Upcoming assessments</div>
+          <div class="upcoming-list">
+            ${upcomingAssessmentsHtml}
+          </div>
+        </div>
+        <div class="subject-upcoming">
+          <div class="history-title">Homework</div>
+          <div class="upcoming-list">
+            ${upcomingHomeworkHtml}
+          </div>
+        </div>
+        <div class="subject-upcoming">
+          <div class="history-title">Assessments awaiting marks</div>
+          <div class="upcoming-list">
+            ${awaitingMarksHtml}
+          </div>
         </div>
       </div>
       <div class="subject-history">
@@ -2806,6 +2986,7 @@ function openSubjectModal(subjectId) {
 }
 
 function closeSubjectModal() {
+  closeEditSubjectModal();
   closeAssessmentModal();
   closeUpcomingModal();
   closeModal(elements.subjectModal);
@@ -4408,7 +4589,7 @@ function renderAssessments() {
 
 function renderUpcomingDashboard() {
   if (!elements.upcomingList) return;
-  const upcoming = sortUpcoming(getUpcomingAssessments());
+  const upcoming = sortUpcoming(getVisibleUpcomingItems());
   const maxItems = 4;
   const canExpand = upcoming.length > maxItems;
   const visible = state.upcomingExpanded ? upcoming : upcoming.slice(0, maxItems);
@@ -4426,7 +4607,7 @@ function renderUpcomingDashboard() {
   }
 
   if (upcoming.length === 0) {
-    elements.upcomingList.innerHTML = '<div class="empty-state">No upcoming assessments yet.</div>';
+    elements.upcomingList.innerHTML = '<div class="empty-state">No upcoming work yet.</div>';
   } else {
     elements.upcomingList.innerHTML = buildUpcomingList(visible, { showSubject: true, allowRemove: true });
   }
@@ -4542,7 +4723,18 @@ function renderCalendar() {
   if (!elements.calendarGrid || !elements.calendarMonth) return;
   const year = calendarState.year;
   const month = calendarState.month;
+  const activeFilter = ['assessment', 'homework', 'both'].includes(calendarState.filter)
+    ? calendarState.filter
+    : 'both';
   elements.calendarMonth.textContent = formatMonthYear(year, month);
+
+  if (elements.calendarTypeFilters.length > 0) {
+    elements.calendarTypeFilters.forEach((button) => {
+      const isActive = button.dataset.calendarTypeFilter === activeFilter;
+      button.classList.toggle('is-active', isActive);
+      button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+  }
 
   const firstOfMonth = new Date(year, month, 1);
   const startOffset = (firstOfMonth.getDay() + 6) % 7;
@@ -4578,7 +4770,10 @@ function renderCalendar() {
     }
 
     const dateKey = dateKeyFromParts(cellYear, cellMonth, displayDay);
-    const events = eventsByDate[dateKey] || [];
+    const allEvents = eventsByDate[dateKey] || [];
+    const events = activeFilter === 'both'
+      ? allEvents
+      : allEvents.filter((event) => event.upcomingType === activeFilter);
     const dayLabel = displayDay.toString();
     const isToday = dateKey === today;
 
@@ -4589,12 +4784,14 @@ function renderCalendar() {
             .slice(0, 3)
             .map(
               (event) => {
+                const upcomingType = event.upcomingType === 'homework' ? 'homework' : 'assessment';
+                const typeLabel = upcomingType === 'homework' ? 'Homework' : 'Assessment';
                 const typeIcon = event.upcomingType === 'homework'
                   ? iconHtml('notebook', 'calendar-event-type-icon')
                   : iconHtml('file-text', 'calendar-event-type-icon');
                 return `
                 <button
-                  class="calendar-event${event.type === 'completed' ? ' is-completed' : ''}"
+                  class="calendar-event is-${upcomingType}${event.type === 'completed' ? ' is-completed' : ''}"
                   type="button"
                   style="--event-color:${event.color}"
                   data-action="edit-upcoming"
@@ -4602,6 +4799,7 @@ function renderCalendar() {
                   data-upcoming-id="${event.upcomingId}"
                 >
                   <span class="calendar-event-title">${typeIcon}${event.name}</span>
+                  ${activeFilter === 'both' ? `<span class="calendar-event-tag">${typeLabel}</span>` : ''}
                   <span class="calendar-event-sub">${event.subject}</span>
                 </button>
               `;
@@ -6551,8 +6749,20 @@ function getUpcomingAssessments() {
   return state.data.subjects.flatMap((subject) => expandUpcomingItems(subject));
 }
 
+function getVisibleUpcomingItems() {
+  return getUpcomingAssessments().filter((item) => {
+    const upcomingType = normalizeUpcomingType(item.type);
+    if (upcomingType !== 'assessment') return true;
+    return !isPastDate(item.date);
+  });
+}
+
 function upcomingDateValue(item) {
   return dateStringValue(item.date);
+}
+
+function upcomingTypePriority(value) {
+  return normalizeUpcomingType(value) === 'assessment' ? 0 : 1;
 }
 
 function upcomingTieBreak(item) {
@@ -6570,6 +6780,8 @@ function sortUpcoming(items) {
     .sort((a, b) => {
       const dateDiff = upcomingDateValue(a) - upcomingDateValue(b);
       if (dateDiff !== 0) return dateDiff;
+      const typeDiff = upcomingTypePriority(a.type) - upcomingTypePriority(b.type);
+      if (typeDiff !== 0) return typeDiff;
       return upcomingTieBreak(a) - upcomingTieBreak(b);
     });
 }
@@ -6580,8 +6792,9 @@ function isPastDate(value) {
 }
 
 function buildUpcomingList(items, options = {}) {
+  const emptyMessage = options.emptyMessage || 'No upcoming assessments.';
   if (!items.length) {
-    return '<div class="empty-state">No upcoming assessments.</div>';
+    return `<div class="empty-state">${emptyMessage}</div>`;
   }
   return items
     .map((item) => {
@@ -6644,7 +6857,7 @@ function buildCalendarEvents() {
     eventsByDate[date].push(event);
   };
 
-  sortUpcoming(getUpcomingAssessments()).forEach((item) => {
+  sortUpcoming(getVisibleUpcomingItems()).forEach((item) => {
     addEvent(item.date, {
       type: 'upcoming',
       name: item.name,
@@ -6663,6 +6876,8 @@ function buildCalendarEvents() {
     items.sort((a, b) => {
       const order = a.type === b.type ? 0 : a.type === 'upcoming' ? -1 : 1;
       if (order !== 0) return order;
+      const typeDiff = upcomingTypePriority(a.upcomingType) - upcomingTypePriority(b.upcomingType);
+      if (typeDiff !== 0) return typeDiff;
       return a.name.localeCompare(b.name);
     });
   });

@@ -402,19 +402,51 @@
             <div class="calendar-header">
               <div>
                 <div class="section-eyebrow">Calendar</div>
-                <h2 class="section-title">Upcoming assessments</h2>
+                <h2 class="section-title">Upcoming work</h2>
                 <p class="muted">
                   Stay on top of upcoming due dates and logged results.
                 </p>
               </div>
-              <div class="calendar-controls">
-                <button class="calendar-nav" type="button" id="calendar-prev">
-                  <i class="ph ph-caret-left" aria-hidden="true"></i>
-                </button>
-                <div class="calendar-month" id="calendar-month">Month</div>
-                <button class="calendar-nav" type="button" id="calendar-next">
-                  <i class="ph ph-caret-right" aria-hidden="true"></i>
-                </button>
+              <div class="calendar-header-actions">
+                <div
+                  class="calendar-type-filter"
+                  role="group"
+                  aria-label="Filter calendar items"
+                >
+                  <button
+                    class="calendar-type-filter-button"
+                    type="button"
+                    data-calendar-type-filter="assessment"
+                    aria-pressed="false"
+                  >
+                    Assessments
+                  </button>
+                  <button
+                    class="calendar-type-filter-button"
+                    type="button"
+                    data-calendar-type-filter="homework"
+                    aria-pressed="false"
+                  >
+                    Homework
+                  </button>
+                  <button
+                    class="calendar-type-filter-button is-active"
+                    type="button"
+                    data-calendar-type-filter="both"
+                    aria-pressed="true"
+                  >
+                    Both
+                  </button>
+                </div>
+                <div class="calendar-controls">
+                  <button class="calendar-nav" type="button" id="calendar-prev">
+                    <i class="ph ph-caret-left" aria-hidden="true"></i>
+                  </button>
+                  <div class="calendar-month" id="calendar-month">Month</div>
+                  <button class="calendar-nav" type="button" id="calendar-next">
+                    <i class="ph ph-caret-right" aria-hidden="true"></i>
+                  </button>
+                </div>
               </div>
             </div>
             <div class="calendar-weekdays">
@@ -585,6 +617,113 @@
       </div>
     </div>
 
+    <div class="modal" id="edit-subject-modal" aria-hidden="true">
+      <div class="modal-backdrop" data-action="close-edit-subject"></div>
+      <div
+        class="modal-panel modal-panel--large"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-subject-modal-title"
+      >
+        <div class="modal-header">
+          <div>
+            <div class="section-eyebrow">Subject settings</div>
+            <h2 class="section-title" id="edit-subject-modal-title">
+              Edit Subject
+            </h2>
+            <div class="modal-meta" id="edit-subject-modal-meta">
+              Update the subject name, icon, and color.
+            </div>
+          </div>
+          <button
+            class="icon-button"
+            type="button"
+            data-action="close-edit-subject"
+          >
+            <i class="ph ph-x" aria-hidden="true"></i>
+          </button>
+        </div>
+        <form id="edit-subject-form" class="modal-body" autocomplete="off">
+          <input type="hidden" id="edit-subject-id" name="subjectId" />
+          <input type="hidden" id="edit-subject-icon" name="subjectIcon" />
+
+          <section class="subject-color-panel">
+            <label class="field">
+              <span>Subject name</span>
+              <input
+                id="edit-subject-name"
+                name="subjectName"
+                placeholder="Subject name"
+                maxlength="80"
+                required
+              />
+            </label>
+
+            <div class="subject-color-header subject-icon-header">
+              <div>
+                <div class="section-eyebrow">Subject icon</div>
+                <div class="subject-color-meta">
+                  Shown on cards and the top subject.
+                </div>
+              </div>
+              <div class="subject-icon-control">
+                <span
+                  class="subject-icon-preview"
+                  id="edit-subject-icon-preview"
+                ></span>
+                <div
+                  class="subject-icon-carousel"
+                  id="edit-subject-icon-carousel"
+                ></div>
+              </div>
+            </div>
+
+            <div class="subject-color-header">
+              <div>
+                <div class="section-eyebrow">Subject color</div>
+                <div class="subject-color-meta">
+                  Used across cards and charts.
+                </div>
+              </div>
+              <div class="color-control">
+                <input
+                  class="color-input"
+                  id="edit-subject-color"
+                  type="color"
+                  name="subjectColor"
+                  value="#57A8D3"
+                />
+                <span class="color-value" id="edit-subject-color-value"
+                  >#57A8D3</span
+                >
+              </div>
+            </div>
+
+            <div class="color-swatches" id="edit-subject-swatches"></div>
+          </section>
+
+          <div class="form-actions">
+            <button class="primary-button with-icon" type="submit">
+              <i class="ph ph-check-circle button-icon" aria-hidden="true"></i>
+              Save Subject
+            </button>
+            <button
+              class="ghost-button ghost-button--small"
+              type="button"
+              data-action="close-edit-subject"
+            >
+              Cancel
+            </button>
+            <span
+              class="form-message"
+              id="edit-subject-message"
+              aria-live="polite"
+            ></span>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <div class="modal" id="assessment-modal" aria-hidden="true">
       <div class="modal-backdrop" data-action="close-assessment"></div>
       <div
@@ -677,9 +816,13 @@
       >
         <div class="modal-header">
           <div>
-            <div class="section-eyebrow" id="upcoming-modal-eyebrow">Upcoming assessment</div>
+            <div class="section-eyebrow" id="upcoming-modal-eyebrow">
+              Upcoming assessment
+            </div>
             <h2 class="section-title" id="upcoming-modal-title">Schedule</h2>
-            <div class="modal-meta" id="upcoming-modal-meta">Add a reminder for what is next.</div>
+            <div class="modal-meta" id="upcoming-modal-meta">
+              Add a reminder for what is next.
+            </div>
           </div>
           <button
             class="icon-button"
@@ -735,7 +878,9 @@
             <input name="upcomingNotes" placeholder="e.g. Chapter 6 and 7" />
           </label>
           <div class="form-actions">
-            <button class="primary-button" id="upcoming-submit" type="submit">Save Upcoming</button>
+            <button class="primary-button" id="upcoming-submit" type="submit">
+              Save Upcoming
+            </button>
             <span
               class="form-message"
               id="upcoming-message"

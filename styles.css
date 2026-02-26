@@ -2635,6 +2635,46 @@ canvas {
   flex-wrap: wrap;
 }
 
+.calendar-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.calendar-type-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-soft);
+}
+
+.calendar-type-filter-button {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 12px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.calendar-type-filter-button:hover {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.calendar-type-filter-button.is-active {
+  color: var(--text-on-accent);
+  background: var(--accent);
+}
+
 .calendar-controls {
   display: inline-flex;
   align-items: center;
@@ -2750,6 +2790,17 @@ button.calendar-event:focus-visible {
   opacity: 0.65;
 }
 
+.calendar-event.is-assessment {
+  border-left: 3px solid
+    color-mix(in srgb, var(--event-color) 80%, var(--accent));
+}
+
+.calendar-event.is-homework {
+  border-left: 3px solid
+    color-mix(in srgb, var(--event-color) 45%, var(--text-secondary));
+  background: color-mix(in srgb, var(--event-color) 11%, var(--bg-secondary));
+}
+
 .calendar-event-title {
   font-weight: 600;
   display: flex;
@@ -2760,6 +2811,23 @@ button.calendar-event:focus-visible {
 .calendar-event-type-icon {
   font-size: 12px;
   color: var(--text-secondary);
+}
+
+.calendar-event-tag {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  padding: 2px 7px;
+  margin-top: 4px;
+  color: var(--text-secondary);
+  border: 1px solid
+    color-mix(in srgb, var(--event-color) 30%, var(--card-border));
+  background: color-mix(in srgb, var(--event-color) 14%, var(--bg-secondary));
 }
 
 .calendar-event-sub {
@@ -3037,6 +3105,17 @@ button.calendar-event:focus-visible {
   margin-top: 16px;
   display: grid;
   gap: 10px;
+}
+
+.subject-upcoming-grid {
+  margin-top: 16px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr;
+}
+
+.subject-upcoming-grid .subject-upcoming {
+  margin-top: 0;
 }
 
 .subject-upcoming .upcoming-list {
