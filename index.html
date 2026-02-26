@@ -1030,9 +1030,39 @@
               <span>Scope</span>
               <select id="export-preset">
                 <option value="all">Everything</option>
-                <option value="subjects">Subjects only</option>
+                <option value="tasks">Tasks</option>
               </select>
             </label>
+            <label class="field" id="export-upcoming-type-field">
+              <span>Upcoming export type</span>
+              <select id="export-upcoming-type">
+                <option value="both">Assessments + Homework</option>
+                <option value="assessment">Assessments only</option>
+                <option value="homework">Homework only</option>
+              </select>
+              <small>Applies when scope is Everything.</small>
+            </label>
+            <div class="field" id="export-subjects-field">
+              <span>Subjects to include</span>
+              <div class="form-actions">
+                <button
+                  class="ghost-button ghost-button--small"
+                  id="export-subjects-all"
+                  type="button"
+                >
+                  Select all
+                </button>
+                <button
+                  class="ghost-button ghost-button--small"
+                  id="export-subjects-none"
+                  type="button"
+                >
+                  Clear
+                </button>
+              </div>
+              <div class="checkbox-grid" id="export-subjects-list"></div>
+              <small>Assessments and upcoming items are filtered by selected subjects.</small>
+            </div>
             <div class="form-actions">
               <button
                 class="primary-button with-icon"
@@ -1106,6 +1136,53 @@
             </div>
           </section>
         </div>
+      </div>
+    </div>
+
+    <div class="modal" id="import-upcoming-map-modal" aria-hidden="true">
+      <div class="modal-backdrop" data-action="close-import-upcoming-map"></div>
+      <div
+        class="modal-panel modal-panel--small"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="import-upcoming-map-title"
+      >
+        <div class="modal-header">
+          <div>
+            <div class="section-eyebrow">Import mapping</div>
+            <h2 class="section-title" id="import-upcoming-map-title">
+              Match upcoming items
+            </h2>
+            <div class="modal-meta" id="import-upcoming-map-meta">
+              Choose where unmatched imported upcoming items should merge.
+            </div>
+          </div>
+          <button
+            class="icon-button"
+            type="button"
+            data-action="close-import-upcoming-map"
+          >
+            <i class="ph ph-x" aria-hidden="true"></i>
+          </button>
+        </div>
+        <form id="import-upcoming-map-form" class="modal-body" autocomplete="off">
+          <div class="import-map-list" id="import-upcoming-map-list"></div>
+          <div class="form-actions">
+            <button class="primary-button" type="submit">Continue import</button>
+            <button
+              class="ghost-button ghost-button--small"
+              type="button"
+              data-action="close-import-upcoming-map"
+            >
+              Cancel
+            </button>
+            <span
+              class="form-message"
+              id="import-upcoming-map-message"
+              aria-live="polite"
+            ></span>
+          </div>
+        </form>
       </div>
     </div>
 

@@ -1059,6 +1059,23 @@ body.modal-open {
   font-size: 20px;
 }
 
+#export-subjects-list {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.import-map-list {
+  display: grid;
+  gap: 12px;
+}
+
+.import-map-item {
+  background: var(--modal-inner-surface);
+  border: 1px solid var(--modal-border);
+  border-radius: 14px;
+  padding: 10px;
+}
+
 .checkbox-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));

@@ -101,7 +101,7 @@ const ELECTIVE_SUBJECTS = [
   'Photography',
   'PASS',
   'Psychology',
-  'Textiles Technology',
+  'Textiles',
   'Woodworking',
   'Visual Arts',
   'Visual Design',
@@ -129,7 +129,7 @@ const SUBJECT_ICON_PRESETS = {
   photography: 'camera',
   pass: 'barbell',
   psychology: 'brain',
-  'textiles technology': 'scissors',
+  'textiles': 'scissors',
   woodworking: 'hammer',
   'visual arts': 'palette',
   'visual design': 'pen',
@@ -161,6 +161,7 @@ let timetableTodayProgressInterval = null;
 let confirmResolver = null;
 let confirmCleanup = null;
 let iconPickerResolver = null;
+let importUpcomingMapResolver = null;
 
 const onboardingState = {
   step: 0,
@@ -264,6 +265,12 @@ const elements = {
   settingsOpen: document.getElementById('settings-open'),
   settingsModal: document.getElementById('settings-modal'),
   exportPreset: document.getElementById('export-preset'),
+  exportUpcomingType: document.getElementById('export-upcoming-type'),
+  exportUpcomingTypeField: document.getElementById('export-upcoming-type-field'),
+  exportSubjectsField: document.getElementById('export-subjects-field'),
+  exportSubjectsList: document.getElementById('export-subjects-list'),
+  exportSubjectsAll: document.getElementById('export-subjects-all'),
+  exportSubjectsNone: document.getElementById('export-subjects-none'),
   exportGenerate: document.getElementById('export-generate'),
   exportOutput: document.getElementById('export-output'),
   exportCopy: document.getElementById('export-copy'),
@@ -271,6 +278,10 @@ const elements = {
   importInput: document.getElementById('import-input'),
   importRestore: document.getElementById('import-restore'),
   importMessage: document.getElementById('import-message'),
+  importUpcomingMapModal: document.getElementById('import-upcoming-map-modal'),
+  importUpcomingMapForm: document.getElementById('import-upcoming-map-form'),
+  importUpcomingMapList: document.getElementById('import-upcoming-map-list'),
+  importUpcomingMapMessage: document.getElementById('import-upcoming-map-message'),
   resetData: document.getElementById('reset-data'),
   addSubjectOpen: document.getElementById('add-subject-open'),
   addSubjectModal: document.getElementById('add-subject-modal'),
@@ -440,6 +451,8 @@ const GRADE_SORT_ORDER = new Map([
 setTheme(state.theme.mode, state.theme.variant);
 initTabs();
 renderElectiveGrid();
+renderExportSubjectFilters();
+updateExportFilterAvailability();
 
 updateGreeting();
 maybeStartOnboarding();
@@ -497,7 +510,10 @@ if (elements.onboardingGraphSmoothness) {
 }
 
 if (elements.exportOpen) {
-  elements.exportOpen.addEventListener('click', () => openModal(elements.exportModal));
+  elements.exportOpen.addEventListener('click', () => {
+    renderExportSubjectFilters();
+    openModal(elements.exportModal);
+  });
 }
 
 if (elements.settingsOpen) {
@@ -698,6 +714,40 @@ if (elements.exportModal) {
   });
 }
 
+if (elements.importUpcomingMapModal) {
+  elements.importUpcomingMapModal.addEventListener('click', (event) => {
+    const actionTarget = event.target.closest('[data-action]');
+    if (!actionTarget) return;
+    if (actionTarget.dataset.action === 'close-import-upcoming-map') {
+      dismissImportUpcomingMapping(null);
+    }
+  });
+}
+
+if (elements.importUpcomingMapForm) {
+  elements.importUpcomingMapForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (!elements.importUpcomingMapList) {
+      dismissImportUpcomingMapping({});
+      return;
+    }
+    const rows = Array.from(
+      elements.importUpcomingMapList.querySelectorAll('select[data-source-subject-id]')
+    );
+    const mapping = {};
+    for (const row of rows) {
+      const sourceId = String(row.dataset.sourceSubjectId || '').trim();
+      const targetId = String(row.value || '').trim();
+      if (!sourceId || !targetId) {
+        setImportUpcomingMapMessage('Choose a target for each unmatched subject.', true);
+        return;
+      }
+      mapping[sourceId] = targetId;
+    }
+    dismissImportUpcomingMapping(mapping);
+  });
+}
+
 if (elements.confirmModal) {
   elements.confirmModal.addEventListener('click', (event) => {
     const actionTarget = event.target.closest('[data-action]');
@@ -743,6 +793,41 @@ if (elements.iconPickerCancel) {
 
 if (elements.exportPreset) {
   elements.exportPreset.addEventListener('change', () => {
+    updateExportFilterAvailability();
+    if (elements.exportOutput) {
+      elements.exportOutput.value = '';
+    }
+  });
+}
+
+if (elements.exportUpcomingType) {
+  elements.exportUpcomingType.addEventListener('change', () => {
+    if (elements.exportOutput) {
+      elements.exportOutput.value = '';
+    }
+  });
+}
+
+if (elements.exportSubjectsList) {
+  elements.exportSubjectsList.addEventListener('change', () => {
+    if (elements.exportOutput) {
+      elements.exportOutput.value = '';
+    }
+  });
+}
+
+if (elements.exportSubjectsAll) {
+  elements.exportSubjectsAll.addEventListener('click', () => {
+    setExportSubjectSelection(true);
+    if (elements.exportOutput) {
+      elements.exportOutput.value = '';
+    }
+  });
+}
+
+if (elements.exportSubjectsNone) {
+  elements.exportSubjectsNone.addEventListener('click', () => {
+    setExportSubjectSelection(false);
     if (elements.exportOutput) {
       elements.exportOutput.value = '';
     }
@@ -752,7 +837,15 @@ if (elements.exportPreset) {
 if (elements.exportGenerate) {
   elements.exportGenerate.addEventListener('click', () => {
     const scope = getExportScope();
-    const payload = buildExportPayload(scope);
+    const selectedSubjectIds = getSelectedExportSubjectIds();
+    if (scope === 'tasks' && selectedSubjectIds.size === 0) {
+      setExportMessage('Select at least one subject to export.');
+      return;
+    }
+    const payload = buildExportPayload(scope, {
+      selectedSubjectIds,
+      upcomingType: getExportUpcomingTypeFilter(),
+    });
     const encoded = encodeExportString(payload);
     if (elements.exportOutput) {
       elements.exportOutput.value = encoded;
@@ -804,7 +897,11 @@ if (elements.importRestore) {
     });
     if (!confirmed) return;
     const incoming = normalizeData(nextData);
-    state.data = mergeData(state.data, incoming);
+    const mappedIncoming = await resolveUpcomingImportMappings(incoming);
+    if (!mappedIncoming) {
+      return setImportMessage('Import cancelled.');
+    }
+    state.data = mergeData(state.data, mappedIncoming);
     saveData(state.data);
     render();
     if (elements.importInput) {
@@ -1648,6 +1745,10 @@ document.addEventListener('keydown', (event) => {
   }
   if (elements.upcomingModal?.classList.contains('is-open')) {
     closeUpcomingModal();
+    return;
+  }
+  if (elements.importUpcomingMapModal?.classList.contains('is-open')) {
+    dismissImportUpcomingMapping(null);
     return;
   }
   if (elements.editSubjectModal?.classList.contains('is-open')) {
@@ -3753,11 +3854,102 @@ function applyImportedProfile(payload) {
 
 function getExportScope() {
   if (!elements.exportPreset) return 'all';
-  return elements.exportPreset.value === 'subjects' ? 'subjects' : 'all';
+  return elements.exportPreset.value === 'tasks' ? 'tasks' : 'all';
 }
 
-function buildExportPayload(scope) {
+function getExportUpcomingTypeFilter() {
+  const value = String(elements.exportUpcomingType?.value || 'both').trim().toLowerCase();
+  if (value === 'assessment' || value === 'homework') return value;
+  return 'both';
+}
+
+function getSelectedExportSubjectIds() {
+  if (!elements.exportSubjectsList) {
+    return new Set(state.data.subjects.map((subject) => subject.id));
+  }
+  const checked = Array.from(
+    elements.exportSubjectsList.querySelectorAll('input[name="exportSubjectIds"]:checked')
+  )
+    .map((input) => String(input.value || '').trim())
+    .filter(Boolean);
+  return new Set(checked);
+}
+
+function setExportSubjectSelection(checked) {
+  if (!elements.exportSubjectsList) return;
+  elements.exportSubjectsList
+    .querySelectorAll('input[name="exportSubjectIds"]')
+    .forEach((input) => {
+      input.checked = Boolean(checked);
+    });
+}
+
+function updateExportFilterAvailability() {
+  const isTasksScope = getExportScope() === 'tasks';
+  if (elements.exportUpcomingTypeField) {
+    elements.exportUpcomingTypeField.hidden = !isTasksScope;
+  }
+  if (elements.exportSubjectsField) {
+    elements.exportSubjectsField.hidden = !isTasksScope;
+  }
+  if (elements.exportUpcomingType) {
+    elements.exportUpcomingType.disabled = !isTasksScope;
+  }
+  if (elements.exportSubjectsList) {
+    elements.exportSubjectsList
+      .querySelectorAll('input[name="exportSubjectIds"]')
+      .forEach((input) => {
+        input.disabled = !isTasksScope;
+      });
+  }
+  if (elements.exportSubjectsAll) {
+    elements.exportSubjectsAll.disabled = !isTasksScope;
+  }
+  if (elements.exportSubjectsNone) {
+    elements.exportSubjectsNone.disabled = !isTasksScope;
+  }
+}
+
+function renderExportSubjectFilters() {
+  if (!elements.exportSubjectsList) return;
+  const currentSelection = getSelectedExportSubjectIds();
+  const hasExistingSelection = currentSelection.size > 0;
+  if (state.data.subjects.length === 0) {
+    elements.exportSubjectsList.innerHTML = '<div class="empty-state">No subjects available.</div>';
+    updateExportFilterAvailability();
+    return;
+  }
+  elements.exportSubjectsList.innerHTML = state.data.subjects
+    .map((subject) => {
+      const checked = hasExistingSelection ? currentSelection.has(subject.id) : true;
+      const subjectName = escapeHtml(subject.name);
+      const subjectId = escapeHtml(subject.id);
+      const subjectIcon = resolveSubjectIcon(subject.icon, subject.name);
+      return `
+        <label class="checkbox-item checkbox-item--icon">
+          <input type="checkbox" name="exportSubjectIds" value="${subjectId}"${checked ? ' checked' : ''} />
+          <span class="checkbox-item-icon">${subjectIconHtml(subjectIcon, '')}</span>
+          <span>${subjectName}</span>
+        </label>
+      `;
+    })
+    .join('');
+  updateExportFilterAvailability();
+}
+
+function buildExportPayload(scope, options = {}) {
   const includeAll = scope === 'all';
+  const includeTasks = scope === 'all' || scope === 'tasks';
+  const selectedSubjectIds = options.selectedSubjectIds instanceof Set
+    ? options.selectedSubjectIds
+    : new Set(state.data.subjects.map((subject) => subject.id));
+  const effectiveSubjectIds = includeAll
+    ? new Set(state.data.subjects.map((subject) => subject.id))
+    : selectedSubjectIds;
+  const upcomingTypeFilter = options.upcomingType === 'assessment' || options.upcomingType === 'homework'
+    ? options.upcomingType
+    : 'both';
+  const effectiveUpcomingTypeFilter = includeAll ? 'both' : upcomingTypeFilter;
   const subjects = [];
   const subjectIds = new Set();
 
@@ -3775,10 +3967,14 @@ function buildExportPayload(scope) {
     });
   };
 
-  state.data.subjects.forEach(addSubject);
+  state.data.subjects
+    .filter((subject) => effectiveSubjectIds.has(subject.id))
+    .forEach(addSubject);
 
-  const assessments = includeAll
-    ? getAllAssessments().map((assessment) => {
+  const assessments = includeTasks
+    ? getAllAssessments()
+      .filter((assessment) => effectiveSubjectIds.has(assessment.subjectId))
+      .map((assessment) => {
         return {
           id: assessment.id,
           subjectId: assessment.subjectId,
@@ -3795,8 +3991,14 @@ function buildExportPayload(scope) {
       })
     : [];
 
-  const upcoming = includeAll
-    ? getUpcomingAssessments().map((item) => {
+  const upcoming = includeTasks
+    ? getUpcomingAssessments()
+      .filter((item) => effectiveSubjectIds.has(item.subjectId))
+      .filter((item) => {
+        const type = normalizeUpcomingType(item.type);
+        return effectiveUpcomingTypeFilter === 'both' ? true : type === effectiveUpcomingTypeFilter;
+      })
+      .map((item) => {
         return {
           id: item.id,
           subjectId: item.subjectId,
@@ -3804,6 +4006,8 @@ function buildExportPayload(scope) {
           subjectColor: item.subjectColor,
           subjectIcon: item.subjectIcon,
           name: item.name,
+          type: normalizeUpcomingType(item.type),
+          weight: Number.isFinite(item.weight) ? item.weight : null,
           date: item.date,
           notes: item.notes,
           createdAt: item.createdAt,
@@ -3814,7 +4018,11 @@ function buildExportPayload(scope) {
   return {
     schema: 1,
     createdAt: new Date().toISOString(),
-    selection: { scope },
+    selection: {
+      scope,
+      subjectIds: Array.from(effectiveSubjectIds),
+      upcomingType: effectiveUpcomingTypeFilter,
+    },
     profile: {
       name: loadUserName(),
     },
@@ -3939,6 +4147,8 @@ function buildDataFromExportPayload(payload) {
       target.upcoming.push({
         id: item.id || cryptoRandomId(),
         name: item.name || 'Upcoming assessment',
+        type: normalizeUpcomingType(item.type),
+        weight: Number.isFinite(item.weight) ? item.weight : null,
         date: item.date || today,
         notes: item.notes || '',
         createdAt: Number.isFinite(item.createdAt) ? item.createdAt : Date.now() - index,
@@ -3950,6 +4160,129 @@ function buildDataFromExportPayload(payload) {
     subjects,
     timetable: normalizeTimetableData(payload.timetable),
   };
+}
+
+function setImportUpcomingMapMessage(message, isError = false) {
+  if (!elements.importUpcomingMapMessage) return;
+  elements.importUpcomingMapMessage.textContent = message || '';
+  elements.importUpcomingMapMessage.style.color = isError ? 'var(--danger)' : '';
+}
+
+function openImportUpcomingMappingModal(unmatchedSubjects, existingSubjects) {
+  if (!elements.importUpcomingMapModal || !elements.importUpcomingMapList) {
+    return Promise.resolve(null);
+  }
+  const optionsHtml = existingSubjects
+    .map((subject) => `<option value="${escapeHtml(subject.id)}">${escapeHtml(subject.name)}</option>`)
+    .join('');
+
+  elements.importUpcomingMapList.innerHTML = unmatchedSubjects
+    .map((subject) => {
+      const upcomingCount = Array.isArray(subject.upcoming) ? subject.upcoming.length : 0;
+      const assessmentCount = Array.isArray(subject.assessments) ? subject.assessments.length : 0;
+      return `
+        <label class="field import-map-item">
+          <span>${escapeHtml(subject.name)} (${assessmentCount} assessments · ${upcomingCount} upcoming)</span>
+          <select data-source-subject-id="${escapeHtml(subject.id)}" required>
+            <option value="__keep__">Keep as imported subject</option>
+            <option value="__skip__">Do not import this subject</option>
+            ${optionsHtml}
+          </select>
+        </label>
+      `;
+    })
+    .join('');
+
+  setImportUpcomingMapMessage('');
+  openModal(elements.importUpcomingMapModal);
+
+  return new Promise((resolve) => {
+    importUpcomingMapResolver = resolve;
+  });
+}
+
+function dismissImportUpcomingMapping(result) {
+  if (elements.importUpcomingMapModal?.classList.contains('is-open')) {
+    closeModal(elements.importUpcomingMapModal);
+  }
+  setImportUpcomingMapMessage('');
+  if (importUpcomingMapResolver) {
+    const resolve = importUpcomingMapResolver;
+    importUpcomingMapResolver = null;
+    resolve(result);
+  }
+}
+
+async function resolveUpcomingImportMappings(incomingData) {
+  if (!incomingData || !Array.isArray(incomingData.subjects) || incomingData.subjects.length === 0) {
+    return incomingData;
+  }
+
+  const existingByName = new Map(
+    state.data.subjects.map((subject) => [normalizeSubjectNameKey(subject.name), subject])
+  );
+  const unmatchedSubjects = incomingData.subjects.filter((subject) => {
+    const hasUpcoming = Array.isArray(subject.upcoming) && subject.upcoming.length > 0;
+    if (!hasUpcoming) return false;
+    return !existingByName.has(normalizeSubjectNameKey(subject.name));
+  });
+
+  if (unmatchedSubjects.length === 0) {
+    return incomingData;
+  }
+
+  const mapping = await openImportUpcomingMappingModal(unmatchedSubjects, state.data.subjects);
+  if (!mapping) {
+    return null;
+  }
+
+  const mapped = {
+    ...incomingData,
+    subjects: incomingData.subjects.map((subject) => ({
+      ...subject,
+      assessments: Array.isArray(subject.assessments) ? [...subject.assessments] : [],
+      upcoming: Array.isArray(subject.upcoming) ? [...subject.upcoming] : [],
+    })),
+    timetable: normalizeTimetableData(incomingData.timetable),
+  };
+
+  const unmatchedIds = new Set(unmatchedSubjects.map((subject) => subject.id));
+  const skippedIds = new Set();
+
+  Object.entries(mapping).forEach(([sourceId, targetId]) => {
+    if (!sourceId || !targetId || targetId === '__keep__') return;
+    if (targetId === '__skip__') {
+      skippedIds.add(sourceId);
+      return;
+    }
+    const source = mapped.subjects.find((subject) => subject.id === sourceId);
+    if (!source || !Array.isArray(source.upcoming) || source.upcoming.length === 0) return;
+    const existingTarget = state.data.subjects.find((subject) => subject.id === targetId);
+    if (!existingTarget) return;
+    const targetKey = normalizeSubjectNameKey(existingTarget.name);
+    let target = mapped.subjects.find((subject) => normalizeSubjectNameKey(subject.name) === targetKey);
+    if (!target) {
+      target = {
+        id: existingTarget.id,
+        name: existingTarget.name,
+        color: existingTarget.color,
+        icon: existingTarget.icon,
+        assessments: [],
+        upcoming: [],
+      };
+      mapped.subjects.push(target);
+    }
+    target.upcoming.push(...source.upcoming);
+    source.upcoming = [];
+  });
+
+  mapped.subjects = mapped.subjects.filter((subject) => {
+    if (skippedIds.has(subject.id)) return false;
+    if (!unmatchedIds.has(subject.id)) return true;
+    return subject.assessments.length > 0 || subject.upcoming.length > 0;
+  });
+
+  return mapped;
 }
 
 function mergeData(existing, incoming) {
@@ -3987,6 +4320,8 @@ function mergeData(existing, incoming) {
   const upcomingSignature = (item) =>
     [
       normalizeText(item.name),
+      normalizeUpcomingType(item.type),
+      String(item.weight ?? 'null'),
       String(item.date),
       normalizeText(item.notes),
     ].join('|');
@@ -4293,6 +4628,7 @@ function render() {
   renderAssessments();
   renderUpcomingDashboard();
   renderUpcomingSubjectSelect();
+  renderExportSubjectFilters();
   renderCharts();
   renderCalendar();
   renderTimetable();
