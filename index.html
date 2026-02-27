@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Sapphire is a modern gradebook for students. Track your performance with real-time analytics and insights."
+      content="Sapphire is a modern gradebook for students with weighted analytics, calendar planning, Sentral timetable import, share/import codes, and privacy-first sync."
     />
     <title>Sapphire</title>
     <link rel="icon" href="favicon.png" />
@@ -1021,6 +1021,10 @@
         backdrop-filter: blur(12px);
       }
 
+      .feature-wide {
+        grid-column: span 2;
+      }
+
       .feature::before {
         content: "";
         position: absolute;
@@ -1447,6 +1451,10 @@
           grid-template-columns: 1fr;
         }
 
+        .feature-wide {
+          grid-column: span 1;
+        }
+
         .dept {
           font-size: 18px;
         }
@@ -1568,9 +1576,10 @@
           <nav class="nav-links" aria-label="Primary">
             <a href="#features">Features</a>
             <a href="#about">About</a>
+            <a href="/privacy">Privacy</a>
           </nav>
           <div class="nav-auth">
-            <a href="https://github.com/sapphire-edu/sapphire-app" target="_blank" rel="noopener noreferrer" class="github-link" aria-label="GitHub">
+            <a href="https://github.com/sapphire-edu/sapphire" target="_blank" rel="noopener noreferrer" class="github-link" aria-label="GitHub">
               <i class="ph-fill ph-github-logo" style="font-size: 24px;"></i>
             </a>
             <a class="btn" href="https://app.sapphire.neonxsl.dev/"
@@ -1603,9 +1612,9 @@
             <span class="gradient">Semester</span>
           </h1>
           <p class="hero-sub reveal" style="--delay: 160ms" data-node-id="1:89">
-            Stop guessing your grades. Sapphire gives you the clarity you need
-            to ace every class with real-time tracking, analytics, and insights.
-            Tailored for NSW Students.
+            Track weighted grades, upcoming work, calendar deadlines, and your
+            Sentral Week A/B timetable in one place. Student-friendly tools tailored for NSW
+            students.
           </p>
           <div
             class="hero-cta reveal"
@@ -1615,7 +1624,7 @@
             <a class="btn" href="https://app.sapphire.neonxsl.dev/"
               >Get Started for Free</a
             >
-            <a class="btn-secondary" href="https://github.com/sapphire-edu/sapphire-app" target="_blank" rel="noopener noreferrer">
+            <a class="btn-secondary" href="https://github.com/sapphire-edu/sapphire" target="_blank" rel="noopener noreferrer">
               <i class="ph-fill ph-github-logo" style="font-size: 20px;"></i>
               Proudly Open Source
             </a>
@@ -1733,12 +1742,12 @@
               data-node-id="1:198"
             >
               <div class="feature-icon sky">
-                <i class="ph ph-arrow-up-right"></i>
+                <i class="ph ph-gauge"></i>
               </div>
               <h3>Real-time Performance</h3>
               <p>
-                Track your grade and subject averages update instantly as you
-                log grades. Know exactly where you stand at any moment.
+                See weighted average, top subject, recent assessment, and
+                upcoming work from one dashboard view.
               </p>
             </article>
             <article
@@ -1749,10 +1758,10 @@
               <div class="feature-icon green">
                 <i class="ph ph-chart-line"></i>
               </div>
-              <h3>Subject Analytics</h3>
+              <h3>Weighted Analytics Views</h3>
               <p>
-                Dive deep into individual subjects. Visualize trends over time
-                and identify which areas need more focus before finals.
+                Analyze weighted trend, performance highlights, subject score
+                lines, and detailed assessment breakdowns.
               </p>
             </article>
             <article
@@ -1763,10 +1772,32 @@
               <div class="feature-icon purple">
                 <i class="ph ph-calendar"></i>
               </div>
-              <h3>Study Calendar</h3>
+              <h3>Calendar with Type Filters</h3>
               <p>
-                Integrated calendar syncs with your assessments. Never miss a
-                deadline and plan your study sessions effectively.
+                Plan upcoming work in a dedicated calendar with assessment,
+                homework, and combined filtering.
+              </p>
+            </article>
+            <article class="feature reveal" style="--delay: 300ms">
+              <div class="feature-icon sky">
+                <i class="ph ph-upload-simple"></i>
+              </div>
+              <h3>Sentral Timetable Import</h3>
+              <p>
+                Upload Sentral `.ics` exports to build Week A / Week B
+                timetable views and track classes day by day.
+              </p>
+            </article>
+            <article class="feature feature-wide reveal" style="--delay: 360ms">
+              <div class="feature-icon purple">
+                <i class="ph ph-shield-check"></i>
+              </div>
+              <h3>Privacy, Encryption, and Compliance</h3>
+              <p>
+                Account-synced data follows industry security standards,
+                including encrypted string attributes with AES-128-GCM
+                encryption at rest, aligned with SOC 2
+                Type I.
               </p>
             </article>
           </div>
@@ -1824,7 +1855,7 @@
                 performance. Proudly open source and tailored for NSW Students.
                 <br /><br />
                 <span style="display: flex; align-items: center; gap: 16px;">
-                  <a href="https://github.com/sapphire-edu/sapphire-app" target="_blank" rel="noopener noreferrer" style="color: var(--sky); text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+                  <a href="https://github.com/sapphire-edu/sapphire" target="_blank" rel="noopener noreferrer" style="color: var(--sky); text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
                     <i class="ph-fill ph-github-logo" style="font-size: 18px;"></i>
                     Star on GitHub
                   </a>
