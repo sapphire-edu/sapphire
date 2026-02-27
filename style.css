@@ -1,0 +1,42 @@
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  font-family: "Red Hat Display", "Inter", "Segoe UI", sans-serif;
+  background: #0a0a0a;
+  color: #f8fafc;
+  line-height: 1.6;
+}
+
+main {
+  max-width: 840px;
+  margin: 0 auto;
+  padding: 56px 24px 72px;
+}
+
+h1,
+h2 {
+  line-height: 1.25;
+}
+
+h1 {
+  margin: 0 0 8px;
+  font-size: 36px;
+}
+
+h2 {
+  margin-top: 36px;
+  font-size: 22px;
+}
+
+p,
+ul {
+  margin: 12px 0;
+  color: #dbe4ff;
+}
+
+a {
+  color: #7dd3fc;
+}
