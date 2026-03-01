@@ -316,7 +316,9 @@
 
       .github-link {
         color: var(--muted);
-        transition: color 0.2s ease, transform 0.2s ease;
+        transition:
+          color 0.2s ease,
+          transform 0.2s ease;
         display: flex;
         align-items: center;
       }
@@ -1191,30 +1193,6 @@
         transform: scale(1.05);
       }
 
-      .dept-logo {
-        width: 38px;
-        height: 42px;
-        position: relative;
-        flex: 0 0 auto;
-      }
-
-      .dept-logo::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background-image: url("https://www.figma.com/api/mcp/asset/4a0b8224-13d1-4535-8858-17189608f3e7");
-        background-size: 38px 42px;
-        background-repeat: no-repeat;
-        background-position: center;
-        -webkit-mask-image: url("https://www.figma.com/api/mcp/asset/4fec3de3-2071-4c44-ad20-41178c52f7d5");
-        -webkit-mask-size: 38px 42px;
-        -webkit-mask-repeat: no-repeat;
-        -webkit-mask-position: center;
-        mask-image: url("https://www.figma.com/api/mcp/asset/4fec3de3-2071-4c44-ad20-41178c52f7d5");
-        mask-size: 38px 42px;
-        mask-repeat: no-repeat;
-        mask-position: center;
-      }
 
       .cta {
         position: relative;
@@ -1340,7 +1318,7 @@
       }
 
       .footer-bottom {
-        margin-top: 48px;
+        margin-top: 4px;
         padding-top: 33px;
         border-top: 1px solid var(--line-strong);
         color: var(--muted);
@@ -1579,8 +1557,14 @@
             <a href="/privacy">Privacy</a>
           </nav>
           <div class="nav-auth">
-            <a href="https://github.com/sapphire-edu/sapphire" target="_blank" rel="noopener noreferrer" class="github-link" aria-label="GitHub">
-              <i class="ph-fill ph-github-logo" style="font-size: 24px;"></i>
+            <a
+              href="https://github.com/sapphire-edu/sapphire"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="github-link"
+              aria-label="GitHub"
+            >
+              <i class="ph-fill ph-github-logo" style="font-size: 24px"></i>
             </a>
             <a class="btn" href="https://app.sapphire.neonxsl.dev/"
               >Get Started</a
@@ -1613,8 +1597,8 @@
           </h1>
           <p class="hero-sub reveal" style="--delay: 160ms" data-node-id="1:89">
             Track weighted grades, upcoming work, calendar deadlines, and your
-            Sentral Week A/B timetable in one place. Student-friendly tools tailored for NSW
-            students.
+            Sentral Week A/B timetable in one place. Student-friendly tools
+            tailored for NSW students.
           </p>
           <div
             class="hero-cta reveal"
@@ -1624,8 +1608,13 @@
             <a class="btn" href="https://app.sapphire.neonxsl.dev/"
               >Get Started for Free</a
             >
-            <a class="btn-secondary" href="https://github.com/sapphire-edu/sapphire" target="_blank" rel="noopener noreferrer">
-              <i class="ph-fill ph-github-logo" style="font-size: 20px;"></i>
+            <a
+              class="btn-secondary"
+              href="https://github.com/sapphire-edu/sapphire"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <i class="ph-fill ph-github-logo" style="font-size: 20px"></i>
               Proudly Open Source
             </a>
           </div>
@@ -1784,8 +1773,8 @@
               </div>
               <h3>Sentral Timetable Import</h3>
               <p>
-                Upload Sentral `.ics` exports to build Week A / Week B
-                timetable views and track classes day by day.
+                Upload Sentral `.ics` exports to build Week A / Week B timetable
+                views and track classes day by day.
               </p>
             </article>
             <article class="feature feature-wide reveal" style="--delay: 360ms">
@@ -1796,8 +1785,7 @@
               <p>
                 Account-synced data follows industry security standards,
                 including encrypted string attributes with AES-128-GCM
-                encryption at rest, aligned with SOC 2
-                Type I.
+                encryption at rest, aligned with SOC 2 Type I.
               </p>
             </article>
           </div>
@@ -1806,11 +1794,66 @@
 
       <section class="partners" data-node-id="1:3" data-scroll-section>
         <div class="container" data-node-id="1:4">
-          <p class="made reveal">MADE FOR STUDENTS by students</p>
-          <div class="dept reveal" style="--delay: 100ms" data-node-id="1:7">
-            <span class="dept-logo" aria-hidden="true"></span>
-            <span>Department of Education</span>
-          </div>
+              <p class="made reveal">OPEN SOURCE • STUDENT FIRST</p>
+
+              <div class="dept reveal" style="--delay: 100ms" data-node-id="1:7">
+              <i class="ph-fill ph-graduation-cap" aria-hidden="true"></i>
+              <span>Built by NSW students, for NSW students</span>
+              </div>
+
+              <p class="section-sub reveal" style="--delay: 150ms; margin-top: 18px">
+              Sapphire is community-driven and publicly maintained on GitHub.
+              Follow progress, contribute ideas, or help build the future of student tooling.
+              </p>
+
+              <div
+              class="reveal"
+              style="
+                --delay: 220ms;
+                margin-top: 28px;
+                display: flex;
+                justify-content: center;
+                flex-wrap: wrap;
+                gap: 12px;
+              "
+              >
+              <a
+                class="btn-secondary"
+                href="https://github.com/sapphire-edu/sapphire"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <i class="ph-fill ph-github-logo"></i>
+                Repository
+              </a>
+              <a
+                class="btn-secondary"
+                href="https://github.com/sapphire-edu/sapphire/stargazers"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <i class="ph-fill ph-star"></i>
+                Stargazers
+              </a>
+              <a
+                class="btn-secondary"
+                href="https://github.com/sapphire-edu/sapphire/issues"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <i class="ph-fill ph-warning-circle"></i>
+                Issues
+              </a>
+              <a
+                class="btn-secondary"
+                href="https://github.com/sapphire-edu/sapphire/commits"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <i class="ph-fill ph-git-commit"></i>
+                Commits
+              </a>
+              </div>
         </div>
       </section>
 
@@ -1853,24 +1896,49 @@
               <p class="footer-copy" data-node-id="1:35">
                 The modern gradebook for students who care about their
                 performance. Proudly open source and tailored for NSW Students.
-                <br /><br />
-                <span style="display: flex; align-items: center; gap: 16px;">
-                  <a href="https://github.com/sapphire-edu/sapphire" target="_blank" rel="noopener noreferrer" style="color: var(--sky); text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
-                    <i class="ph-fill ph-github-logo" style="font-size: 18px;"></i>
+</p>
+                <span style="display: flex; align-items: center; gap: 16px">
+                  <a
+                    href="https://github.com/sapphire-edu/sapphire"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style="
+                      color: var(--sky);
+                      text-decoration: none;
+                      font-weight: 600;
+                      display: inline-flex;
+                      align-items: center;
+                      gap: 6px;
+                    "
+                  >
+                    <i
+                      class="ph-fill ph-github-logo"
+                      style="font-size: 18px"
+                    ></i>
                     Star on GitHub
                   </a>
-                  <span style="color: var(--line-strong);">|</span>
-                  <span style="display: flex; align-items: center; gap: 6px;">
-                    Made by <a href="https://github.com/neonxsl" target="_blank" rel="noopener noreferrer" style="color: var(--text); text-decoration: none; font-weight: 600; transition: color 0.2s ease;">neonxsl</a>
+                  <span style="color: var(--line-strong)">|</span>
+                  <span style="display: flex; align-items: center; gap: 6px">
+                    Made by
+                    <a
+                      href="https://github.com/neonxsl"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style="
+                        color: var(--text);
+                        text-decoration: none;
+                        font-weight: 600;
+                        transition: color 0.2s ease;
+                      "
+                      >neonxsl</a
+                    >
                   </span>
                 </span>
               </p>
             </div>
           </div>
-          <div
-            class="footer-bottom"
-            data-node-id="1:70"
-          >
+          <div class="footer-bottom" data-node-id="1:70">
+              <p style="color: var(--muted); font-size: 12px; line-height: 18px">This project is an independent tool and is not affiliated with, endorsed by, <br> or sponsored by the NSW Government or the NSW Department of Education.</p>
             <span>© 2026 Sapphire Gradebook. All rights reserved.</span>
             <a href="/privacy">Privacy Policy</a>
           </div>

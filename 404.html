@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Page not found — Sapphire" />
+    <title>404 — Sapphire</title>
+    <link rel="icon" href="favicon.png" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;500;600;700;800&display=swap"
+    />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0a0a0a;
+        --panel: #15171b;
+        --line: rgba(255, 255, 255, 0.08);
+        --text: #f3f4f6;
+        --muted: #9ca3af;
+        --sky: #38bdf8;
+        --mint: #4ade80;
+        --teal: #42cfb6;
+        --content: 1280px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+      }
+
+      body {
+        font-family: "Red Hat Display", "Inter", "Segoe UI", sans-serif;
+        background-color: var(--bg);
+        background-image:
+          linear-gradient(
+            to right,
+            rgba(255, 255, 255, 0.02) 1px,
+            transparent 1px
+          ),
+          linear-gradient(
+            to bottom,
+            rgba(255, 255, 255, 0.02) 1px,
+            transparent 1px
+          );
+        background-size: 40px 40px;
+        background-position: center top;
+        color: var(--text);
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .container {
+        max-width: var(--content);
+        margin: 0 auto;
+        padding: 0 32px;
+      }
+
+      .nav-wrap {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 50;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        background: rgba(10, 10, 10, 0.85);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+      }
+
+      .nav {
+        min-height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .brand-mark {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
+        color: #fff;
+        background: linear-gradient(135deg, #22d3ee, #4ade80);
+        box-shadow:
+          0 10px 20px -5px rgba(6, 182, 212, 0.4),
+          inset 0 2px 0 rgba(255, 255, 255, 0.3);
+      }
+
+      .brand-diamond {
+        width: 10px;
+        height: 10px;
+        border-radius: 1px;
+        transform: rotate(45deg);
+        background: #fff;
+      }
+
+      .brand-copy {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .brand-title {
+        font-size: 18px;
+        line-height: 18px;
+        font-weight: 700;
+        letter-spacing: -0.025em;
+      }
+
+      .brand-sub {
+        margin-top: 1px;
+        font-size: 10px;
+        line-height: 10px;
+        color: var(--muted);
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 0;
+        border-radius: 8px;
+        background: linear-gradient(135deg, var(--teal), var(--mint));
+        color: #000;
+        font:
+          600 14px/20px "Red Hat Display",
+          "Inter",
+          sans-serif;
+        padding: 8px 16px;
+        box-shadow:
+          0 10px 15px -3px rgba(66, 207, 182, 0.28),
+          0 4px 6px -4px rgba(66, 207, 182, 0.25),
+          inset 0 1px 0 rgba(255, 255, 255, 0.4);
+        transition:
+          transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
+          box-shadow 280ms ease,
+          filter 280ms ease;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px) scale(1.02);
+        filter: brightness(1.1);
+        box-shadow:
+          0 16px 28px -8px rgba(66, 207, 182, 0.45),
+          0 8px 14px -8px rgba(66, 207, 182, 0.35),
+          0 0 20px rgba(66, 207, 182, 0.3);
+      }
+
+      .btn-ghost {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.05);
+        color: #fff;
+        font:
+          600 14px/20px "Red Hat Display",
+          "Inter",
+          sans-serif;
+        padding: 8px 16px;
+        transition:
+          border-color 220ms ease,
+          transform 220ms ease,
+          background 220ms ease;
+      }
+
+      .btn-ghost:hover {
+        border-color: rgba(255, 255, 255, 0.35);
+        background: rgba(255, 255, 255, 0.1);
+        transform: translateY(-1px);
+      }
+
+      .not-found {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 120px 24px 40px;
+      }
+
+      .card {
+        width: min(760px, 100%);
+        background: linear-gradient(
+          165deg,
+          rgba(21, 23, 27, 0.94),
+          rgba(14, 16, 20, 0.9)
+        );
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        padding: clamp(28px, 5vw, 52px);
+        text-align: center;
+        box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+      }
+
+      .code {
+        margin: 0;
+        font-size: clamp(64px, 12vw, 120px);
+        line-height: 0.95;
+        letter-spacing: -0.05em;
+        background: linear-gradient(90deg, var(--sky), var(--mint));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+
+      h1 {
+        margin: 14px 0 10px;
+        font-size: clamp(28px, 4.8vw, 44px);
+        letter-spacing: -0.03em;
+      }
+
+      p {
+        margin: 0 auto;
+        max-width: 55ch;
+        color: var(--muted);
+        font-size: clamp(15px, 2.2vw, 18px);
+      }
+
+      .actions {
+        margin-top: 30px;
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      @media (max-width: 720px) {
+        .container {
+          padding: 0 18px;
+        }
+
+        .nav {
+          min-height: 58px;
+        }
+
+        .brand-mark {
+          width: 32px;
+          height: 32px;
+        }
+
+        .brand-title {
+          font-size: 16px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="nav-wrap">
+      <div class="container">
+        <nav class="nav" aria-label="Top navigation">
+          <a class="brand" href="/" aria-label="Go to Sapphire home">
+            <span class="brand-mark" aria-hidden="true">
+              <span class="brand-diamond"></span>
+            </span>
+            <span class="brand-copy">
+              <span class="brand-title">Sapphire</span>
+              <span class="brand-sub">Made by neonxsl</span>
+            </span>
+          </a>
+          <a class="btn" href="/">Back to Home</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="not-found">
+      <section class="card" aria-labelledby="page-title">
+        <p class="code" aria-hidden="true">404</p>
+        <h1 id="page-title">Page not found</h1>
+        <p>
+          The page you’re looking for might have been moved, removed, or never
+          existed in the first place.
+        </p>
+        <div class="actions">
+          <a class="btn" href="/">Go to homepage</a>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
