@@ -134,6 +134,49 @@ const SUBJECT_ICON_PRESETS = {
   'visual arts': 'palette',
   'visual design': 'pen',
 };
+
+const SUBJECT_ALIASES = {
+  'math': 'Mathematics',
+  'maths': 'Mathematics',
+  'mathematics': 'Mathematics',
+  'eng': 'English',
+  'english': 'English',
+  'geo': 'Geography',
+  'geography': 'Geography',
+  'hist': 'History',
+  'history': 'History',
+  'sci': 'Science',
+  'science': 'Science',
+  'pe': 'PDHPE',
+  'pdhpe': 'PDHPE',
+  'pd': 'PDHPE',
+  'pass': 'PASS',
+  'biz': 'Commerce',
+  'business': 'Commerce',
+  'commerce': 'Commerce',
+  'music': 'Music',
+  'drama': 'Drama',
+  'art': 'Visual Arts',
+  'visual arts': 'Visual Arts',
+  'va': 'Visual Arts',
+  'dt': 'Design and Technology',
+  'design': 'Design and Technology',
+  'food tech': 'Food Technology',
+  'food technology': 'Food Technology',
+  'ist': 'Information Software Technology',
+  'computing': 'Computing Technology',
+  'computing technology': 'Computing Technology',
+  'chem': 'Chemistry',
+  'chemistry': 'Chemistry',
+  'bio': 'Biology',
+  'biology': 'Biology',
+  'phys': 'Physics',
+  'physics': 'Physics',
+  'legal': 'Legal Studies',
+  'legal studies': 'Legal Studies',
+  'eco': 'Economics',
+  'economics': 'Economics',
+};
 const LIGHT_THEMES = ['pearl', 'mint', 'sunrise', 'sky'];
 const DARK_THEMES = ['midnight', 'aurora', 'cosmic', 'sapphire'];
 const MONTH_AXIS_LABELS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
@@ -230,6 +273,9 @@ const elements = {
   overallAssessments: document.getElementById('overall-assessments'),
   overallBest: document.getElementById('overall-best'),
   overallGradeSquare: document.getElementById('overall-grade-square'),
+  navLeaderboard: document.getElementById('nav-leaderboard'),
+  leaderboardSubjectSelect: document.getElementById('leaderboard-subject-select'),
+  leaderboardList: document.getElementById('leaderboard-list'),
   authButton: document.getElementById('auth-button'),
   authMenu: document.getElementById('auth-menu'),
   authMenuAction: document.getElementById('auth-menu-action'),
@@ -311,9 +357,13 @@ const elements = {
   editSubjectMessage: document.getElementById('edit-subject-message'),
   assessmentModal: document.getElementById('assessment-modal'),
   assessmentForm: document.getElementById('assessment-form'),
+  assessmentId: document.getElementById('assessment-id'),
   assessmentMessage: document.getElementById('assessment-message'),
   assessmentSubjectName: document.getElementById('assessment-subject-name'),
   assessmentSubjectId: document.getElementById('assessment-subject-id'),
+  assessmentComponentsPanel: document.getElementById('assessment-components-panel'),
+  assessmentComponentsList: document.getElementById('assessment-components-list'),
+  addAssessmentComponent: document.getElementById('add-assessment-component'),
   upcomingModal: document.getElementById('upcoming-modal'),
   upcomingForm: document.getElementById('upcoming-form'),
   upcomingMessage: document.getElementById('upcoming-message'),
@@ -430,6 +480,7 @@ let draggingOrderId = null;
 let currentOrderDropTarget = null;
 let pendingAssessmentConversion = null;
 let pendingUpcomingEdit = null;
+let assessmentComponents = [];
 const hiddenSubjectsChartIds = new Set();
 const ASSESSMENT_SORT_KEYS = new Set(['subject', 'weight', 'percent', 'grade', 'date']);
 const GRADE_SORT_ORDER = new Map([
@@ -1272,6 +1323,9 @@ if (elements.subjectModal) {
       const assessmentId = actionTarget.dataset.assessmentId;
       const subject = state.data.subjects.find((item) => item.id === subjectId);
       if (!subject) return;
+      const toDelete = subject.assessments.find((item) => item.id === assessmentId);
+      const sharedDocId = toDelete?.leaderboardDocId || null;
+
       const confirmed = await showConfirm({
         title: 'Delete assessment?',
         message: 'This will remove the assessment result.',
@@ -1280,9 +1334,34 @@ if (elements.subjectModal) {
       });
       if (!confirmed) return;
       subject.assessments = subject.assessments.filter((item) => item.id !== assessmentId);
+      
       saveData(state.data);
       render();
       openSubjectModal(subjectId);
+
+      // Also remove from leaderboard if shared
+      if (sharedDocId && appwriteDatabases) {
+        try { await appwriteDatabases.deleteDocument(APPWRITE_DATABASE_ID, 'leaderboard', sharedDocId); } catch (_) {}
+        fetchLeaderboard();
+      }
+    }
+
+    if (action === 'edit-assessment') {
+      const subjectId = actionTarget.dataset.subjectId;
+      const assessmentId = actionTarget.dataset.assessmentId;
+      const subject = state.data.subjects.find((item) => item.id === subjectId);
+      if (!subject) return;
+      const assessment = subject.assessments.find((item) => item.id === assessmentId);
+      if (!assessment) return;
+      openAssessmentModal(subjectId, { edit: assessment });
+      return;
+    }
+
+    if (action === 'share-assessment') {
+      const subjectId = actionTarget.dataset.subjectId;
+      const assessmentId = actionTarget.dataset.assessmentId;
+      shareAssessmentToLeaderboard(subjectId, assessmentId);
+      return;
     }
 
     if (action === 'complete-upcoming') {
@@ -1658,13 +1737,14 @@ if (elements.timetableClassForm) {
 }
 
 if (elements.assessmentForm) {
-  elements.assessmentForm.addEventListener('submit', (event) => {
+  elements.assessmentForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     const formData = new FormData(elements.assessmentForm);
+    const assessmentId = String(formData.get('assessmentId') || '').trim();
     const subjectId = String(formData.get('subjectId') || '').trim();
     const assessmentName = String(formData.get('assessment') || '').trim();
-    const score = parseFloat(formData.get('score'));
-    const total = parseFloat(formData.get('total'));
+    let score = parseFloat(formData.get('score'));
+    let total = parseFloat(formData.get('total'));
     const weightInput = formData.get('weight');
     const weight = weightInput === '' ? null : parseFloat(weightInput);
     const date = String(formData.get('date') || today);
@@ -1676,6 +1756,24 @@ if (elements.assessmentForm) {
     if (!assessmentName) {
       return setAssessmentMessage('Please enter an assessment name.');
     }
+
+    if (assessmentComponents.length > 0) {
+      let totalWeight = 0;
+      let calculatedScore = 0;
+      for (const comp of assessmentComponents) {
+        if (!comp.name || !Number.isFinite(comp.score) || !Number.isFinite(comp.total) || comp.total <= 0) {
+          return setAssessmentMessage('Please complete all component fields correctly.');
+        }
+        const w = Number.isFinite(comp.weight) && comp.weight > 0 ? comp.weight : 1;
+        totalWeight += w;
+        calculatedScore += (comp.score / comp.total) * w;
+      }
+      if (totalWeight > 0) {
+        score = Number(((calculatedScore / totalWeight) * 100).toFixed(2));
+        total = 100;
+      }
+    }
+
     if (!Number.isFinite(score) || !Number.isFinite(total) || total <= 0) {
       return setAssessmentMessage('Please enter a valid score and total.');
     }
@@ -1686,25 +1784,141 @@ if (elements.assessmentForm) {
       return setAssessmentMessage('Weighting is required when converting an upcoming assessment.');
     }
 
-    subject.assessments.push({
-      id: cryptoRandomId(),
-      name: assessmentName,
-      score,
-      total,
-      weight,
-      date,
-      createdAt: Date.now(),
-    });
+    if (assessmentId) {
+      const existing = subject.assessments.find((a) => a.id === assessmentId);
+      if (existing) {
+        existing.name = assessmentName;
+        existing.score = score;
+        existing.total = total;
+        existing.weight = weight;
+        existing.date = date;
+        existing.components = [...assessmentComponents];
+      }
+    } else {
+      subject.assessments.push({
+        id: cryptoRandomId(),
+        name: assessmentName,
+        score,
+        total,
+        weight,
+        date,
+        createdAt: Date.now(),
+        components: [...assessmentComponents],
+      });
+    }
 
     if (pendingAssessmentConversion?.subjectId === subjectId && pendingAssessmentConversion.upcomingId) {
       subject.upcoming = Array.isArray(subject.upcoming)
-        ? subject.upcoming.filter((item) => item.id !== pendingAssessmentConversion.upcomingId)
+        ? subject.upcoming.filter((u) => u.id !== pendingAssessmentConversion.upcomingId)
         : [];
     }
 
     saveData(state.data);
     render();
     closeAssessmentModal();
+    if (elements.subjectModal?.classList.contains('is-open') && activeSubjectId === subjectId) {
+      openSubjectModal(subjectId);
+    }
+    // If this assessment is shared on the leaderboard, update the leaderboard doc
+    const isFriend = appwriteState.user?.labels?.includes('friends');
+    if (isFriend) {
+      const savedAssessment = subject.assessments.find((a) => a.id === (assessmentId || subject.assessments[subject.assessments.length - 1]?.id));
+      if (savedAssessment?.leaderboardDocId && appwriteDatabases) {
+        try {
+          await appwriteDatabases.updateDocument(
+            APPWRITE_DATABASE_ID,
+            'leaderboard',
+            savedAssessment.leaderboardDocId,
+            {
+              assessmentName: savedAssessment.name,
+              score: savedAssessment.score,
+              total: savedAssessment.total,
+              percent: (savedAssessment.score / savedAssessment.total) * 100,
+              weight: savedAssessment.weight || null,
+            }
+          );
+        } catch (_) {}
+        fetchLeaderboard();
+      }
+    }
+  });
+}
+
+function renderAssessmentComponents() {
+  if (!elements.assessmentComponentsList) return;
+  if (assessmentComponents.length === 0) {
+    elements.assessmentComponentsList.innerHTML = '<span class="muted" style="font-size: 0.85rem;">No components added. Standard assessment mark will be used.</span>';
+    const scoreInput = elements.assessmentForm.querySelector('input[name="score"]');
+    const totalInput = elements.assessmentForm.querySelector('input[name="total"]');
+    if (scoreInput) scoreInput.disabled = false;
+    if (totalInput) totalInput.disabled = false;
+    return;
+  }
+
+  const scoreInput = elements.assessmentForm.querySelector('input[name="score"]');
+  const totalInput = elements.assessmentForm.querySelector('input[name="total"]');
+  if (scoreInput) scoreInput.disabled = true;
+  if (totalInput) totalInput.disabled = true;
+
+  elements.assessmentComponentsList.innerHTML = assessmentComponents.map((comp, i) => `
+    <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; background: var(--surface-hover); padding: 12px; border-radius: 8px; margin-bottom: 8px;">
+      <label class="field" style="flex: 1 1 120px; margin: 0;">
+        <span>Component name</span>
+        <input class="component-input" type="text" placeholder="e.g. Part A" value="${comp.name}" data-index="${i}" data-field="name" required>
+      </label>
+      <label class="field" style="flex: 1 1 80px; margin: 0;">
+        <span>Score</span>
+        <input class="component-input" type="number" placeholder="10" step="0.1" min="0" value="${comp.score !== null ? comp.score : ''}" data-index="${i}" data-field="score" required>
+      </label>
+      <label class="field" style="flex: 1 1 80px; margin: 0;">
+        <span>Total</span>
+        <input class="component-input" type="number" placeholder="10" step="0.1" min="0.1" value="${comp.total !== null ? comp.total : ''}" data-index="${i}" data-field="total" required>
+      </label>
+      <label class="field" style="flex: 1 1 80px; margin: 0;">
+        <span>Wt(%)</span>
+        <input class="component-input" type="number" placeholder="20" step="0.1" min="0" value="${comp.weight !== null ? comp.weight : ''}" data-index="${i}" data-field="weight">
+      </label>
+      <button type="button" class="icon-button" style="color: var(--danger); margin-bottom: 6px; flex-shrink: 0;" data-action="remove-component" data-index="${i}">
+        <i class="ph ph-trash" aria-hidden="true"></i>
+      </button>
+    </div>
+  `).join('');
+}
+
+if (elements.addAssessmentComponent) {
+  elements.addAssessmentComponent.addEventListener('click', () => {
+    assessmentComponents.push({ name: '', score: null, total: null, weight: null });
+    renderAssessmentComponents();
+  });
+}
+
+if (elements.assessmentComponentsList) {
+  elements.assessmentComponentsList.addEventListener('input', (event) => {
+    const target = event.target;
+    if (target.classList.contains('component-input')) {
+      const index = parseInt(target.dataset.index, 10);
+      const field = target.dataset.field;
+      if (field === 'name') {
+        assessmentComponents[index][field] = target.value;
+      } else {
+        assessmentComponents[index][field] = target.value ? parseFloat(target.value) : null;
+      }
+    }
+  });
+
+  elements.assessmentComponentsList.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-action="remove-component"]');
+    if (btn) {
+      const index = parseInt(btn.dataset.index, 10);
+      assessmentComponents.splice(index, 1);
+      renderAssessmentComponents();
+    }
+  });
+}
+
+if (elements.upcomingForm) {
+  elements.upcomingForm.addEventListener('submit', (event) => {
+    event.preventDefault();
     if (elements.subjectModal?.classList.contains('is-open') && activeSubjectId === subjectId) {
       openSubjectModal(subjectId);
     }
@@ -1813,6 +2027,8 @@ if (elements.assessmentTable) {
       const assessmentId = target.dataset.assessmentId;
       const subject = state.data.subjects.find((item) => item.id === subjectId);
       if (!subject) return;
+      const toDelete = subject.assessments.find((item) => item.id === assessmentId);
+      const sharedDocId = toDelete?.leaderboardDocId || null;
       const confirmed = await showConfirm({
         title: 'Delete assessment?',
         message: 'This will remove the assessment result.',
@@ -1823,6 +2039,23 @@ if (elements.assessmentTable) {
       subject.assessments = subject.assessments.filter((item) => item.id !== assessmentId);
       saveData(state.data);
       render();
+      // Also remove from leaderboard if shared
+      if (sharedDocId && appwriteDatabases) {
+        try { await appwriteDatabases.deleteDocument(APPWRITE_DATABASE_ID, 'leaderboard', sharedDocId); } catch (_) {}
+        fetchLeaderboard();
+      }
+    } else if (action === 'edit-assessment') {
+      const subjectId = target.dataset.subjectId;
+      const assessmentId = target.dataset.assessmentId;
+      const subject = state.data.subjects.find((item) => item.id === subjectId);
+      if (!subject) return;
+      const assessment = subject.assessments.find((item) => item.id === assessmentId);
+      if (!assessment) return;
+      openAssessmentModal(subjectId, { edit: assessment });
+    } else if (action === 'share-assessment') {
+      const subjectId = target.dataset.subjectId;
+      const assessmentId = target.dataset.assessmentId;
+      shareAssessmentToLeaderboard(subjectId, assessmentId);
     }
   });
 }
@@ -1942,6 +2175,8 @@ function normalizeData(parsed) {
           weight: assessment.weight === undefined ? null : assessment.weight,
           date,
           createdAt,
+          components: Array.isArray(assessment.components) ? assessment.components : [],
+          leaderboardDocId: assessment.leaderboardDocId || null,
         };
       }),
       upcoming: upcoming.map((item, upcomingIndex) => {
@@ -2083,6 +2318,286 @@ function updateAuthUI() {
     elements.onboardingAuth.innerHTML = `${iconHtml('check-circle')}Signed in`;
   }
   updateSyncStatus();
+  checkFriendStatusAndRenderLeaderboard();
+}
+
+async function checkFriendStatusAndRenderLeaderboard() {
+  const isFriend = appwriteState.user?.labels?.includes('friends');
+  if (elements.navLeaderboard) {
+    elements.navLeaderboard.hidden = !isFriend;
+  }
+  const shareButtons = document.querySelectorAll('[data-action="share-assessment"]');
+  shareButtons.forEach(btn => btn.hidden = !isFriend);
+
+  if (isFriend) {
+    await fetchLeaderboard();
+  }
+}
+
+async function shareAssessmentToLeaderboard(subjectId, assessmentId) {
+  if (!appwriteState.enabled || !appwriteState.user || !appwriteDatabases) return;
+  const subject = state.data.subjects.find(s => s.id === subjectId);
+  if (!subject) return;
+  if (!assessmentId) return;
+  const assessment = subject.assessments.find(a => a.id === assessmentId);
+  if (!assessment) return;
+
+  // If already shared, ask to remove
+  if (assessment.leaderboardDocId) {
+    const confirmed = await showConfirm({
+      title: 'Remove from leaderboard?',
+      message: 'This will remove your mark from the shared leaderboard.',
+      confirmLabel: 'Remove',
+      danger: true,
+    });
+    if (!confirmed) return;
+    try {
+      await appwriteDatabases.deleteDocument(APPWRITE_DATABASE_ID, 'leaderboard', assessment.leaderboardDocId);
+      assessment.leaderboardDocId = null;
+      saveData(state.data);
+      if (activeSubjectId === subjectId && elements.subjectModal?.classList.contains('is-open')) {
+        openSubjectModal(subjectId);
+      }
+      fetchLeaderboard();
+    } catch (err) {
+      console.error('Error removing from leaderboard:', err);
+      await showConfirm({ title: 'Error', message: 'Could not remove: ' + err.message, confirmLabel: 'OK', cancelLabel: '' });
+    }
+    return;
+  }
+
+  const score = assessment.score;
+  const total = assessment.total;
+  const percent = (score / total) * 100;
+  const weight = assessment.weight;
+  const assessmentName = assessment.name;
+
+  try {
+    const docId = cryptoRandomId().replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 36) || 'id' + Date.now();
+    await appwriteDatabases.createDocument(
+      APPWRITE_DATABASE_ID,
+      'leaderboard',
+      docId,
+      {
+        userId: appwriteState.user.$id,
+        userName: appwriteState.user.name || 'Anonymous',
+        subjectName: normalizeSubjectNameForLeaderboard(subject.name),
+        assessmentName: assessmentName,
+        score: score,
+        total: total,
+        percent: percent,
+        weight: weight || null
+      }
+    );
+    assessment.leaderboardDocId = docId;
+    saveData(state.data);
+    if (activeSubjectId === subjectId && elements.subjectModal?.classList.contains('is-open')) {
+      openSubjectModal(subjectId);
+    }
+    await showConfirm({ title: 'Shared!', message: 'Your mark is now on the leaderboard.', confirmLabel: 'OK', cancelLabel: '' });
+    fetchLeaderboard();
+  } catch (err) {
+    console.error('Error sharing to leaderboard:', err);
+    await showConfirm({ title: 'Error', message: 'Failed to share: ' + err.message, confirmLabel: 'OK', cancelLabel: '' });
+  }
+}
+
+async function fetchLeaderboard() {
+  if (!appwriteState.enabled || !appwriteState.user || !appwriteDatabases) return;
+  if (!elements.leaderboardList) return;
+
+  try {
+    elements.leaderboardList.innerHTML = '<div class="empty-state">Loading leaderboard...</div>';
+    
+    // We import Query dynamically if we could, but we assume it's available or we can just list documents.
+    // Assuming we fetch all and filter in memory if the dataset is small.
+    const res = await appwriteDatabases.listDocuments(APPWRITE_DATABASE_ID, 'leaderboard');
+    const docs = res.documents || [];
+    
+    renderLeaderboardView(docs);
+  } catch (err) {
+    console.error('Leaderboard fetch error:', err);
+    elements.leaderboardList.innerHTML = '<div class="empty-state">Could not load leaderboard.</div>';
+  }
+}
+
+let leaderboardDocs = [];
+
+function renderLeaderboardView(docs) {
+  if (!elements.leaderboardList) return;
+  leaderboardDocs = docs;
+
+  if (docs.length === 0) {
+    elements.leaderboardList.innerHTML = '<div class="empty-state">No shared marks yet. Be the first to share!</div>';
+    return;
+  }
+
+  const selectedSubject = elements.leaderboardSubjectSelect?.value || 'all';
+
+  // Update subject dropdown options
+  const subjects = new Set(docs.map(d => d.subjectName));
+  if (elements.leaderboardSubjectSelect) {
+    const currentValue = elements.leaderboardSubjectSelect.value;
+    elements.leaderboardSubjectSelect.innerHTML = '<option value="all">All Subjects</option>' +
+      Array.from(subjects).sort().map(s => `<option value="${s}">${s}</option>`).join('');
+    elements.leaderboardSubjectSelect.value = subjects.has(currentValue) ? currentValue : 'all';
+  }
+
+  const filteredDocs = selectedSubject === 'all' ? docs : docs.filter(d => d.subjectName === selectedSubject);
+
+  if (filteredDocs.length === 0) {
+    elements.leaderboardList.innerHTML = '<div class="empty-state">No marks shared for this subject.</div>';
+    return;
+  }
+
+  // Group by userId
+  const userMap = new Map();
+  for (const doc of filteredDocs) {
+    const key = doc.userId;
+    if (!userMap.has(key)) {
+      userMap.set(key, { userId: doc.userId, userName: doc.userName, assessments: [] });
+    }
+    userMap.get(key).assessments.push(doc);
+  }
+
+  // Calculate overall average for each user and sort
+  const users = Array.from(userMap.values()).map(u => {
+    const totalPercent = u.assessments.reduce((sum, a) => sum + a.percent, 0);
+    u.average = totalPercent / u.assessments.length;
+    // Group assessments by subject for the detail view
+    u.subjectGroups = {};
+    for (const a of u.assessments) {
+      if (!u.subjectGroups[a.subjectName]) {
+        u.subjectGroups[a.subjectName] = [];
+      }
+      u.subjectGroups[a.subjectName].push(a);
+    }
+    return u;
+  });
+  users.sort((a, b) => b.average - a.average);
+
+  const isCurrentUser = (uid) => appwriteState.user?.$id === uid;
+
+  elements.leaderboardList.innerHTML = users.map((user, i) => {
+    const rank = i + 1;
+    const rankIcon = rank === 1 ? '<i class="ph ph-fill ph-trophy" style="color: #f6b96e; font-size: 20px;"></i>'
+      : rank === 2 ? '<i class="ph ph-fill ph-medal" style="color: #a8b4c4; font-size: 20px;"></i>'
+      : rank === 3 ? '<i class="ph ph-fill ph-medal" style="color: #cd7f32; font-size: 20px;"></i>'
+      : `<span class="lb-rank-num">${rank}</span>`;
+    const subjectCount = Object.keys(user.subjectGroups).length;
+    const assessmentCount = user.assessments.length;
+    const highlight = isCurrentUser(user.userId) ? ' leaderboard-entry--you' : '';
+
+    // Build meta text based on filter
+    const isFiltered = selectedSubject !== 'all';
+    const metaText = isFiltered
+      ? `${assessmentCount} assessment${assessmentCount !== 1 ? 's' : ''}`
+      : `${subjectCount} subject${subjectCount !== 1 ? 's' : ''} · ${assessmentCount} assessment${assessmentCount !== 1 ? 's' : ''}`;
+
+    return `
+      <div class="leaderboard-entry${highlight}" data-user-id="${user.userId}" data-action="open-lb-popup">
+        <div class="leaderboard-entry-summary" style="cursor: pointer;">
+          <div class="lb-rank">${rankIcon}</div>
+          <div class="lb-info">
+            <div class="lb-name">${user.userName}${isCurrentUser(user.userId) ? ' <span class="badge" style="font-size: 0.7rem;">You</span>' : ''}</div>
+            <div class="lb-meta muted">${metaText}</div>
+          </div>
+          <div class="lb-average">${user.average.toFixed(1)}%</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Store user data for popup
+  elements.leaderboardList._userData = users;
+}
+
+if (elements.leaderboardSubjectSelect) {
+  elements.leaderboardSubjectSelect.addEventListener('change', () => {
+    renderLeaderboardView(leaderboardDocs);
+  });
+}
+
+function openLeaderboardPopup(userData) {
+  // Build detail HTML
+  const detailSubjects = Object.entries(userData.subjectGroups).map(([subName, assessments]) => {
+    const subAvg = assessments.reduce((s, a) => s + a.percent, 0) / assessments.length;
+    const rows = assessments.map(a => `
+      <div class="lb-detail-row">
+        <span class="lb-detail-name">${a.assessmentName || 'Assessment'}</span>
+        <span class="lb-detail-score">${a.score} / ${a.total}</span>
+        <span class="lb-detail-percent">${a.percent.toFixed(1)}%</span>
+      </div>
+    `).join('');
+    return `
+      <div class="lb-subject-group">
+        <div class="lb-subject-header">
+          <span class="lb-subject-name">${subName}</span>
+          <span class="badge">${subAvg.toFixed(1)}%</span>
+        </div>
+        ${rows}
+      </div>
+    `;
+  }).join('');
+
+  const subjectCount = Object.keys(userData.subjectGroups).length;
+  const assessmentCount = userData.assessments.length;
+
+  // Create or reuse popup overlay
+  let popup = document.getElementById('lb-popup-overlay');
+  if (!popup) {
+    popup = document.createElement('div');
+    popup.id = 'lb-popup-overlay';
+    popup.className = 'modal';
+    popup.innerHTML = `
+      <div class="modal-backdrop" data-action="close-lb-popup"></div>
+      <div class="modal-panel modal-panel--small" role="dialog" aria-modal="true">
+        <div class="modal-header" id="lb-popup-header"></div>
+        <div class="modal-body" id="lb-popup-body"></div>
+      </div>
+    `;
+    document.body.appendChild(popup);
+    popup.addEventListener('click', (event) => {
+      if (event.target.closest('[data-action="close-lb-popup"]')) {
+        closeModal(popup);
+      }
+    });
+  }
+
+  const header = popup.querySelector('#lb-popup-header');
+  const body = popup.querySelector('#lb-popup-body');
+
+  header.innerHTML = `
+    <div>
+      <div class="section-eyebrow">Leaderboard</div>
+      <h2 class="section-title">${userData.userName}</h2>
+      <div class="modal-meta">${subjectCount} subject${subjectCount !== 1 ? 's' : ''} · ${assessmentCount} assessment${assessmentCount !== 1 ? 's' : ''} · ${userData.average.toFixed(1)}% average</div>
+    </div>
+    <button class="icon-button" type="button" data-action="close-lb-popup">
+      <i class="ph ph-x" aria-hidden="true"></i>
+    </button>
+  `;
+
+  body.innerHTML = `
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      ${detailSubjects}
+    </div>
+  `;
+
+  openModal(popup);
+}
+
+if (elements.leaderboardList) {
+  elements.leaderboardList.addEventListener('click', (event) => {
+    const entry = event.target.closest('[data-action="open-lb-popup"]');
+    if (!entry) return;
+    const userId = entry.dataset.userId;
+    const users = elements.leaderboardList._userData;
+    if (!users) return;
+    const userData = users.find(u => u.userId === userId);
+    if (!userData) return;
+    openLeaderboardPopup(userData);
+  });
 }
 
 function setProfileAvatar(user) {
@@ -2984,6 +3499,7 @@ function openSubjectModal(subjectId) {
           const percent = assessment.total > 0 ? (assessment.score / assessment.total) * 100 : 0;
           const grade = getLetterGrade(percent);
           const weight = assessment.weight === null ? '' : ` · W${assessment.weight}`;
+          const isFriend = appwriteState.user?.labels?.includes('friends');
           return `
             <div class="history-item">
               <div>
@@ -2992,7 +3508,13 @@ function openSubjectModal(subjectId) {
               </div>
               <div class="history-right">
                 <div class="history-date">${formatDate(assessment.date)}</div>
-                <button class="delete-button" data-action="delete-assessment" data-subject-id="${subject.id}" data-assessment-id="${assessment.id}">Remove</button>
+                <div style="display: flex; gap: 6px; justify-content: flex-end;">
+                  <button class="ghost-button ghost-button--small" data-action="edit-assessment" data-subject-id="${subject.id}" data-assessment-id="${assessment.id}">Edit</button>
+                  <button class="ghost-button ghost-button--small${assessment.leaderboardDocId ? ' is-shared' : ''}" data-action="share-assessment" data-subject-id="${subject.id}" data-assessment-id="${assessment.id}" ${isFriend ? '' : 'hidden'}>
+                    ${assessment.leaderboardDocId ? '<i class="ph ph-cloud-check" style="margin-right:4px;"></i>Shared' : '<i class="ph ph-share-network" style="margin-right:4px;"></i>Share'}
+                  </button>
+                  <button class="delete-button" data-action="delete-assessment" data-subject-id="${subject.id}" data-assessment-id="${assessment.id}">Remove</button>
+                </div>
               </div>
             </div>
           `;
@@ -3103,28 +3625,45 @@ function openAssessmentModal(subjectId, options = {}) {
   const totalInput = elements.assessmentForm.querySelector('input[name="total"]');
   const weightInput = elements.assessmentForm.querySelector('input[name="weight"]');
   const dateInput = elements.assessmentForm.querySelector('input[name="date"]');
+  const editItem = options.edit || null;
   const prefill = options.prefill || null;
 
   pendingAssessmentConversion = options.conversion || null;
   activeSubjectId = subjectId;
   elements.assessmentForm.reset();
+  assessmentComponents = editItem?.components ? [...editItem.components] : [];
+  renderAssessmentComponents();
+
+  if (elements.assessmentId) {
+    elements.assessmentId.value = editItem ? editItem.id : '';
+  }
+
+  const modalTitle = elements.assessmentModal.querySelector('#assessment-modal-title');
+  const modalEyebrow = elements.assessmentModal.querySelector('.section-eyebrow');
+  const submitButton = elements.assessmentForm.querySelector('button[type="submit"]');
+  if (modalTitle) modalTitle.textContent = editItem ? 'Edit Result' : 'New Result';
+  if (modalEyebrow) modalEyebrow.textContent = editItem ? 'Edit assessment' : 'Add assessment';
+  if (submitButton) submitButton.textContent = editItem ? 'Update Assessment' : 'Save Assessment';
+
   if (elements.assessmentSubjectId) {
     elements.assessmentSubjectId.value = subjectId;
   }
   if (elements.assessmentSubjectName) {
     elements.assessmentSubjectName.textContent = subject.name;
   }
-  if (assessmentNameInput && prefill?.name) {
-    assessmentNameInput.value = prefill.name;
+  if (assessmentNameInput && (prefill?.name || editItem?.name)) {
+    assessmentNameInput.value = editItem?.name || prefill?.name;
   }
   if (scoreInput) {
-    scoreInput.value = '';
+    scoreInput.value = editItem ? editItem.score : '';
   }
   if (totalInput) {
-    totalInput.value = '';
+    totalInput.value = editItem ? editItem.total : '';
   }
   if (weightInput) {
-    if (Number.isFinite(prefill?.weight)) {
+    if (editItem && Number.isFinite(editItem.weight)) {
+      weightInput.value = String(editItem.weight);
+    } else if (Number.isFinite(prefill?.weight)) {
       weightInput.value = String(prefill.weight);
     } else {
       weightInput.value = '';
@@ -3132,7 +3671,7 @@ function openAssessmentModal(subjectId, options = {}) {
     weightInput.required = Boolean(pendingAssessmentConversion?.requiresWeight);
   }
   if (dateInput) {
-    dateInput.value = prefill?.date || today;
+    dateInput.value = editItem ? editItem.date : (prefill?.date || today);
   }
   setAssessmentMessage('');
   openModal(elements.assessmentModal);
@@ -3421,6 +3960,28 @@ function maybeStartOnboarding() {
 
 function normalizeSubjectNameKey(value) {
   return String(value || '').trim().toLowerCase();
+}
+
+function normalizeSubjectNameForLeaderboard(name) {
+  const trimmed = String(name || '').trim();
+  const key = normalizeSubjectNameKey(trimmed);
+
+  // 1. Exact full-name match
+  if (SUBJECT_ALIASES[key]) return SUBJECT_ALIASES[key];
+
+  // 2. Word-token match: find the highest-priority alias word in the subject name
+  const words = key.split(/[\s_\-\/]+/).filter(Boolean);
+  for (const word of words) {
+    if (SUBJECT_ALIASES[word]) return SUBJECT_ALIASES[word];
+  }
+
+  // 3. Substring match: see if any alias key appears inside the full name
+  for (const aliasKey of Object.keys(SUBJECT_ALIASES)) {
+    if (key.includes(aliasKey)) return SUBJECT_ALIASES[aliasKey];
+  }
+
+  // 4. No match — return original name unchanged
+  return trimmed;
 }
 
 function normalizeColorValue(value) {
@@ -4915,7 +5476,11 @@ function renderAssessments() {
           <td><span class="badge">${grade}</span></td>
           <td>${formatDate(assessment.date)}</td>
           <td>
-            <button class="delete-button" data-action="delete-assessment" data-subject-id="${assessment.subjectId}" data-assessment-id="${assessment.id}">Remove</button>
+            <div style="display: flex; gap: 8px;">
+              <button class="ghost-button ghost-button--small" data-action="edit-assessment" data-subject-id="${assessment.subjectId}" data-assessment-id="${assessment.id}">Edit</button>
+              <button class="ghost-button ghost-button--small" data-action="share-assessment" data-subject-id="${assessment.subjectId}" data-assessment-id="${assessment.id}" ${appwriteState.user?.labels?.includes('friends') ? '' : 'hidden'}>Share</button>
+              <button class="delete-button" data-action="delete-assessment" data-subject-id="${assessment.subjectId}" data-assessment-id="${assessment.id}">Remove</button>
+            </div>
           </td>
         </tr>
       `;
@@ -5125,14 +5690,13 @@ function renderCalendar() {
                 const typeIcon = event.upcomingType === 'homework'
                   ? iconHtml('notebook', 'calendar-event-type-icon')
                   : iconHtml('file-text', 'calendar-event-type-icon');
+                const isEditableUpcoming = event.type === 'upcoming';
                 return `
                 <button
                   class="calendar-event is-${upcomingType}${event.type === 'completed' ? ' is-completed' : ''}"
                   type="button"
                   style="--event-color:${event.color}"
-                  data-action="edit-upcoming"
-                  data-subject-id="${event.subjectId}"
-                  data-upcoming-id="${event.upcomingId}"
+                  ${isEditableUpcoming ? `data-action="edit-upcoming" data-subject-id="${event.subjectId}" data-upcoming-id="${event.upcomingId}"` : 'disabled'}
                 >
                   <span class="calendar-event-title">${typeIcon}${event.name}</span>
                   ${activeFilter === 'both' ? `<span class="calendar-event-tag">${typeLabel}</span>` : ''}
@@ -7193,7 +7757,7 @@ function buildCalendarEvents() {
     eventsByDate[date].push(event);
   };
 
-  sortUpcoming(getVisibleUpcomingItems()).forEach((item) => {
+  sortUpcoming(getUpcomingAssessments()).forEach((item) => {
     addEvent(item.date, {
       type: 'upcoming',
       name: item.name,
@@ -7205,6 +7769,21 @@ function buildCalendarEvents() {
       notes: item.notes || '',
       weight: Number.isFinite(item.weight) ? item.weight : null,
       dueDate: item.date,
+    });
+  });
+
+  sortAssessments(getAllAssessments()).forEach((assessment) => {
+    addEvent(assessment.date, {
+      type: 'completed',
+      name: assessment.name,
+      subject: assessment.subjectName,
+      color: assessment.subjectColor || 'var(--accent)',
+      subjectId: assessment.subjectId,
+      upcomingId: '',
+      upcomingType: 'assessment',
+      notes: '',
+      weight: Number.isFinite(assessment.weight) ? assessment.weight : null,
+      dueDate: assessment.date,
     });
   });
 

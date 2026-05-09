@@ -47,6 +47,10 @@
             <i class="ph ph-clock-countdown button-icon" aria-hidden="true"></i>
             Timetable
           </button>
+          <button class="nav-item with-icon" data-tab="leaderboard" type="button" id="nav-leaderboard" hidden>
+            <i class="ph ph-trophy button-icon" aria-hidden="true"></i>
+            Leaderboard
+          </button>
         </nav>
         <div class="app-actions">
           <button id="export-open" class="ghost-button with-icon" type="button">
@@ -585,6 +589,28 @@
             <div class="timetable-map-list" id="timetable-map-list"></div>
           </section>
         </section>
+
+        <section class="view" data-view="leaderboard">
+          <section class="card leaderboard-card glow-soft">
+            <div class="leaderboard-header" style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1.5rem;">
+              <div>
+                <div class="section-eyebrow">Leaderboard</div>
+                <h2 class="section-title">Shared Marks</h2>
+                <p class="muted">See how you compare with your friends.</p>
+              </div>
+              <div class="leaderboard-filters">
+                <label class="field">
+                  <select id="leaderboard-subject-select" style="min-width: 200px;">
+                    <option value="all">All Subjects</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+            <div class="leaderboard-list" id="leaderboard-list">
+              <div class="empty-state">Loading leaderboard...</div>
+            </div>
+          </section>
+        </section>
       </main>
     </div>
 
@@ -727,7 +753,7 @@
     <div class="modal" id="assessment-modal" aria-hidden="true">
       <div class="modal-backdrop" data-action="close-assessment"></div>
       <div
-        class="modal-panel modal-panel--small"
+        class="modal-panel"
         role="dialog"
         aria-modal="true"
         aria-labelledby="assessment-modal-title"
@@ -750,6 +776,7 @@
           </button>
         </div>
         <form id="assessment-form" class="modal-body" autocomplete="off">
+          <input type="hidden" name="assessmentId" id="assessment-id" />
           <input type="hidden" name="subjectId" id="assessment-subject-id" />
           <label class="field">
             <span>Assessment name</span>
@@ -792,7 +819,15 @@
             <span>Date</span>
             <input name="date" type="date" />
           </label>
-          <div class="form-actions">
+          <div class="assessment-components-panel" id="assessment-components-panel">
+            <div class="section-eyebrow" style="margin-top: 1rem;">Components (Optional)</div>
+            <div id="assessment-components-list" class="assessment-components-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px;"></div>
+            <button type="button" class="ghost-button ghost-button--small with-icon" id="add-assessment-component">
+              <i class="ph ph-plus-circle button-icon" aria-hidden="true"></i>
+              Add Component
+            </button>
+          </div>
+          <div class="form-actions" style="margin-top: 1rem;">
             <button class="primary-button" type="submit">
               Save Assessment
             </button>
