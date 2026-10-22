@@ -1837,7 +1837,9 @@ if (elements.assessmentForm) {
               weight: savedAssessment.weight || null,
             }
           );
-        } catch (_) {}
+        } catch (err) {
+          console.error('Error updating leaderboard entry:', err);
+        }
         fetchLeaderboard();
       }
     }
@@ -2409,10 +2411,19 @@ async function fetchLeaderboard() {
   try {
     elements.leaderboardList.innerHTML = '<div class="empty-state">Loading leaderboard...</div>';
     
-    // We import Query dynamically if we could, but we assume it's available or we can just list documents.
-    // Assuming we fetch all and filter in memory if the dataset is small.
-    const res = await appwriteDatabases.listDocuments(APPWRITE_DATABASE_ID, 'leaderboard');
-    const docs = res.documents || [];
+    // Appwrite returns only 25 documents by default, so page through everything.
+    const { Query } = Appwrite;
+    const docs = [];
+    let cursor = null;
+    while (true) {
+      const queries = [Query.limit(100)];
+      if (cursor) queries.push(Query.cursorAfter(cursor));
+      const res = await appwriteDatabases.listDocuments(APPWRITE_DATABASE_ID, 'leaderboard', queries);
+      const page = res.documents || [];
+      docs.push(...page);
+      if (page.length < 100) break;
+      cursor = page[page.length - 1].$id;
+    }
     
     renderLeaderboardView(docs);
   } catch (err) {
@@ -3243,6 +3254,7 @@ function setActiveTab(tab) {
     view.classList.toggle('is-active', view.dataset.view === tab);
   });
   safeSetItem(TAB_KEY, tab);
+  if (tab === 'leaderboard') fetchLeaderboard();
   renderCharts();
   renderCalendar();
   renderTimetable();
