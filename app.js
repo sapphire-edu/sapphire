@@ -178,6 +178,7 @@ const SUBJECT_ALIASES = {
   'eco': 'Economics',
   'economics': 'Economics',
 };
+const LEADERBOARD_SUMMARY_NAME = 'Subject average';
 const CORE_LEADERBOARD_SUBJECTS = new Set(['Mathematics', 'English', 'Science', 'History', 'Geography', 'Commerce']);
 const LIGHT_THEMES = ['pearl', 'mint', 'sunrise', 'sky'];
 const DARK_THEMES = ['midnight', 'aurora', 'cosmic', 'sapphire'];
@@ -288,6 +289,13 @@ const elements = {
   leaderboardSubjectSelect: document.getElementById('leaderboard-subject-select'),
   leaderboardList: document.getElementById('leaderboard-list'),
   leaderboardAutoShare: document.getElementById('leaderboard-auto-share'),
+  leaderboardPrivacyOpen: document.getElementById('leaderboard-privacy-open'),
+  leaderboardPrivacyModal: document.getElementById('leaderboard-privacy-modal'),
+  leaderboardPrivacySubjects: document.getElementById('leaderboard-privacy-subjects'),
+  leaderboardPrivacyNewNote: document.getElementById('leaderboard-privacy-new-note'),
+  leaderboardPrivacyHideRaw: document.getElementById('leaderboard-privacy-hide-raw'),
+  leaderboardPrivacyAverages: document.getElementById('leaderboard-privacy-averages'),
+  leaderboardPrivacyMessage: document.getElementById('leaderboard-privacy-message'),
   leaderboardResync: document.getElementById('leaderboard-resync'),
   authButton: document.getElementById('auth-button'),
   authMenu: document.getElementById('auth-menu'),
@@ -362,6 +370,7 @@ const elements = {
   editSubjectForm: document.getElementById('edit-subject-form'),
   editSubjectId: document.getElementById('edit-subject-id'),
   editSubjectName: document.getElementById('edit-subject-name'),
+  editSubjectTarget: document.getElementById('edit-subject-target'),
   editSubjectIcon: document.getElementById('edit-subject-icon'),
   editSubjectIconPreview: document.getElementById('edit-subject-icon-preview'),
   editSubjectIconCarousel: document.getElementById('edit-subject-icon-carousel'),
@@ -489,6 +498,8 @@ const calendarState = {
 };
 
 let activeSubjectId = null;
+// Hypothetical marks for the open subject popup. Never saved; cleared when the popup closes.
+let whatIfState = { subjectId: null, open: false, rows: [] };
 let activeTimetableClassKey = null;
 let draggingOrderId = null;
 let currentOrderDropTarget = null;
@@ -1274,6 +1285,25 @@ if (elements.subjectsKey) {
 }
 
 if (elements.subjectModal) {
+  elements.subjectModal.addEventListener('input', (event) => {
+    const input = event.target.closest('[data-what-if-field]');
+    if (!input) return;
+    const row = whatIfState.rows[Number(input.dataset.whatIfIndex)];
+    if (!row) return;
+    row[input.dataset.whatIfField] = input.value;
+    renderWhatIfResult();
+  });
+
+  elements.subjectModal.addEventListener(
+    'toggle',
+    (event) => {
+      if (event.target.id !== 'what-if-panel') return;
+      whatIfState.open = event.target.open;
+      renderWhatIfResult();
+    },
+    true
+  );
+
   elements.subjectModal.addEventListener('click', async (event) => {
     const actionTarget = event.target.closest('[data-action]');
     if (!actionTarget) return;
@@ -1313,6 +1343,24 @@ if (elements.subjectModal) {
     if (action === 'open-edit-subject') {
       if (!activeSubjectId) return;
       openEditSubjectModal(activeSubjectId);
+      return;
+    }
+
+    if (action === 'what-if-add') {
+      whatIfState.rows.push(createBlankWhatIfRow());
+      renderWhatIfRows();
+      renderWhatIfResult();
+      elements.subjectModalBody
+        ?.querySelector(`[data-what-if-index="${whatIfState.rows.length - 1}"][data-what-if-field="score"]`)
+        ?.focus();
+      return;
+    }
+
+    if (action === 'what-if-remove') {
+      whatIfState.rows.splice(Number(actionTarget.dataset.whatIfIndex), 1);
+      if (!whatIfState.rows.length) whatIfState.rows.push(createBlankWhatIfRow());
+      renderWhatIfRows();
+      renderWhatIfResult();
       return;
     }
 
@@ -1494,10 +1542,12 @@ if (elements.editSubjectForm) {
       || normalizeColorValue(subject.color)
       || palette[0];
     const nextIcon = resolveSubjectIcon(elements.editSubjectIcon?.value, nextName);
+    const nextTarget = normalizeTarget(elements.editSubjectTarget?.value);
 
     const unchanged = subject.name === nextName
       && normalizeColorValue(subject.color).toLowerCase() === nextColor.toLowerCase()
-      && resolveSubjectIcon(subject.icon, subject.name) === nextIcon;
+      && resolveSubjectIcon(subject.icon, subject.name) === nextIcon
+      && (subject.target ?? null) === nextTarget;
     if (unchanged) {
       setEditSubjectMessage('No changes to save.');
       return;
@@ -1506,6 +1556,7 @@ if (elements.editSubjectForm) {
     subject.name = nextName;
     subject.color = nextColor;
     subject.icon = nextIcon;
+    subject.target = nextTarget;
     saveData(state.data);
     render();
     if (elements.subjectModal?.classList.contains('is-open') && activeSubjectId === subjectId) {
@@ -1929,6 +1980,10 @@ document.addEventListener('keydown', (event) => {
     dismissConfirm(false);
     return;
   }
+  if (elements.leaderboardPrivacyModal?.classList.contains('is-open')) {
+    closeModal(elements.leaderboardPrivacyModal);
+    return;
+  }
   if (elements.iconPickerModal?.classList.contains('is-open')) {
     dismissIconPicker(null);
     return;
@@ -2152,6 +2207,7 @@ function normalizeData(parsed) {
       name,
       color: subject.color || palette[index % palette.length],
       icon: resolveSubjectIcon(subject.icon || subject.subjectIcon, name),
+      target: normalizeTarget(subject.target),
       assessments: assessments.map((assessment, assessmentIndex) => {
         const date = assessment.date || todayValue;
         const dateValue = new Date(date).getTime();
@@ -2197,7 +2253,31 @@ function normalizeData(parsed) {
   const graphSmoothness = Number.isFinite(parsed.graphSmoothness) ? parsed.graphSmoothness : null;
   const timetable = normalizeTimetableData(parsed.timetable);
   const leaderboardAutoShare = parsed.leaderboardAutoShare === true;
-  return { subjects, timetable, lastUpdatedAt, userName, graphSmoothness, leaderboardAutoShare };
+  const leaderboardPrivacy = normalizeLeaderboardPrivacy(parsed.leaderboardPrivacy);
+  return {
+    subjects,
+    timetable,
+    lastUpdatedAt,
+    userName,
+    graphSmoothness,
+    leaderboardAutoShare,
+    leaderboardPrivacy,
+  };
+}
+
+function normalizeTarget(value) {
+  const number = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
+  return Number.isFinite(number) ? clamp(number, 0, 100) : null;
+}
+
+function normalizeLeaderboardPrivacy(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  return {
+    // null means every subject may be shared.
+    subjectIds: Array.isArray(source.subjectIds) ? source.subjectIds.filter((id) => typeof id === 'string') : null,
+    hideRawMarks: source.hideRawMarks === true,
+    averagesOnly: source.averagesOnly === true,
+  };
 }
 
 function saveData(data, options = {}) {
@@ -2331,7 +2411,7 @@ async function checkFriendStatusAndRenderLeaderboard() {
     elements.navLeaderboard.hidden = !isFriend;
   }
   const shareButtons = document.querySelectorAll('[data-action="share-assessment"]');
-  shareButtons.forEach(btn => btn.hidden = !isFriend);
+  shareButtons.forEach(btn => btn.hidden = !canShareSubjectMarks(btn.dataset.subjectId));
   renderShareAllButton();
   renderLeaderboardControls();
 
@@ -2410,17 +2490,104 @@ function leaderboardDocIdFor(assessment) {
   return `${userPart}_${assessment.id}`.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 36);
 }
 
+// One entry per subject (instead of per assessment) when "averages only" is on.
+function leaderboardSummaryDocIdFor(subject) {
+  const userPart = String(appwriteState.user?.$id || '').slice(-12);
+  return `${userPart}_s_${subject.id}`.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 36);
+}
+
+function isLeaderboardSummaryDoc(doc) {
+  return /^[a-zA-Z0-9]+_s_/.test(String(doc?.$id || ''));
+}
+
+// Friends can read every leaderboard document directly, so privacy settings must change
+// what is uploaded, not just what the page shows.
 function leaderboardPayload(subject, assessment) {
+  const percent = (assessment.score / assessment.total) * 100;
+  const hideRaw = getLeaderboardPrivacy().hideRawMarks;
+  const rounded = Math.round(percent);
   return {
     userId: appwriteState.user.$id,
     userName: appwriteState.user.name || 'Anonymous',
     subjectName: normalizeSubjectNameForLeaderboard(subject.name),
     assessmentName: assessment.name,
-    score: assessment.score,
-    total: assessment.total,
-    percent: (assessment.score / assessment.total) * 100,
+    score: hideRaw ? rounded : assessment.score,
+    total: hideRaw ? 100 : assessment.total,
+    percent: hideRaw ? rounded : percent,
     weight: assessment.weight ?? null,
   };
+}
+
+function leaderboardSummaryPayload(subject) {
+  const average = weightedAverage(subject.assessments);
+  if (average === null) return null;
+  const rounded = Math.round(average);
+  return {
+    userId: appwriteState.user.$id,
+    userName: appwriteState.user.name || 'Anonymous',
+    subjectName: normalizeSubjectNameForLeaderboard(subject.name),
+    assessmentName: LEADERBOARD_SUMMARY_NAME,
+    score: rounded,
+    total: 100,
+    percent: rounded,
+    weight: null,
+  };
+}
+
+function getLeaderboardPrivacy() {
+  return normalizeLeaderboardPrivacy(state.data.leaderboardPrivacy);
+}
+
+function isSubjectShareable(subjectId) {
+  const { subjectIds } = getLeaderboardPrivacy();
+  return subjectIds === null || subjectIds.includes(subjectId);
+}
+
+// Whether per-assessment Share buttons apply to this subject.
+function canShareSubjectMarks(subjectId) {
+  return Boolean(
+    appwriteState.user?.labels?.includes('friends') &&
+      !getLeaderboardPrivacy().averagesOnly &&
+      isSubjectShareable(subjectId)
+  );
+}
+
+// The leaderboard documents this user's settings say should exist right now.
+function buildDesiredLeaderboardEntries() {
+  const privacy = getLeaderboardPrivacy();
+  const autoShare = Boolean(state.data.leaderboardAutoShare);
+  const entries = [];
+  for (const subject of state.data.subjects) {
+    if (!isSubjectShareable(subject.id)) continue;
+    if (privacy.averagesOnly) {
+      const payload = leaderboardSummaryPayload(subject);
+      if (payload) entries.push({ docId: leaderboardSummaryDocIdFor(subject), subject, payload });
+      continue;
+    }
+    for (const assessment of subject.assessments) {
+      if (!(Number(assessment.total) > 0)) continue;
+      if (!autoShare && !assessment.leaderboardDocId) continue;
+      entries.push({
+        docId: assessment.leaderboardDocId || leaderboardDocIdFor(assessment),
+        subject,
+        assessment,
+        payload: leaderboardPayload(subject, assessment),
+      });
+    }
+  }
+  return entries;
+}
+
+// Remote docs the privacy settings rule out: per-assessment docs while averages-only is on
+// (and vice versa), and anything for a local subject that is no longer ticked. Docs for
+// subjects this device doesn't know about yet are left for a Resync to judge.
+function isLeaderboardDocBlockedByPrivacy(doc) {
+  const privacy = getLeaderboardPrivacy();
+  if (isLeaderboardSummaryDoc(doc) !== privacy.averagesOnly) return true;
+  const localMatches = state.data.subjects.filter(
+    (subject) => normalizeSubjectNameForLeaderboard(subject.name) === doc.subjectName
+  );
+  return localMatches.length > 0 && localMatches.every((subject) => !isSubjectShareable(subject.id));
 }
 
 function leaderboardEntryDiffers(doc, payload) {
@@ -2450,9 +2617,10 @@ function queueLeaderboardSync() {
   leaderboardSyncTimer = setTimeout(() => syncMyLeaderboardEntries(), 1500);
 }
 
-// Brings this user's leaderboard entries in line with their local marks: pushes edits,
-// subject renames and name changes, shares new marks when auto-share is on, and
-// (when removeOrphans is set) deletes entries whose assessment no longer exists.
+// Brings this user's leaderboard entries in line with their local marks and privacy
+// settings: pushes edits, subject renames and name changes, shares new marks when
+// auto-share is on, removes entries the privacy settings rule out, and (when
+// removeOrphans is set) deletes entries whose assessment no longer exists.
 async function syncMyLeaderboardEntries({ removeOrphans = false } = {}) {
   if (!canUseLeaderboard() || !appwriteState.cloudReady) return null;
   if (leaderboardSyncRunning) {
@@ -2469,64 +2637,78 @@ async function syncMyLeaderboardEntries({ removeOrphans = false } = {}) {
     const remote = new Map(allDocs.filter((d) => d.userId === userId).map((d) => [d.$id, d]));
     const referenced = new Set();
     const autoShare = Boolean(state.data.leaderboardAutoShare);
+    const privacy = getLeaderboardPrivacy();
 
     for (const subject of state.data.subjects) {
+      const individual = !privacy.averagesOnly && isSubjectShareable(subject.id);
       for (const assessment of subject.assessments) {
+        if (!individual) {
+          // Hidden by privacy settings: its doc (if any) is removed below.
+          if (assessment.leaderboardDocId) {
+            assessment.leaderboardDocId = null;
+            localChanged = true;
+          }
+          continue;
+        }
+        // Shared from another device before this one synced.
         const derivedId = leaderboardDocIdFor(assessment);
         if (!assessment.leaderboardDocId && remote.has(derivedId)) {
           assessment.leaderboardDocId = derivedId;
           localChanged = true;
         }
-        const docId = assessment.leaderboardDocId;
-        const valid = Number(assessment.total) > 0;
-        try {
-          if (docId && remote.has(docId)) {
-            referenced.add(docId);
-            if (!valid) continue;
-            const payload = leaderboardPayload(subject, assessment);
-            if (leaderboardEntryDiffers(remote.get(docId), payload)) {
-              await appwriteDatabases.updateDocument(APPWRITE_DATABASE_ID, 'leaderboard', docId, payload);
-              result.updated += 1;
-            }
-          } else if (docId) {
-            // Not in the listing: either just created, or removed on another device.
-            try {
-              await appwriteDatabases.getDocument(APPWRITE_DATABASE_ID, 'leaderboard', docId);
-              referenced.add(docId);
-            } catch (err) {
-              if (err?.code !== 404) throw err;
-              if (autoShare && valid) {
-                await createLeaderboardEntry(subject, assessment);
-                referenced.add(assessment.leaderboardDocId);
-                result.created += 1;
-              } else {
-                assessment.leaderboardDocId = null;
-              }
-              localChanged = true;
-            }
-          } else if (autoShare && valid) {
-            await createLeaderboardEntry(subject, assessment);
-            referenced.add(assessment.leaderboardDocId);
-            result.created += 1;
-            localChanged = true;
-          }
-        } catch (err) {
-          console.error('Leaderboard sync error:', err);
-          result.failed += 1;
-        }
       }
     }
 
-    if (removeOrphans) {
-      for (const docId of remote.keys()) {
-        if (referenced.has(docId)) continue;
-        try {
-          await appwriteDatabases.deleteDocument(APPWRITE_DATABASE_ID, 'leaderboard', docId);
-          result.removed += 1;
-        } catch (err) {
-          console.error('Leaderboard orphan removal error:', err);
-          result.failed += 1;
+    for (const entry of buildDesiredLeaderboardEntries()) {
+      const { docId, payload, assessment } = entry;
+      try {
+        if (remote.has(docId)) {
+          referenced.add(docId);
+          if (leaderboardEntryDiffers(remote.get(docId), payload)) {
+            await appwriteDatabases.updateDocument(APPWRITE_DATABASE_ID, 'leaderboard', docId, payload);
+            result.updated += 1;
+          }
+          continue;
         }
+        if (assessment?.leaderboardDocId && !autoShare) {
+          // Not in the listing: either just created, or removed on another device.
+          try {
+            await appwriteDatabases.getDocument(APPWRITE_DATABASE_ID, 'leaderboard', docId);
+            referenced.add(docId);
+          } catch (err) {
+            if (err?.code !== 404) throw err;
+            assessment.leaderboardDocId = null;
+            localChanged = true;
+          }
+          continue;
+        }
+        try {
+          await appwriteDatabases.createDocument(APPWRITE_DATABASE_ID, 'leaderboard', docId, payload);
+        } catch (err) {
+          if (err?.code !== 409) throw err;
+          await appwriteDatabases.updateDocument(APPWRITE_DATABASE_ID, 'leaderboard', docId, payload);
+        }
+        referenced.add(docId);
+        result.created += 1;
+        if (assessment && assessment.leaderboardDocId !== docId) {
+          assessment.leaderboardDocId = docId;
+          localChanged = true;
+        }
+      } catch (err) {
+        console.error('Leaderboard sync error:', err);
+        result.failed += 1;
+      }
+    }
+
+    for (const [docId, doc] of remote) {
+      if (referenced.has(docId)) continue;
+      if (!removeOrphans && !isLeaderboardDocBlockedByPrivacy(doc)) continue;
+      try {
+        await appwriteDatabases.deleteDocument(APPWRITE_DATABASE_ID, 'leaderboard', docId);
+        result.removed += 1;
+      } catch (err) {
+        console.error('Leaderboard orphan removal error:', err);
+        result.failed += 1;
       }
     }
   } catch (err) {
@@ -2577,9 +2759,151 @@ function stopLeaderboardLive() {
 }
 
 function renderLeaderboardControls() {
+  const privacy = getLeaderboardPrivacy();
   if (elements.leaderboardAutoShare) {
     elements.leaderboardAutoShare.checked = Boolean(state.data.leaderboardAutoShare);
+    // Averages-only shares every ticked subject, so auto-share doesn't apply.
+    elements.leaderboardAutoShare.disabled = privacy.averagesOnly;
+    elements.leaderboardAutoShare.closest('.lb-toggle')?.classList.toggle('is-disabled', privacy.averagesOnly);
   }
+  if (elements.leaderboardPrivacyModal?.classList.contains('is-open')) {
+    renderLeaderboardPrivacyModal();
+  }
+}
+
+function renderLeaderboardPrivacyModal() {
+  const privacy = getLeaderboardPrivacy();
+  if (elements.leaderboardPrivacySubjects) {
+    elements.leaderboardPrivacySubjects.innerHTML = state.data.subjects.length
+      ? state.data.subjects
+          .map(
+            (subject) => `
+              <label class="lb-toggle privacy-subject">
+                <input type="checkbox" data-privacy-subject-id="${escapeHtml(subject.id)}" ${isSubjectShareable(subject.id) ? 'checked' : ''} />
+                <span class="privacy-subject-icon" style="background:${subject.color}">${subjectIconHtml(resolveSubjectIcon(subject.icon, subject.name))}</span>
+                <span>${escapeHtml(subject.name)}</span>
+              </label>
+            `
+          )
+          .join('')
+      : '<div class="empty-state">No subjects yet.</div>';
+  }
+  if (elements.leaderboardPrivacyNewNote) {
+    elements.leaderboardPrivacyNewNote.hidden = privacy.subjectIds === null;
+  }
+  if (elements.leaderboardPrivacyHideRaw) {
+    elements.leaderboardPrivacyHideRaw.checked = privacy.hideRawMarks;
+    // Averages are always rounded, so this only matters for per-assessment sharing.
+    elements.leaderboardPrivacyHideRaw.disabled = privacy.averagesOnly;
+    elements.leaderboardPrivacyHideRaw.closest('.lb-toggle')?.classList.toggle('is-disabled', privacy.averagesOnly);
+  }
+  if (elements.leaderboardPrivacyAverages) {
+    elements.leaderboardPrivacyAverages.checked = privacy.averagesOnly;
+  }
+}
+
+function setLeaderboardPrivacyMessage(message) {
+  setInlineMessage(elements.leaderboardPrivacyMessage, message);
+}
+
+function updateLeaderboardPrivacy(changes) {
+  state.data.leaderboardPrivacy = { ...getLeaderboardPrivacy(), ...changes };
+  saveData(state.data);
+  render();
+  renderShareAllButton();
+  renderLeaderboardControls();
+  if (elements.subjectModal?.classList.contains('is-open') && activeSubjectId) {
+    openSubjectModal(activeSubjectId);
+  }
+  setLeaderboardPrivacyMessage('Saved. Updating the leaderboard…');
+}
+
+async function unshareEverythingFromLeaderboard() {
+  if (!canUseLeaderboard()) return;
+  const confirmed = await showConfirm({
+    title: 'Unshare everything?',
+    message: 'This removes all of your marks from the leaderboard and turns off auto-sharing. Your marks stay saved in Sapphire.',
+    confirmLabel: 'Unshare',
+    danger: true,
+  });
+  if (!confirmed) return;
+
+  // Turn sharing off first so a queued sync can't put anything back.
+  clearTimeout(leaderboardSyncTimer);
+  state.data.leaderboardAutoShare = false;
+  state.data.leaderboardPrivacy = { ...getLeaderboardPrivacy(), averagesOnly: false };
+  state.data.subjects.forEach((subject) => {
+    subject.assessments.forEach((assessment) => {
+      assessment.leaderboardDocId = null;
+    });
+  });
+  saveData(state.data, { skipLeaderboardSync: true });
+
+  let removed = 0;
+  let failed = 0;
+  try {
+    const userId = appwriteState.user.$id;
+    const mine = (await fetchAllLeaderboardDocs()).filter((doc) => doc.userId === userId);
+    for (const doc of mine) {
+      try {
+        await appwriteDatabases.deleteDocument(APPWRITE_DATABASE_ID, 'leaderboard', doc.$id);
+        removed += 1;
+      } catch (err) {
+        console.error('Leaderboard unshare error:', err);
+        failed += 1;
+      }
+    }
+  } catch (err) {
+    console.error('Leaderboard unshare error:', err);
+    failed += 1;
+  }
+
+  render();
+  renderLeaderboardControls();
+  if (elements.subjectModal?.classList.contains('is-open') && activeSubjectId) {
+    openSubjectModal(activeSubjectId);
+  }
+  fetchLeaderboard();
+  setLeaderboardPrivacyMessage(
+    failed
+      ? 'Some marks could not be removed. Try again in a moment.'
+      : `Removed ${removed} entr${removed === 1 ? 'y' : 'ies'} from the leaderboard.`
+  );
+}
+
+if (elements.leaderboardPrivacyOpen) {
+  elements.leaderboardPrivacyOpen.addEventListener('click', () => {
+    setLeaderboardPrivacyMessage('');
+    renderLeaderboardPrivacyModal();
+    openModal(elements.leaderboardPrivacyModal);
+  });
+}
+
+if (elements.leaderboardPrivacyModal) {
+  elements.leaderboardPrivacyModal.addEventListener('click', (event) => {
+    const action = event.target.closest('[data-action]')?.dataset.action;
+    if (action === 'close-leaderboard-privacy') {
+      closeModal(elements.leaderboardPrivacyModal);
+    } else if (action === 'leaderboard-unshare-all') {
+      unshareEverythingFromLeaderboard();
+    }
+  });
+
+  elements.leaderboardPrivacyModal.addEventListener('change', (event) => {
+    const input = event.target;
+    if (input === elements.leaderboardPrivacyHideRaw) {
+      updateLeaderboardPrivacy({ hideRawMarks: input.checked });
+    } else if (input === elements.leaderboardPrivacyAverages) {
+      updateLeaderboardPrivacy({ averagesOnly: input.checked });
+    } else if (input.dataset.privacySubjectId) {
+      const checked = Array.from(
+        elements.leaderboardPrivacySubjects.querySelectorAll('[data-privacy-subject-id]:checked'),
+        (box) => box.dataset.privacySubjectId
+      );
+      const allChecked = checked.length === state.data.subjects.length;
+      updateLeaderboardPrivacy({ subjectIds: allChecked ? null : checked });
+    }
+  });
 }
 
 if (elements.leaderboardAutoShare) {
@@ -2612,9 +2936,11 @@ if (elements.leaderboardResync) {
 
 async function shareAllAssessmentsToLeaderboard() {
   if (!appwriteState.enabled || !appwriteState.user || !appwriteDatabases) return;
-  const pending = state.data.subjects.flatMap((subject) =>
-    subject.assessments.filter((a) => !a.leaderboardDocId).map((assessment) => ({ subject, assessment }))
-  );
+  const pending = state.data.subjects
+    .filter((subject) => canShareSubjectMarks(subject.id))
+    .flatMap((subject) =>
+      subject.assessments.filter((a) => !a.leaderboardDocId).map((assessment) => ({ subject, assessment }))
+    );
   if (pending.length === 0) return;
 
   const confirmed = await showConfirm({
@@ -2799,14 +3125,17 @@ function renderLeaderboardView(docs) {
       : rank === 3 ? '<i class="ph ph-fill ph-medal" style="color: #cd7f32; font-size: 20px;"></i>'
       : `<span class="lb-rank-num">${rank}</span>`;
     const subjectCount = Object.keys(user.subjectGroups).length;
-    const assessmentCount = user.assessments.length;
+    const assessmentCount = user.assessments.filter((a) => !isLeaderboardSummaryDoc(a)).length;
     const highlight = isCurrentUser(user.userId) ? ' leaderboard-entry--you' : '';
 
     // Build meta text based on filter
     const isFiltered = selectedSubject !== 'all' && selectedSubject !== 'core';
-    const metaText = isFiltered
+    const assessmentText = assessmentCount
       ? `${assessmentCount} assessment${assessmentCount !== 1 ? 's' : ''}`
-      : `${subjectCount} subject${subjectCount !== 1 ? 's' : ''} · ${assessmentCount} assessment${assessmentCount !== 1 ? 's' : ''}`;
+      : 'Average only';
+    const metaText = isFiltered
+      ? assessmentText
+      : `${subjectCount} subject${subjectCount !== 1 ? 's' : ''} · ${assessmentText}`;
 
     return `
       <div class="leaderboard-entry${highlight}" data-user-id="${escapeHtml(user.userId)}" data-action="open-lb-popup">
@@ -2816,8 +3145,10 @@ function renderLeaderboardView(docs) {
             <div class="lb-name">${escapeHtml(user.userName)}${isCurrentUser(user.userId) ? ' <span class="badge" style="font-size: 0.7rem;">You</span>' : ''}</div>
             <div class="lb-meta muted">${metaText}</div>
           </div>
-          ${leaderboardMovementHtml(user.movement)}
-          <div class="lb-average">${user.average.toFixed(1)}%</div>
+          <div class="lb-score">
+            <div class="lb-average">${user.average.toFixed(1)}%</div>
+            ${leaderboardMovementHtml(user.movement)}
+          </div>
         </div>
       </div>
     `;
@@ -2837,13 +3168,17 @@ function openLeaderboardPopup(userData) {
   // Build detail HTML
   const detailSubjects = Object.entries(userData.subjectGroups).map(([subName, assessments]) => {
     const subAvg = leaderboardAverage(assessments);
-    const rows = assessments.map(a => `
+    // Averages-only entries have no per-assessment rows; hidden raw marks show just the %.
+    const rows = assessments.filter((a) => !isLeaderboardSummaryDoc(a)).map(a => {
+      const rawHidden = a.total === 100 && a.score === Math.round(a.percent) && Number.isInteger(a.percent);
+      return `
       <div class="lb-detail-row">
         <span class="lb-detail-name">${escapeHtml(a.assessmentName || 'Assessment')}</span>
-        <span class="lb-detail-score">${a.score} / ${a.total}</span>
-        <span class="lb-detail-percent">${a.percent.toFixed(1)}%</span>
+        <span class="lb-detail-score">${rawHidden ? '' : `${a.score} / ${a.total}`}</span>
+        <span class="lb-detail-percent">${rawHidden ? a.percent : a.percent.toFixed(1)}%</span>
       </div>
-    `).join('');
+    `;
+    }).join('');
     return `
       <div class="lb-subject-group">
         <div class="lb-subject-header">
@@ -2856,7 +3191,10 @@ function openLeaderboardPopup(userData) {
   }).join('');
 
   const subjectCount = Object.keys(userData.subjectGroups).length;
-  const assessmentCount = userData.assessments.length;
+  const assessmentCount = userData.assessments.filter((a) => !isLeaderboardSummaryDoc(a)).length;
+  const countText = assessmentCount
+    ? ` · ${assessmentCount} assessment${assessmentCount !== 1 ? 's' : ''}`
+    : ' · averages only';
 
   // Create or reuse popup overlay
   let popup = document.getElementById('lb-popup-overlay');
@@ -2886,7 +3224,7 @@ function openLeaderboardPopup(userData) {
     <div>
       <div class="section-eyebrow">Leaderboard</div>
       <h2 class="section-title">${escapeHtml(userData.userName)}</h2>
-      <div class="modal-meta">${subjectCount} subject${subjectCount !== 1 ? 's' : ''} · ${assessmentCount} assessment${assessmentCount !== 1 ? 's' : ''} · ${userData.average.toFixed(1)}% average</div>
+      <div class="modal-meta">${subjectCount} subject${subjectCount !== 1 ? 's' : ''}${countText} · ${userData.average.toFixed(1)}% average</div>
     </div>
     <button class="icon-button" type="button" data-action="close-lb-popup">
       <i class="ph ph-x" aria-hidden="true"></i>
@@ -3113,6 +3451,8 @@ function buildCloudPayload() {
       : Date.now(),
     userName: loadUserName() || state.data.userName || '',
     graphSmoothness: Number.isFinite(state.graphSmoothness) ? state.graphSmoothness : null,
+    leaderboardAutoShare: Boolean(state.data.leaderboardAutoShare),
+    leaderboardPrivacy: normalizeLeaderboardPrivacy(state.data.leaderboardPrivacy),
   };
   return payload;
 }
@@ -3320,10 +3660,12 @@ function mergeLocalAndRemote(localData, remoteData) {
     merged.graphSmoothness =
       Number.isFinite(remoteData.graphSmoothness) ? remoteData.graphSmoothness : localData.graphSmoothness ?? null;
     merged.leaderboardAutoShare = remoteData.leaderboardAutoShare;
+    merged.leaderboardPrivacy = remoteData.leaderboardPrivacy ?? localData.leaderboardPrivacy;
   } else {
     merged.graphSmoothness =
       Number.isFinite(localData.graphSmoothness) ? localData.graphSmoothness : remoteData.graphSmoothness ?? null;
     merged.leaderboardAutoShare = localData.leaderboardAutoShare;
+    merged.leaderboardPrivacy = localData.leaderboardPrivacy;
   }
   return normalizeData(merged);
 }
@@ -3346,6 +3688,7 @@ function applyCloudPreferences(payload) {
   if (Number.isFinite(payload.graphSmoothness)) {
     setGraphSmoothness(payload.graphSmoothness, { skipSync: true });
   }
+  renderLeaderboardControls();
 }
 
 function renderOnboardingSmoothingPreview() {
@@ -3661,6 +4004,9 @@ function openEditSubjectModal(subjectId = activeSubjectId) {
   if (elements.editSubjectName) {
     elements.editSubjectName.value = subject.name;
   }
+  if (elements.editSubjectTarget) {
+    elements.editSubjectTarget.value = subject.target ?? '';
+  }
   if (elements.editSubjectIconCarousel) {
     elements.editSubjectIconCarousel.innerHTML = buildIconCarousel({
       selectedIcon: subjectIcon,
@@ -3820,7 +4166,7 @@ function openSubjectModal(subjectId) {
           const percent = assessment.total > 0 ? (assessment.score / assessment.total) * 100 : 0;
           const grade = getLetterGrade(percent);
           const weight = assessment.weight === null ? '' : ` · W${assessment.weight}`;
-          const isFriend = appwriteState.user?.labels?.includes('friends');
+          const canShare = canShareSubjectMarks(subject.id);
           return `
             <div class="history-item">
               <div>
@@ -3831,7 +4177,7 @@ function openSubjectModal(subjectId) {
                 <div class="history-date">${formatDate(assessment.date)}</div>
                 <div style="display: flex; gap: 6px; justify-content: flex-end;">
                   <button class="ghost-button ghost-button--small" data-action="edit-assessment" data-subject-id="${subject.id}" data-assessment-id="${assessment.id}">Edit</button>
-                  <button class="ghost-button ghost-button--small${assessment.leaderboardDocId ? ' is-shared' : ''}" data-action="share-assessment" data-subject-id="${subject.id}" data-assessment-id="${assessment.id}" ${isFriend ? '' : 'hidden'}>
+                  <button class="ghost-button ghost-button--small${assessment.leaderboardDocId ? ' is-shared' : ''}" data-action="share-assessment" data-subject-id="${subject.id}" data-assessment-id="${assessment.id}" ${canShare ? '' : 'hidden'}>
                     ${assessment.leaderboardDocId ? '<i class="ph ph-cloud-check" style="margin-right:4px;"></i>Shared' : '<i class="ph ph-share-network" style="margin-right:4px;"></i>Share'}
                   </button>
                   <button class="delete-button" data-action="delete-assessment" data-subject-id="${subject.id}" data-assessment-id="${assessment.id}">Remove</button>
@@ -3893,6 +4239,22 @@ function openSubjectModal(subjectId) {
           Delete Subject
         </button>
       </div>
+      ${buildTargetStripHtml(subject)}
+      <details class="what-if" id="what-if-panel"${whatIfState.open ? ' open' : ''}>
+        <summary class="what-if-summary">
+          ${iconHtml('flask')}
+          <span>What if…</span>
+          <span class="muted what-if-hint">Try out marks without saving them</span>
+        </summary>
+        <div class="what-if-body">
+          <div class="what-if-rows" id="what-if-rows"></div>
+          <button class="ghost-button ghost-button--small with-icon" type="button" data-action="what-if-add">
+            ${iconHtml('plus')}
+            Add mark
+          </button>
+          <div class="what-if-result" id="what-if-result" aria-live="polite"></div>
+        </div>
+      </details>
       <div class="subject-upcoming-grid">
         <div class="subject-upcoming">
           <div class="history-title">Upcoming assessments</div>
@@ -3922,11 +4284,202 @@ function openSubjectModal(subjectId) {
 
   openModal(elements.subjectModal);
 
-  const chartCanvas = elements.subjectModalBody?.querySelector('#subject-modal-chart');
-  if (chartCanvas) {
-    const points = buildSubjectTimelinePoints(subject.assessments);
-    drawLineChart(chartCanvas, points, { stroke: subject.color, showAxis: true });
+  if (whatIfState.subjectId !== subject.id) {
+    whatIfState = { subjectId: subject.id, open: false, rows: buildInitialWhatIfRows(subject) };
   }
+  renderWhatIfRows();
+  renderWhatIfResult();
+}
+
+function drawSubjectModalChart(subject) {
+  const chartCanvas = elements.subjectModalBody?.querySelector('#subject-modal-chart');
+  if (!chartCanvas) return;
+  const points = buildSubjectTimelinePoints(subject.assessments);
+  if (whatIfState.open && whatIfState.subjectId === subject.id) {
+    let lastXValue = points.length ? points[points.length - 1].xValue : Date.now();
+    validWhatIfRows().forEach((row) => {
+      lastXValue = Math.max(lastXValue + 1, row.xValue ?? lastXValue + 1);
+      points.push({
+        value: (row.score / row.total) * 100,
+        label: `What if · ${row.name || 'Hypothetical mark'}`,
+        xValue: lastXValue,
+        preview: true,
+      });
+    });
+    addTimelineEdgeLabels(points);
+  }
+  drawLineChart(chartCanvas, points, { stroke: subject.color, showAxis: true });
+}
+
+function buildTargetStripHtml(subject) {
+  if (!Number.isFinite(subject.target)) {
+    return `
+      <div class="target-strip target-strip--empty">
+        <span class="muted">No target set for this subject.</span>
+        <button class="ghost-button ghost-button--small with-icon" type="button" data-action="open-edit-subject">
+          ${iconHtml('target')}
+          Set a target
+        </button>
+      </div>
+    `;
+  }
+  const target = subject.target;
+  const average = weightedAverage(subject.assessments);
+  const met = average !== null && average >= target;
+  const status = average === null
+    ? 'No marks yet'
+    : met
+    ? `${iconHtml('check-circle')} On target`
+    : `${(target - average).toFixed(1)}% to go`;
+  const fill = average === null ? 0 : clamp(average, 0, 100);
+  return `
+    <div class="target-strip${met ? ' is-met' : ''}">
+      <div class="target-strip-head">
+        <span><strong>Target ${formatPercentValue(target)}%</strong>${average === null ? '' : ` · Current ${average.toFixed(1)}%`}</span>
+        <span class="target-strip-status">${status}</span>
+      </div>
+      <div class="target-bar" role="presentation">
+        <span class="target-bar-fill" style="width: ${fill}%"></span>
+        <span class="target-bar-marker" style="left: ${clamp(target, 0, 100)}%"></span>
+      </div>
+      <div class="target-needed muted">${escapeHtml(describeRequiredForTarget(subject))}</div>
+    </div>
+  `;
+}
+
+function formatPercentValue(value) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+// The average needed across the remaining assessments to finish on target. Upcoming
+// assessments without a weight count as weight 1, matching weightedAverage.
+function requiredForTarget(subject) {
+  if (!Number.isFinite(subject.target)) return null;
+  let sum = 0;
+  let weight = 0;
+  subject.assessments.forEach((assessment) => {
+    const itemWeight = assessment.weight === null ? 1 : assessment.weight;
+    if (assessment.total > 0) {
+      sum += (assessment.score / assessment.total) * 100 * itemWeight;
+      weight += itemWeight;
+    }
+  });
+  const pending = (subject.upcoming || []).filter(
+    (item) => normalizeUpcomingType(item.type) === 'assessment' && !isPastDate(item.date)
+  );
+  const pendingWeight = pending.reduce((total, item) => total + (Number.isFinite(item.weight) ? item.weight : 1), 0);
+  const assumed = pendingWeight <= 0;
+  const remaining = assumed ? 1 : pendingWeight;
+  return {
+    target: subject.target,
+    needed: (subject.target * (weight + remaining) - sum) / remaining,
+    hasMarks: weight > 0,
+    pending,
+    assumed,
+  };
+}
+
+function describeRequiredForTarget(subject) {
+  const result = requiredForTarget(subject);
+  if (!result) return '';
+  if (!result.hasMarks) return `Aim for ${formatPercentValue(result.target)}% on your first assessment.`;
+  const label = result.assumed
+    ? 'your next assessment (if it has a normal weighting)'
+    : result.pending.length === 1
+    ? `"${result.pending[0].name}"`
+    : `your ${result.pending.length} upcoming assessments`;
+  if (result.needed > 100) return `You'd need over 100% on ${label}, so the target is out of reach for now. Keep going!`;
+  if (result.needed <= 0) return `You'd stay on target even with 0 on ${label}.`;
+  const prefix = result.pending.length > 1 ? 'You need an average of' : 'You need';
+  return `${prefix} ${result.needed.toFixed(1)}% on ${label} to hit your target.`;
+}
+
+function buildInitialWhatIfRows(subject) {
+  const pending = (subject.upcoming || []).filter(
+    (item) => normalizeUpcomingType(item.type) === 'assessment' && !isPastDate(item.date)
+  );
+  const rows = sortUpcoming(pending).map((item) => ({
+    name: item.name,
+    score: '',
+    total: '100',
+    weight: Number.isFinite(item.weight) ? String(item.weight) : '',
+    xValue: dateStringValue(item.date),
+  }));
+  return rows.length ? rows : [createBlankWhatIfRow()];
+}
+
+function createBlankWhatIfRow() {
+  return { name: '', score: '', total: '100', weight: '', xValue: null };
+}
+
+function validWhatIfRows() {
+  return whatIfState.rows
+    .filter((row) => String(row.score).trim() !== '')
+    .map((row) => ({
+      ...row,
+      score: Number(row.score),
+      total: Number(row.total),
+      weight: String(row.weight).trim() === '' ? null : Number(row.weight),
+    }))
+    .filter(
+      (row) =>
+        Number.isFinite(row.score) &&
+        Number.isFinite(row.total) &&
+        row.total > 0 &&
+        (row.weight === null || (Number.isFinite(row.weight) && row.weight >= 0))
+    );
+}
+
+function renderWhatIfRows() {
+  const container = elements.subjectModalBody?.querySelector('#what-if-rows');
+  if (!container) return;
+  container.innerHTML = whatIfState.rows
+    .map(
+      (row, index) => `
+        <div class="what-if-row">
+          <input class="what-if-name" data-what-if-index="${index}" data-what-if-field="name" value="${escapeHtml(row.name)}" placeholder="Hypothetical mark" aria-label="Name" maxlength="60" />
+          <input data-what-if-index="${index}" data-what-if-field="score" value="${escapeHtml(row.score)}" type="number" min="0" step="any" inputmode="decimal" placeholder="Mark" aria-label="Mark" />
+          <span class="muted">/</span>
+          <input data-what-if-index="${index}" data-what-if-field="total" value="${escapeHtml(row.total)}" type="number" min="0" step="any" inputmode="decimal" placeholder="Total" aria-label="Total" />
+          <input data-what-if-index="${index}" data-what-if-field="weight" value="${escapeHtml(row.weight)}" type="number" min="0" step="any" inputmode="decimal" placeholder="Weight" aria-label="Weight" />
+          <button class="delete-button" type="button" data-action="what-if-remove" data-what-if-index="${index}" aria-label="Remove">${iconHtml('x', 'button-icon')}</button>
+        </div>
+      `
+    )
+    .join('');
+}
+
+function renderWhatIfResult() {
+  const subject = state.data.subjects.find((item) => item.id === whatIfState.subjectId);
+  if (!subject) return;
+  drawSubjectModalChart(subject);
+  const resultEl = elements.subjectModalBody?.querySelector('#what-if-result');
+  if (!resultEl) return;
+  const rows = validWhatIfRows();
+  if (!rows.length) {
+    resultEl.innerHTML = '<span class="muted">Enter a mark to see how your average would change.</span>';
+    return;
+  }
+  const current = weightedAverage(subject.assessments);
+  const projected = weightedAverage([...subject.assessments, ...rows]);
+  if (projected === null) {
+    resultEl.innerHTML = '<span class="muted">Those marks have no weight, so your average stays the same.</span>';
+    return;
+  }
+  const delta = current === null ? null : projected - current;
+  const deltaHtml = delta === null || Math.abs(delta) < 0.05
+    ? ''
+    : `<span class="what-if-delta ${delta > 0 ? 'is-up' : 'is-down'}">${delta > 0 ? '+' : ''}${delta.toFixed(1)}%</span>`;
+  const targetHtml = Number.isFinite(subject.target)
+    ? projected >= subject.target
+      ? `<span class="what-if-target is-met">${iconHtml('check-circle')} Hits your ${formatPercentValue(subject.target)}% target</span>`
+      : `<span class="what-if-target">${(subject.target - projected).toFixed(1)}% short of your target</span>`
+    : '';
+  resultEl.innerHTML = `
+    <span>Your average would be <strong>${projected.toFixed(1)}%</strong> · ${getLetterGrade(projected)}</span>
+    ${deltaHtml}
+    ${targetHtml}
+  `;
 }
 
 function closeSubjectModal() {
@@ -3935,6 +4488,7 @@ function closeSubjectModal() {
   closeUpcomingModal();
   closeModal(elements.subjectModal);
   activeSubjectId = null;
+  whatIfState = { subjectId: null, open: false, rows: [] };
 }
 
 function openAssessmentModal(subjectId, options = {}) {
@@ -5215,6 +5769,9 @@ function mergeData(existing, incoming) {
     if (!target.icon && source.icon) {
       target.icon = resolveSubjectIcon(source.icon, source.name);
     }
+    if (target.target == null && source.target != null) {
+      target.target = source.target;
+    }
     const assessmentIds = new Set(target.assessments.map((item) => item.id));
     const upcomingIds = new Set(target.upcoming.map((item) => item.id));
     const assessmentSignatures = new Set(target.assessments.map(assessmentSignature));
@@ -5473,8 +6030,7 @@ function updateSubjectColorUI(subjectId, color) {
   if (chartCanvas) {
     const subject = state.data.subjects.find((item) => item.id === subjectId);
     if (!subject) return;
-    const points = buildSubjectTimelinePoints(subject.assessments);
-    drawLineChart(chartCanvas, points, { stroke: subject.color, showAxis: true });
+    drawSubjectModalChart(subject);
   }
 }
 
@@ -5624,6 +6180,11 @@ function renderSubjects() {
       const averageValue = stats.average === null ? 0 : Math.max(0, Math.min(100, stats.average));
       const averageText = stats.average === null ? '--' : `${stats.average.toFixed(1)}%`;
       const subjectIcon = subjectIconHtml(resolveSubjectIcon(subject.icon, subject.name));
+      const hasTarget = Number.isFinite(subject.target);
+      const targetMet = hasTarget && stats.average !== null && stats.average >= subject.target;
+      const targetPill = hasTarget
+        ? `<span class="target-pill${targetMet ? ' is-met' : ''}">${iconHtml(targetMet ? 'check-circle' : 'target')}${formatPercentValue(subject.target)}%</span>`
+        : '';
       return `
         <button class="subject-button" type="button" data-action="open-subject" data-id="${subject.id}">
           <div class="card subject-card glow-soft" data-id="${subject.id}">
@@ -5635,6 +6196,7 @@ function renderSubjects() {
                   <div class="subject-meta">${subject.assessments.length} assessments</div>
                 </div>
               </div>
+              ${targetPill}
             </div>
             <div class="subject-stats">
               <div class="stat-box">
@@ -5659,6 +6221,7 @@ function renderSubjects() {
                   class="subject-average-progress-fill"
                   style="width:${averageValue}%; --subject-color:${subject.color};"
                 ></div>
+                ${hasTarget ? `<span class="target-bar-marker" style="left:${subject.target}%"></span>` : ''}
               </div>
             </div>
           </div>
@@ -5756,8 +6319,9 @@ function renderAssessmentSortState() {
 function renderShareAllButton() {
   const button = elements.shareAllAssessments;
   if (!button) return;
-  button.hidden = !appwriteState.user?.labels?.includes('friends');
-  const unshared = getAllAssessments().filter((a) => !a.leaderboardDocId).length;
+  const assessments = getAllAssessments().filter((a) => canShareSubjectMarks(a.subjectId));
+  button.hidden = assessments.length === 0;
+  const unshared = assessments.filter((a) => !a.leaderboardDocId).length;
   button.disabled = unshared === 0;
   button.innerHTML = unshared === 0
     ? '<i class="ph ph-cloud-check"></i>All shared'
@@ -5811,7 +6375,7 @@ function renderAssessments() {
           <td>
             <div style="display: flex; gap: 8px;">
               <button class="ghost-button ghost-button--small" data-action="edit-assessment" data-subject-id="${assessment.subjectId}" data-assessment-id="${assessment.id}">Edit</button>
-              <button class="ghost-button ghost-button--small${assessment.leaderboardDocId ? ' is-shared' : ''}" data-action="share-assessment" data-subject-id="${assessment.subjectId}" data-assessment-id="${assessment.id}" ${appwriteState.user?.labels?.includes('friends') ? '' : 'hidden'}>
+              <button class="ghost-button ghost-button--small${assessment.leaderboardDocId ? ' is-shared' : ''}" data-action="share-assessment" data-subject-id="${assessment.subjectId}" data-assessment-id="${assessment.id}" ${canShareSubjectMarks(assessment.subjectId) ? '' : 'hidden'}>
                 ${assessment.leaderboardDocId ? '<i class="ph ph-cloud-check" style="margin-right:4px;"></i>Shared' : '<i class="ph ph-share-network" style="margin-right:4px;"></i>Share'}
               </button>
               <button class="delete-button" data-action="delete-assessment" data-subject-id="${assessment.subjectId}" data-assessment-id="${assessment.id}">Remove</button>
@@ -7596,6 +8160,7 @@ function drawLineChart(canvas, points, options = {}) {
       value: point.value,
       label: point.label,
       xValue: Number.isFinite(point.xValue) ? point.xValue : null,
+      preview: point.preview === true,
     };
   });
   const drawablePoints = chartPoints.filter((point) => Number.isFinite(point.y));
@@ -7616,14 +8181,18 @@ function drawLineChart(canvas, points, options = {}) {
     return;
   }
 
+  // What-if points are drawn as a dashed continuation of the real line.
+  const realPoints = drawablePoints.filter((point) => !point.preview);
+  const previewPoints = drawablePoints.filter((point) => point.preview);
+
   ctx.lineWidth = 2.5;
   ctx.strokeStyle = stroke;
-  if (drawablePoints.length > 1) {
-    traceSmoothLine(ctx, drawablePoints, lineSmoothness);
+  if (realPoints.length > 1) {
+    traceSmoothLine(ctx, realPoints, lineSmoothness);
     ctx.stroke();
-  } else {
+  } else if (realPoints.length === 1) {
     ctx.beginPath();
-    ctx.arc(drawablePoints[0].x, drawablePoints[0].y, 2.5, 0, Math.PI * 2);
+    ctx.arc(realPoints[0].x, realPoints[0].y, 2.5, 0, Math.PI * 2);
     ctx.fillStyle = stroke;
     ctx.fill();
   }
@@ -7631,13 +8200,31 @@ function drawLineChart(canvas, points, options = {}) {
   const gradient = ctx.createLinearGradient(0, paddingTop, 0, height - paddingBottom);
   gradient.addColorStop(0, withAlpha(stroke, 0.35));
   gradient.addColorStop(1, withAlpha(stroke, 0.05));
-  if (drawablePoints.length > 2) {
+  if (realPoints.length > 2) {
     ctx.fillStyle = gradient;
-    traceSmoothLine(ctx, drawablePoints, lineSmoothness);
-    ctx.lineTo(drawablePoints[drawablePoints.length - 1].x, height - paddingBottom);
-    ctx.lineTo(drawablePoints[0].x, height - paddingBottom);
+    traceSmoothLine(ctx, realPoints, lineSmoothness);
+    ctx.lineTo(realPoints[realPoints.length - 1].x, height - paddingBottom);
+    ctx.lineTo(realPoints[0].x, height - paddingBottom);
     ctx.closePath();
     ctx.fill();
+  }
+
+  if (previewPoints.length) {
+    const dashed = realPoints.length ? [realPoints[realPoints.length - 1], ...previewPoints] : previewPoints;
+    ctx.save();
+    ctx.setLineDash([6, 5]);
+    ctx.strokeStyle = withAlpha(stroke, 0.85);
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    dashed.forEach((point, index) => (index ? ctx.lineTo(point.x, point.y) : ctx.moveTo(point.x, point.y)));
+    ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle = stroke;
+    previewPoints.forEach((point) => {
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
   }
 
   canvas._chartPoints = drawablePoints;
