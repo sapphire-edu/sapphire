@@ -5,6 +5,7 @@ const TAB_KEY = 'sapphire-active-tab';
 const GRAPH_SMOOTHNESS_KEY = 'sapphire-graph-smoothness';
 const USER_NAME_KEY = 'sapphire-user-name';
 const APPWRITE_SYNC_KEY = 'sapphire-last-sync';
+const LEADERBOARD_RANKS_KEY = 'sapphire-leaderboard-ranks';
 
 const APPWRITE_ENDPOINT = 'https://auth.sapphire.neonxsl.dev/v1';
 const APPWRITE_PROJECT_ID = 'sapphire';
@@ -192,6 +193,7 @@ const appwriteState = {
   pending: false,
   lastSyncedAt: null,
   error: null,
+  cloudReady: false,
 };
 
 let appwriteClient = null;
@@ -206,6 +208,14 @@ let confirmResolver = null;
 let confirmCleanup = null;
 let iconPickerResolver = null;
 let importUpcomingMapResolver = null;
+let leaderboardDocs = [];
+let leaderboardFetchId = 0;
+let leaderboardRankBaseline = null;
+let leaderboardUnsubscribe = null;
+let leaderboardRefreshTimer = null;
+let leaderboardSyncTimer = null;
+let leaderboardSyncRunning = false;
+let leaderboardSyncQueued = false;
 
 const onboardingState = {
   step: 0,
@@ -277,6 +287,8 @@ const elements = {
   navLeaderboard: document.getElementById('nav-leaderboard'),
   leaderboardSubjectSelect: document.getElementById('leaderboard-subject-select'),
   leaderboardList: document.getElementById('leaderboard-list'),
+  leaderboardAutoShare: document.getElementById('leaderboard-auto-share'),
+  leaderboardResync: document.getElementById('leaderboard-resync'),
   authButton: document.getElementById('auth-button'),
   authMenu: document.getElementById('auth-menu'),
   authMenuAction: document.getElementById('auth-menu-action'),
@@ -1821,30 +1833,6 @@ if (elements.assessmentForm) {
     if (elements.subjectModal?.classList.contains('is-open') && activeSubjectId === subjectId) {
       openSubjectModal(subjectId);
     }
-    // If this assessment is shared on the leaderboard, update the leaderboard doc
-    const isFriend = appwriteState.user?.labels?.includes('friends');
-    if (isFriend) {
-      const savedAssessment = subject.assessments.find((a) => a.id === (assessmentId || subject.assessments[subject.assessments.length - 1]?.id));
-      if (savedAssessment?.leaderboardDocId && appwriteDatabases) {
-        try {
-          await appwriteDatabases.updateDocument(
-            APPWRITE_DATABASE_ID,
-            'leaderboard',
-            savedAssessment.leaderboardDocId,
-            {
-              assessmentName: savedAssessment.name,
-              score: savedAssessment.score,
-              total: savedAssessment.total,
-              percent: (savedAssessment.score / savedAssessment.total) * 100,
-              weight: savedAssessment.weight ?? null,
-            }
-          );
-        } catch (err) {
-          console.error('Error updating leaderboard entry:', err);
-        }
-        fetchLeaderboard();
-      }
-    }
   });
 }
 
@@ -2128,6 +2116,7 @@ function clearAllStoredData() {
     GRAPH_SMOOTHNESS_KEY,
     USER_NAME_KEY,
     APPWRITE_SYNC_KEY,
+    LEADERBOARD_RANKS_KEY,
   ].forEach((key) => safeRemoveItem(key));
 }
 
@@ -2207,11 +2196,12 @@ function normalizeData(parsed) {
   const userName = typeof parsed.userName === 'string' ? parsed.userName : '';
   const graphSmoothness = Number.isFinite(parsed.graphSmoothness) ? parsed.graphSmoothness : null;
   const timetable = normalizeTimetableData(parsed.timetable);
-  return { subjects, timetable, lastUpdatedAt, userName, graphSmoothness };
+  const leaderboardAutoShare = parsed.leaderboardAutoShare === true;
+  return { subjects, timetable, lastUpdatedAt, userName, graphSmoothness, leaderboardAutoShare };
 }
 
 function saveData(data, options = {}) {
-  const { skipSync = false, skipTimestamp = false, syncNow = false } = options;
+  const { skipSync = false, skipTimestamp = false, syncNow = false, skipLeaderboardSync = false } = options;
   if (!skipTimestamp) {
     data.lastUpdatedAt = Date.now();
   }
@@ -2219,6 +2209,9 @@ function saveData(data, options = {}) {
   safeSetItem(STORAGE_KEY, JSON.stringify(data));
   if (!skipSync) {
     queueCloudSync(Boolean(syncNow));
+  }
+  if (!skipLeaderboardSync) {
+    queueLeaderboardSync();
   }
 }
 
@@ -2253,6 +2246,9 @@ async function checkAppwriteSession() {
     appwriteState.ready = true;
     updateAuthUI();
     await pullOrSeedCloudData();
+    // Only sync leaderboard entries once local data reflects the cloud copy.
+    appwriteState.cloudReady = true;
+    queueLeaderboardSync();
   } catch (error) {
     appwriteState.user = null;
     appwriteState.ready = true;
@@ -2268,10 +2264,14 @@ function handleAuthAction() {
       .then(() => {
         appwriteState.user = null;
         appwriteState.error = null;
+        appwriteState.cloudReady = false;
+        stopLeaderboardLive();
         updateAuthUI();
       })
       .catch(() => {
         appwriteState.user = null;
+        appwriteState.cloudReady = false;
+        stopLeaderboardLive();
         updateAuthUI();
       });
     return;
@@ -2333,9 +2333,13 @@ async function checkFriendStatusAndRenderLeaderboard() {
   const shareButtons = document.querySelectorAll('[data-action="share-assessment"]');
   shareButtons.forEach(btn => btn.hidden = !isFriend);
   renderShareAllButton();
+  renderLeaderboardControls();
 
   if (isFriend) {
+    startLeaderboardLive();
     await fetchLeaderboard();
+  } else {
+    stopLeaderboardLive();
   }
 }
 
@@ -2349,9 +2353,12 @@ async function shareAssessmentToLeaderboard(subjectId, assessmentId) {
 
   // If already shared, ask to remove
   if (assessment.leaderboardDocId) {
+    const autoShare = Boolean(state.data.leaderboardAutoShare);
     const confirmed = await showConfirm({
       title: 'Remove from leaderboard?',
-      message: 'This will remove your mark from the shared leaderboard.',
+      message: autoShare
+        ? 'This will remove your mark from the shared leaderboard and turn off "Keep everything shared".'
+        : 'This will remove your mark from the shared leaderboard.',
       confirmLabel: 'Remove',
       danger: true,
     });
@@ -2359,6 +2366,10 @@ async function shareAssessmentToLeaderboard(subjectId, assessmentId) {
     try {
       await appwriteDatabases.deleteDocument(APPWRITE_DATABASE_ID, 'leaderboard', assessment.leaderboardDocId);
       assessment.leaderboardDocId = null;
+      if (autoShare) {
+        state.data.leaderboardAutoShare = false;
+        renderLeaderboardControls();
+      }
       saveData(state.data);
       renderAssessments();
       if (activeSubjectId === subjectId && elements.subjectModal?.classList.contains('is-open')) {
@@ -2387,24 +2398,216 @@ async function shareAssessmentToLeaderboard(subjectId, assessmentId) {
   }
 }
 
-async function createLeaderboardEntry(subject, assessment) {
-  const docId = cryptoRandomId().replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 36) || 'id' + Date.now();
-  await appwriteDatabases.createDocument(
-    APPWRITE_DATABASE_ID,
-    'leaderboard',
-    docId,
-    {
-      userId: appwriteState.user.$id,
-      userName: appwriteState.user.name || 'Anonymous',
-      subjectName: normalizeSubjectNameForLeaderboard(subject.name),
-      assessmentName: assessment.name,
-      score: assessment.score,
-      total: assessment.total,
-      percent: (assessment.score / assessment.total) * 100,
-      weight: assessment.weight ?? null
-    }
+function canUseLeaderboard() {
+  return Boolean(
+    appwriteState.enabled && appwriteState.user && appwriteDatabases && appwriteState.user.labels?.includes('friends')
   );
+}
+
+// Derived from the assessment so two devices sharing the same mark can't create duplicates.
+function leaderboardDocIdFor(assessment) {
+  const userPart = String(appwriteState.user?.$id || '').slice(-12);
+  return `${userPart}_${assessment.id}`.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 36);
+}
+
+function leaderboardPayload(subject, assessment) {
+  return {
+    userId: appwriteState.user.$id,
+    userName: appwriteState.user.name || 'Anonymous',
+    subjectName: normalizeSubjectNameForLeaderboard(subject.name),
+    assessmentName: assessment.name,
+    score: assessment.score,
+    total: assessment.total,
+    percent: (assessment.score / assessment.total) * 100,
+    weight: assessment.weight ?? null,
+  };
+}
+
+function leaderboardEntryDiffers(doc, payload) {
+  return Object.keys(payload).some((key) => {
+    const a = doc[key] ?? null;
+    const b = payload[key] ?? null;
+    if (typeof a === 'number' && typeof b === 'number') return Math.abs(a - b) > 1e-6;
+    return a !== b;
+  });
+}
+
+async function createLeaderboardEntry(subject, assessment) {
+  const docId = leaderboardDocIdFor(assessment);
+  try {
+    await appwriteDatabases.createDocument(APPWRITE_DATABASE_ID, 'leaderboard', docId, leaderboardPayload(subject, assessment));
+  } catch (err) {
+    // Already shared from another device.
+    if (err?.code !== 409) throw err;
+    await appwriteDatabases.updateDocument(APPWRITE_DATABASE_ID, 'leaderboard', docId, leaderboardPayload(subject, assessment));
+  }
   assessment.leaderboardDocId = docId;
+}
+
+function queueLeaderboardSync() {
+  if (!canUseLeaderboard() || !appwriteState.cloudReady) return;
+  clearTimeout(leaderboardSyncTimer);
+  leaderboardSyncTimer = setTimeout(() => syncMyLeaderboardEntries(), 1500);
+}
+
+// Brings this user's leaderboard entries in line with their local marks: pushes edits,
+// subject renames and name changes, shares new marks when auto-share is on, and
+// (when removeOrphans is set) deletes entries whose assessment no longer exists.
+async function syncMyLeaderboardEntries({ removeOrphans = false } = {}) {
+  if (!canUseLeaderboard() || !appwriteState.cloudReady) return null;
+  if (leaderboardSyncRunning) {
+    leaderboardSyncQueued = true;
+    return null;
+  }
+  leaderboardSyncRunning = true;
+  const result = { created: 0, updated: 0, removed: 0, failed: 0 };
+  let localChanged = false;
+
+  try {
+    const userId = appwriteState.user.$id;
+    const allDocs = await fetchAllLeaderboardDocs();
+    const remote = new Map(allDocs.filter((d) => d.userId === userId).map((d) => [d.$id, d]));
+    const referenced = new Set();
+    const autoShare = Boolean(state.data.leaderboardAutoShare);
+
+    for (const subject of state.data.subjects) {
+      for (const assessment of subject.assessments) {
+        const derivedId = leaderboardDocIdFor(assessment);
+        if (!assessment.leaderboardDocId && remote.has(derivedId)) {
+          assessment.leaderboardDocId = derivedId;
+          localChanged = true;
+        }
+        const docId = assessment.leaderboardDocId;
+        const valid = Number(assessment.total) > 0;
+        try {
+          if (docId && remote.has(docId)) {
+            referenced.add(docId);
+            if (!valid) continue;
+            const payload = leaderboardPayload(subject, assessment);
+            if (leaderboardEntryDiffers(remote.get(docId), payload)) {
+              await appwriteDatabases.updateDocument(APPWRITE_DATABASE_ID, 'leaderboard', docId, payload);
+              result.updated += 1;
+            }
+          } else if (docId) {
+            // Not in the listing: either just created, or removed on another device.
+            try {
+              await appwriteDatabases.getDocument(APPWRITE_DATABASE_ID, 'leaderboard', docId);
+              referenced.add(docId);
+            } catch (err) {
+              if (err?.code !== 404) throw err;
+              if (autoShare && valid) {
+                await createLeaderboardEntry(subject, assessment);
+                referenced.add(assessment.leaderboardDocId);
+                result.created += 1;
+              } else {
+                assessment.leaderboardDocId = null;
+              }
+              localChanged = true;
+            }
+          } else if (autoShare && valid) {
+            await createLeaderboardEntry(subject, assessment);
+            referenced.add(assessment.leaderboardDocId);
+            result.created += 1;
+            localChanged = true;
+          }
+        } catch (err) {
+          console.error('Leaderboard sync error:', err);
+          result.failed += 1;
+        }
+      }
+    }
+
+    if (removeOrphans) {
+      for (const docId of remote.keys()) {
+        if (referenced.has(docId)) continue;
+        try {
+          await appwriteDatabases.deleteDocument(APPWRITE_DATABASE_ID, 'leaderboard', docId);
+          result.removed += 1;
+        } catch (err) {
+          console.error('Leaderboard orphan removal error:', err);
+          result.failed += 1;
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Leaderboard sync error:', err);
+    result.failed += 1;
+  } finally {
+    leaderboardSyncRunning = false;
+  }
+
+  if (localChanged) {
+    saveData(state.data, { skipLeaderboardSync: true });
+    render();
+    if (elements.subjectModal?.classList.contains('is-open') && activeSubjectId) {
+      openSubjectModal(activeSubjectId);
+    }
+  }
+  if (result.created || result.updated || result.removed) {
+    fetchLeaderboard();
+  }
+  if (leaderboardSyncQueued) {
+    leaderboardSyncQueued = false;
+    queueLeaderboardSync();
+  }
+  return result;
+}
+
+function startLeaderboardLive() {
+  if (leaderboardUnsubscribe || typeof appwriteClient?.subscribe !== 'function') return;
+  try {
+    leaderboardUnsubscribe = appwriteClient.subscribe(
+      `databases.${APPWRITE_DATABASE_ID}.collections.leaderboard.documents`,
+      () => {
+        clearTimeout(leaderboardRefreshTimer);
+        leaderboardRefreshTimer = setTimeout(fetchLeaderboard, 400);
+      }
+    );
+  } catch (err) {
+    console.error('Leaderboard live updates unavailable:', err);
+  }
+}
+
+function stopLeaderboardLive() {
+  if (!leaderboardUnsubscribe) return;
+  try {
+    leaderboardUnsubscribe();
+  } catch (_) {}
+  leaderboardUnsubscribe = null;
+}
+
+function renderLeaderboardControls() {
+  if (elements.leaderboardAutoShare) {
+    elements.leaderboardAutoShare.checked = Boolean(state.data.leaderboardAutoShare);
+  }
+}
+
+if (elements.leaderboardAutoShare) {
+  elements.leaderboardAutoShare.addEventListener('change', (event) => {
+    state.data.leaderboardAutoShare = event.target.checked;
+    saveData(state.data);
+  });
+}
+
+if (elements.leaderboardResync) {
+  elements.leaderboardResync.addEventListener('click', async () => {
+    const button = elements.leaderboardResync;
+    button.disabled = true;
+    const result = await syncMyLeaderboardEntries({ removeOrphans: true });
+    button.disabled = false;
+    if (!result) return;
+    const changes = result.created + result.updated + result.removed;
+    await showConfirm({
+      title: result.failed ? 'Resync partly failed' : 'Resynced',
+      message: result.failed
+        ? `${result.failed} update${result.failed !== 1 ? 's' : ''} failed — try again in a moment.`
+        : changes
+        ? `Updated ${result.updated}, added ${result.created}, removed ${result.removed} stale entr${result.removed !== 1 ? 'ies' : 'y'}.`
+        : 'Your leaderboard entries were already up to date.',
+      confirmLabel: 'OK',
+      cancelLabel: '',
+    });
+  });
 }
 
 async function shareAllAssessmentsToLeaderboard() {
@@ -2453,35 +2656,78 @@ if (elements.shareAllAssessments) {
   elements.shareAllAssessments.addEventListener('click', shareAllAssessmentsToLeaderboard);
 }
 
+async function fetchAllLeaderboardDocs() {
+  // Appwrite returns only 25 documents by default, so page through everything.
+  const { Query } = Appwrite;
+  const docs = [];
+  let cursor = null;
+  while (true) {
+    const queries = [Query.limit(100)];
+    if (cursor) queries.push(Query.cursorAfter(cursor));
+    const res = await appwriteDatabases.listDocuments(APPWRITE_DATABASE_ID, 'leaderboard', queries);
+    const page = res.documents || [];
+    docs.push(...page);
+    if (page.length < 100) break;
+    cursor = page[page.length - 1].$id;
+  }
+  return docs;
+}
+
 async function fetchLeaderboard() {
-  if (!appwriteState.enabled || !appwriteState.user || !appwriteDatabases) return;
+  if (!canUseLeaderboard()) return;
   if (!elements.leaderboardList) return;
+  const fetchId = ++leaderboardFetchId;
 
   try {
-    elements.leaderboardList.innerHTML = '<div class="empty-state">Loading leaderboard...</div>';
-    
-    // Appwrite returns only 25 documents by default, so page through everything.
-    const { Query } = Appwrite;
-    const docs = [];
-    let cursor = null;
-    while (true) {
-      const queries = [Query.limit(100)];
-      if (cursor) queries.push(Query.cursorAfter(cursor));
-      const res = await appwriteDatabases.listDocuments(APPWRITE_DATABASE_ID, 'leaderboard', queries);
-      const page = res.documents || [];
-      docs.push(...page);
-      if (page.length < 100) break;
-      cursor = page[page.length - 1].$id;
+    if (leaderboardDocs.length === 0) {
+      elements.leaderboardList.innerHTML = '<div class="empty-state">Loading leaderboard...</div>';
     }
-    
+    const docs = await fetchAllLeaderboardDocs();
+    // A newer fetch (e.g. from a live update) has already started.
+    if (fetchId !== leaderboardFetchId) return;
     renderLeaderboardView(docs);
   } catch (err) {
     console.error('Leaderboard fetch error:', err);
-    elements.leaderboardList.innerHTML = '<div class="empty-state">Could not load leaderboard.</div>';
+    if (fetchId === leaderboardFetchId && leaderboardDocs.length === 0) {
+      elements.leaderboardList.innerHTML = '<div class="empty-state">Could not load leaderboard.</div>';
+    }
   }
 }
 
-let leaderboardDocs = [];
+function loadLeaderboardRankBaseline() {
+  try {
+    leaderboardRankBaseline = JSON.parse(safeGetItem(LEADERBOARD_RANKS_KEY) || '{}') || {};
+  } catch (_) {
+    leaderboardRankBaseline = {};
+  }
+}
+
+// Ranks are compared against what was saved the last time the tab was opened.
+function updateLeaderboardRanks(filter, users) {
+  if (!leaderboardRankBaseline) loadLeaderboardRankBaseline();
+  const previous = leaderboardRankBaseline[filter] || null;
+  const current = {};
+  users.forEach((user, i) => {
+    current[user.userId] = i + 1;
+    const before = previous?.[user.userId];
+    user.movement = !previous ? 0 : before ? before - (i + 1) : 'new';
+  });
+  // Only remember ranks the user has actually seen.
+  if (!document.querySelector('[data-view="leaderboard"]')?.classList.contains('is-active')) return;
+  let stored = {};
+  try {
+    stored = JSON.parse(safeGetItem(LEADERBOARD_RANKS_KEY) || '{}') || {};
+  } catch (_) {}
+  stored[filter] = current;
+  safeSetItem(LEADERBOARD_RANKS_KEY, JSON.stringify(stored));
+}
+
+function leaderboardMovementHtml(movement) {
+  if (movement === 'new') return '<span class="lb-move lb-move--new">New</span>';
+  if (!movement) return '';
+  const up = movement > 0;
+  return `<span class="lb-move lb-move--${up ? 'up' : 'down'}" title="${up ? 'Up' : 'Down'} ${Math.abs(movement)} since you last looked"><i class="ph ph-bold ph-caret-${up ? 'up' : 'down'}"></i>${Math.abs(movement)}</span>`;
+}
 
 // Weighted the same way as the dashboard so the numbers line up.
 function leaderboardAverage(docs) {
@@ -2505,7 +2751,7 @@ function renderLeaderboardView(docs) {
     const currentValue = elements.leaderboardSubjectSelect.value;
     elements.leaderboardSubjectSelect.innerHTML = '<option value="all">All Subjects</option>' +
       '<option value="core">Main 6 Subjects</option>' +
-      Array.from(subjects).sort().map(s => `<option value="${s}">${s}</option>`).join('');
+      Array.from(subjects).sort().map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
     elements.leaderboardSubjectSelect.value = currentValue === 'core' || subjects.has(currentValue) ? currentValue : 'all';
   }
 
@@ -2542,6 +2788,7 @@ function renderLeaderboardView(docs) {
     return u;
   });
   users.sort((a, b) => b.average - a.average);
+  updateLeaderboardRanks(selectedSubject, users);
 
   const isCurrentUser = (uid) => appwriteState.user?.$id === uid;
 
@@ -2562,13 +2809,14 @@ function renderLeaderboardView(docs) {
       : `${subjectCount} subject${subjectCount !== 1 ? 's' : ''} · ${assessmentCount} assessment${assessmentCount !== 1 ? 's' : ''}`;
 
     return `
-      <div class="leaderboard-entry${highlight}" data-user-id="${user.userId}" data-action="open-lb-popup">
+      <div class="leaderboard-entry${highlight}" data-user-id="${escapeHtml(user.userId)}" data-action="open-lb-popup">
         <div class="leaderboard-entry-summary" style="cursor: pointer;">
           <div class="lb-rank">${rankIcon}</div>
           <div class="lb-info">
-            <div class="lb-name">${user.userName}${isCurrentUser(user.userId) ? ' <span class="badge" style="font-size: 0.7rem;">You</span>' : ''}</div>
+            <div class="lb-name">${escapeHtml(user.userName)}${isCurrentUser(user.userId) ? ' <span class="badge" style="font-size: 0.7rem;">You</span>' : ''}</div>
             <div class="lb-meta muted">${metaText}</div>
           </div>
+          ${leaderboardMovementHtml(user.movement)}
           <div class="lb-average">${user.average.toFixed(1)}%</div>
         </div>
       </div>
@@ -2591,7 +2839,7 @@ function openLeaderboardPopup(userData) {
     const subAvg = leaderboardAverage(assessments);
     const rows = assessments.map(a => `
       <div class="lb-detail-row">
-        <span class="lb-detail-name">${a.assessmentName || 'Assessment'}</span>
+        <span class="lb-detail-name">${escapeHtml(a.assessmentName || 'Assessment')}</span>
         <span class="lb-detail-score">${a.score} / ${a.total}</span>
         <span class="lb-detail-percent">${a.percent.toFixed(1)}%</span>
       </div>
@@ -2599,7 +2847,7 @@ function openLeaderboardPopup(userData) {
     return `
       <div class="lb-subject-group">
         <div class="lb-subject-header">
-          <span class="lb-subject-name">${subName}</span>
+          <span class="lb-subject-name">${escapeHtml(subName)}</span>
           <span class="badge">${subAvg.toFixed(1)}%</span>
         </div>
         ${rows}
@@ -2637,7 +2885,7 @@ function openLeaderboardPopup(userData) {
   header.innerHTML = `
     <div>
       <div class="section-eyebrow">Leaderboard</div>
-      <h2 class="section-title">${userData.userName}</h2>
+      <h2 class="section-title">${escapeHtml(userData.userName)}</h2>
       <div class="modal-meta">${subjectCount} subject${subjectCount !== 1 ? 's' : ''} · ${assessmentCount} assessment${assessmentCount !== 1 ? 's' : ''} · ${userData.average.toFixed(1)}% average</div>
     </div>
     <button class="icon-button" type="button" data-action="close-lb-popup">
@@ -3071,9 +3319,11 @@ function mergeLocalAndRemote(localData, remoteData) {
   if (remoteUpdated >= localUpdated) {
     merged.graphSmoothness =
       Number.isFinite(remoteData.graphSmoothness) ? remoteData.graphSmoothness : localData.graphSmoothness ?? null;
+    merged.leaderboardAutoShare = remoteData.leaderboardAutoShare;
   } else {
     merged.graphSmoothness =
       Number.isFinite(localData.graphSmoothness) ? localData.graphSmoothness : remoteData.graphSmoothness ?? null;
+    merged.leaderboardAutoShare = localData.leaderboardAutoShare;
   }
   return normalizeData(merged);
 }
@@ -3310,7 +3560,10 @@ function setActiveTab(tab) {
     view.classList.toggle('is-active', view.dataset.view === tab);
   });
   safeSetItem(TAB_KEY, tab);
-  if (tab === 'leaderboard') fetchLeaderboard();
+  if (tab === 'leaderboard') {
+    loadLeaderboardRankBaseline();
+    fetchLeaderboard();
+  }
   renderCharts();
   renderCalendar();
   renderTimetable();

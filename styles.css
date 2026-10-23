@@ -3460,6 +3460,53 @@ tbody tr:hover {
   text-align: right;
 }
 
+.leaderboard-filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.lb-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.lb-toggle input {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+}
+
+.lb-move {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.lb-move--up {
+  color: #4ade80;
+}
+
+.lb-move--down {
+  color: #f87171;
+}
+
+.lb-move--new {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+
 /* Detail popup reuses modal styles, these are for the inner content */
 
 .lb-subject-group {

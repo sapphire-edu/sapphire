@@ -595,13 +595,20 @@
 
         <section class="view" data-view="leaderboard">
           <section class="card leaderboard-card glow-soft">
-            <div class="leaderboard-header" style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1.5rem;">
+            <div class="leaderboard-header" style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 16px; margin-bottom: 1.5rem;">
               <div>
                 <div class="section-eyebrow">Leaderboard</div>
                 <h2 class="section-title">Shared Marks</h2>
                 <p class="muted">See how you compare with your friends.</p>
               </div>
               <div class="leaderboard-filters">
+                <label class="lb-toggle" title="Automatically share new and edited marks">
+                  <input type="checkbox" id="leaderboard-auto-share" />
+                  <span>Keep everything shared</span>
+                </label>
+                <button id="leaderboard-resync" class="ghost-button with-icon" type="button" title="Fix entries that are out of date or left behind">
+                  <i class="ph ph-arrows-clockwise"></i>Resync
+                </button>
                 <label class="field">
                   <select id="leaderboard-subject-select" style="min-width: 200px;">
                     <option value="all">All Subjects</option>
