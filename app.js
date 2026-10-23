@@ -1835,7 +1835,7 @@ if (elements.assessmentForm) {
               score: savedAssessment.score,
               total: savedAssessment.total,
               percent: (savedAssessment.score / savedAssessment.total) * 100,
-              weight: savedAssessment.weight || null,
+              weight: savedAssessment.weight ?? null,
             }
           );
         } catch (err) {
@@ -2358,6 +2358,7 @@ async function shareAssessmentToLeaderboard(subjectId, assessmentId) {
       await appwriteDatabases.deleteDocument(APPWRITE_DATABASE_ID, 'leaderboard', assessment.leaderboardDocId);
       assessment.leaderboardDocId = null;
       saveData(state.data);
+      renderAssessments();
       if (activeSubjectId === subjectId && elements.subjectModal?.classList.contains('is-open')) {
         openSubjectModal(subjectId);
       }
@@ -2389,11 +2390,12 @@ async function shareAssessmentToLeaderboard(subjectId, assessmentId) {
         score: score,
         total: total,
         percent: percent,
-        weight: weight || null
+        weight: weight ?? null
       }
     );
     assessment.leaderboardDocId = docId;
     saveData(state.data);
+    renderAssessments();
     if (activeSubjectId === subjectId && elements.subjectModal?.classList.contains('is-open')) {
       openSubjectModal(subjectId);
     }
@@ -2434,6 +2436,11 @@ async function fetchLeaderboard() {
 }
 
 let leaderboardDocs = [];
+
+// Weighted the same way as the dashboard so the numbers line up.
+function leaderboardAverage(docs) {
+  return weightedAverage(docs.map((d) => ({ score: d.score, total: d.total, weight: d.weight ?? null }))) ?? 0;
+}
 
 function renderLeaderboardView(docs) {
   if (!elements.leaderboardList) return;
@@ -2477,8 +2484,7 @@ function renderLeaderboardView(docs) {
 
   // Calculate overall average for each user and sort
   const users = Array.from(userMap.values()).map(u => {
-    const totalPercent = u.assessments.reduce((sum, a) => sum + a.percent, 0);
-    u.average = totalPercent / u.assessments.length;
+    u.average = leaderboardAverage(u.assessments);
     // Group assessments by subject for the detail view
     u.subjectGroups = {};
     for (const a of u.assessments) {
@@ -2536,7 +2542,7 @@ if (elements.leaderboardSubjectSelect) {
 function openLeaderboardPopup(userData) {
   // Build detail HTML
   const detailSubjects = Object.entries(userData.subjectGroups).map(([subName, assessments]) => {
-    const subAvg = assessments.reduce((s, a) => s + a.percent, 0) / assessments.length;
+    const subAvg = leaderboardAverage(assessments);
     const rows = assessments.map(a => `
       <div class="lb-detail-row">
         <span class="lb-detail-name">${a.assessmentName || 'Assessment'}</span>
@@ -5494,7 +5500,9 @@ function renderAssessments() {
           <td>
             <div style="display: flex; gap: 8px;">
               <button class="ghost-button ghost-button--small" data-action="edit-assessment" data-subject-id="${assessment.subjectId}" data-assessment-id="${assessment.id}">Edit</button>
-              <button class="ghost-button ghost-button--small" data-action="share-assessment" data-subject-id="${assessment.subjectId}" data-assessment-id="${assessment.id}" ${appwriteState.user?.labels?.includes('friends') ? '' : 'hidden'}>Share</button>
+              <button class="ghost-button ghost-button--small${assessment.leaderboardDocId ? ' is-shared' : ''}" data-action="share-assessment" data-subject-id="${assessment.subjectId}" data-assessment-id="${assessment.id}" ${appwriteState.user?.labels?.includes('friends') ? '' : 'hidden'}>
+                ${assessment.leaderboardDocId ? '<i class="ph ph-cloud-check" style="margin-right:4px;"></i>Shared' : '<i class="ph ph-share-network" style="margin-right:4px;"></i>Share'}
+              </button>
               <button class="delete-button" data-action="delete-assessment" data-subject-id="${assessment.subjectId}" data-assessment-id="${assessment.id}">Remove</button>
             </div>
           </td>
