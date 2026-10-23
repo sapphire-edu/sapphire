@@ -3033,10 +3033,10 @@ function updateLeaderboardRanks(filter, users) {
   if (!leaderboardRankBaseline) loadLeaderboardRankBaseline();
   const previous = leaderboardRankBaseline[filter] || null;
   const current = {};
-  users.forEach((user, i) => {
-    current[user.userId] = i + 1;
+  users.forEach((user) => {
+    current[user.userId] = user.rank;
     const before = previous?.[user.userId];
-    user.movement = !previous ? 0 : before ? before - (i + 1) : 'new';
+    user.movement = !previous ? 0 : before ? before - user.rank : 'new';
   });
   // Only remember ranks the user has actually seen.
   if (!document.querySelector('[data-view="leaderboard"]')?.classList.contains('is-active')) return;
@@ -3113,13 +3113,20 @@ function renderLeaderboardView(docs) {
     }
     return u;
   });
-  users.sort((a, b) => b.average - a.average);
+  // Compare at the precision shown so people who look tied are tied, then give tied
+  // users the same rank (1, 1, 1, 4). Name order keeps ties from shuffling between fetches.
+  const rankScore = (user) => Math.round(user.average * 10);
+  users.sort((a, b) => rankScore(b) - rankScore(a) || String(a.userName).localeCompare(String(b.userName)));
+  users.forEach((user, i) => {
+    const prev = users[i - 1];
+    user.rank = prev && rankScore(prev) === rankScore(user) ? prev.rank : i + 1;
+  });
   updateLeaderboardRanks(selectedSubject, users);
 
   const isCurrentUser = (uid) => appwriteState.user?.$id === uid;
 
-  elements.leaderboardList.innerHTML = users.map((user, i) => {
-    const rank = i + 1;
+  elements.leaderboardList.innerHTML = users.map((user) => {
+    const rank = user.rank;
     const rankIcon = rank === 1 ? '<i class="ph ph-fill ph-trophy" style="color: #f6b96e; font-size: 20px;"></i>'
       : rank === 2 ? '<i class="ph ph-fill ph-medal" style="color: #a8b4c4; font-size: 20px;"></i>'
       : rank === 3 ? '<i class="ph ph-fill ph-medal" style="color: #cd7f32; font-size: 20px;"></i>'
@@ -4351,8 +4358,18 @@ function formatPercentValue(value) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
+// The mean weight of a subject's marked assessments, used when an upcoming or what-if
+// mark has no weight. Assuming weight 1 is wrong when marks use weights like 30 or 40.
+function typicalAssessmentWeight(subject) {
+  const weights = subject.assessments
+    .filter((assessment) => assessment.total > 0)
+    .map((assessment) => (assessment.weight === null ? 1 : assessment.weight));
+  if (!weights.length) return 1;
+  return weights.reduce((total, weight) => total + weight, 0) / weights.length || 1;
+}
+
 // The average needed across the remaining assessments to finish on target. Upcoming
-// assessments without a weight count as weight 1, matching weightedAverage.
+// assessments without a weight are assumed to be weighted like the subject's others.
 function requiredForTarget(subject) {
   if (!Number.isFinite(subject.target)) return null;
   let sum = 0;
@@ -4367,9 +4384,10 @@ function requiredForTarget(subject) {
   const pending = (subject.upcoming || []).filter(
     (item) => normalizeUpcomingType(item.type) === 'assessment' && !isPastDate(item.date)
   );
-  const pendingWeight = pending.reduce((total, item) => total + (Number.isFinite(item.weight) ? item.weight : 1), 0);
+  const typical = typicalAssessmentWeight(subject);
+  const pendingWeight = pending.reduce((total, item) => total + (Number.isFinite(item.weight) ? item.weight : typical), 0);
   const assumed = pendingWeight <= 0;
-  const remaining = assumed ? 1 : pendingWeight;
+  const remaining = assumed ? typical : pendingWeight;
   return {
     target: subject.target,
     needed: (subject.target * (weight + remaining) - sum) / remaining,
@@ -4384,7 +4402,7 @@ function describeRequiredForTarget(subject) {
   if (!result) return '';
   if (!result.hasMarks) return `Aim for ${formatPercentValue(result.target)}% on your first assessment.`;
   const label = result.assumed
-    ? 'your next assessment (if it has a normal weighting)'
+    ? 'your next assessment (if it\'s weighted like your others)'
     : result.pending.length === 1
     ? `"${result.pending[0].name}"`
     : `your ${result.pending.length} upcoming assessments`;
@@ -4413,26 +4431,31 @@ function createBlankWhatIfRow() {
 }
 
 function validWhatIfRows() {
+  const subject = state.data.subjects.find((item) => item.id === whatIfState.subjectId);
+  const typical = subject ? typicalAssessmentWeight(subject) : 1;
   return whatIfState.rows
     .filter((row) => String(row.score).trim() !== '')
     .map((row) => ({
       ...row,
       score: Number(row.score),
       total: Number(row.total),
-      weight: String(row.weight).trim() === '' ? null : Number(row.weight),
+      weight: String(row.weight).trim() === '' ? typical : Number(row.weight),
     }))
     .filter(
       (row) =>
         Number.isFinite(row.score) &&
         Number.isFinite(row.total) &&
         row.total > 0 &&
-        (row.weight === null || (Number.isFinite(row.weight) && row.weight >= 0))
+        Number.isFinite(row.weight) &&
+        row.weight >= 0
     );
 }
 
 function renderWhatIfRows() {
   const container = elements.subjectModalBody?.querySelector('#what-if-rows');
   if (!container) return;
+  const subject = state.data.subjects.find((item) => item.id === whatIfState.subjectId);
+  const typicalWeight = formatPercentValue(subject ? typicalAssessmentWeight(subject) : 1);
   container.innerHTML = whatIfState.rows
     .map(
       (row, index) => `
@@ -4441,7 +4464,7 @@ function renderWhatIfRows() {
           <input data-what-if-index="${index}" data-what-if-field="score" value="${escapeHtml(row.score)}" type="number" min="0" step="any" inputmode="decimal" placeholder="Mark" aria-label="Mark" />
           <span class="muted">/</span>
           <input data-what-if-index="${index}" data-what-if-field="total" value="${escapeHtml(row.total)}" type="number" min="0" step="any" inputmode="decimal" placeholder="Total" aria-label="Total" />
-          <input data-what-if-index="${index}" data-what-if-field="weight" value="${escapeHtml(row.weight)}" type="number" min="0" step="any" inputmode="decimal" placeholder="Weight" aria-label="Weight" />
+          <input data-what-if-index="${index}" data-what-if-field="weight" value="${escapeHtml(row.weight)}" type="number" min="0" step="any" inputmode="decimal" placeholder="W ${typicalWeight}" title="Weight (blank = ${typicalWeight}, like your other marks)" aria-label="Weight" />
           <button class="delete-button" type="button" data-action="what-if-remove" data-what-if-index="${index}" aria-label="Remove">${iconHtml('x', 'button-icon')}</button>
         </div>
       `
@@ -6182,8 +6205,11 @@ function renderSubjects() {
       const subjectIcon = subjectIconHtml(resolveSubjectIcon(subject.icon, subject.name));
       const hasTarget = Number.isFinite(subject.target);
       const targetMet = hasTarget && stats.average !== null && stats.average >= subject.target;
-      const targetPill = hasTarget
-        ? `<span class="target-pill${targetMet ? ' is-met' : ''}">${iconHtml(targetMet ? 'check-circle' : 'target')}${formatPercentValue(subject.target)}%</span>`
+      const targetLine = hasTarget
+        ? `<div class="subject-target-line${targetMet ? ' is-met' : ''}">
+            <span>${iconHtml('target')}Target ${formatPercentValue(subject.target)}%</span>
+            <span>${stats.average === null ? 'No marks yet' : targetMet ? 'On target' : `${(subject.target - stats.average).toFixed(1)}% to go`}</span>
+          </div>`
         : '';
       return `
         <button class="subject-button" type="button" data-action="open-subject" data-id="${subject.id}">
@@ -6196,7 +6222,6 @@ function renderSubjects() {
                   <div class="subject-meta">${subject.assessments.length} assessments</div>
                 </div>
               </div>
-              ${targetPill}
             </div>
             <div class="subject-stats">
               <div class="stat-box">
@@ -6224,6 +6249,7 @@ function renderSubjects() {
                 ${hasTarget ? `<span class="target-bar-marker" style="left:${subject.target}%"></span>` : ''}
               </div>
             </div>
+            ${targetLine}
           </div>
         </button>
       `;
