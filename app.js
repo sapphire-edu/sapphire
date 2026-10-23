@@ -300,6 +300,7 @@ const elements = {
   subjectGrid: document.getElementById('subjects-grid'),
   assessmentTable: document.getElementById('assessment-table'),
   assessmentSearch: document.getElementById('assessment-search'),
+  shareAllAssessments: document.getElementById('share-all-assessments'),
   assessmentTableHead: document.getElementById('assessment-table-head'),
   overallChart: document.getElementById('overall-chart'),
   progressLegend: document.getElementById('progress-legend'),
@@ -2331,6 +2332,7 @@ async function checkFriendStatusAndRenderLeaderboard() {
   }
   const shareButtons = document.querySelectorAll('[data-action="share-assessment"]');
   shareButtons.forEach(btn => btn.hidden = !isFriend);
+  renderShareAllButton();
 
   if (isFriend) {
     await fetchLeaderboard();
@@ -2370,30 +2372,8 @@ async function shareAssessmentToLeaderboard(subjectId, assessmentId) {
     return;
   }
 
-  const score = assessment.score;
-  const total = assessment.total;
-  const percent = (score / total) * 100;
-  const weight = assessment.weight;
-  const assessmentName = assessment.name;
-
   try {
-    const docId = cryptoRandomId().replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 36) || 'id' + Date.now();
-    await appwriteDatabases.createDocument(
-      APPWRITE_DATABASE_ID,
-      'leaderboard',
-      docId,
-      {
-        userId: appwriteState.user.$id,
-        userName: appwriteState.user.name || 'Anonymous',
-        subjectName: normalizeSubjectNameForLeaderboard(subject.name),
-        assessmentName: assessmentName,
-        score: score,
-        total: total,
-        percent: percent,
-        weight: weight ?? null
-      }
-    );
-    assessment.leaderboardDocId = docId;
+    await createLeaderboardEntry(subject, assessment);
     saveData(state.data);
     renderAssessments();
     if (activeSubjectId === subjectId && elements.subjectModal?.classList.contains('is-open')) {
@@ -2405,6 +2385,72 @@ async function shareAssessmentToLeaderboard(subjectId, assessmentId) {
     console.error('Error sharing to leaderboard:', err);
     await showConfirm({ title: 'Error', message: 'Failed to share: ' + err.message, confirmLabel: 'OK', cancelLabel: '' });
   }
+}
+
+async function createLeaderboardEntry(subject, assessment) {
+  const docId = cryptoRandomId().replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 36) || 'id' + Date.now();
+  await appwriteDatabases.createDocument(
+    APPWRITE_DATABASE_ID,
+    'leaderboard',
+    docId,
+    {
+      userId: appwriteState.user.$id,
+      userName: appwriteState.user.name || 'Anonymous',
+      subjectName: normalizeSubjectNameForLeaderboard(subject.name),
+      assessmentName: assessment.name,
+      score: assessment.score,
+      total: assessment.total,
+      percent: (assessment.score / assessment.total) * 100,
+      weight: assessment.weight ?? null
+    }
+  );
+  assessment.leaderboardDocId = docId;
+}
+
+async function shareAllAssessmentsToLeaderboard() {
+  if (!appwriteState.enabled || !appwriteState.user || !appwriteDatabases) return;
+  const pending = state.data.subjects.flatMap((subject) =>
+    subject.assessments.filter((a) => !a.leaderboardDocId).map((assessment) => ({ subject, assessment }))
+  );
+  if (pending.length === 0) return;
+
+  const confirmed = await showConfirm({
+    title: 'Share everything?',
+    message: `This will share ${pending.length} assessment${pending.length !== 1 ? 's' : ''} to the leaderboard.`,
+    confirmLabel: 'Share all',
+  });
+  if (!confirmed) return;
+
+  if (elements.shareAllAssessments) elements.shareAllAssessments.disabled = true;
+  let failed = 0;
+  for (const { subject, assessment } of pending) {
+    try {
+      await createLeaderboardEntry(subject, assessment);
+    } catch (err) {
+      console.error('Error sharing to leaderboard:', err);
+      failed += 1;
+    }
+  }
+  saveData(state.data);
+  render();
+  if (elements.subjectModal?.classList.contains('is-open') && activeSubjectId) {
+    openSubjectModal(activeSubjectId);
+  }
+  fetchLeaderboard();
+
+  const shared = pending.length - failed;
+  await showConfirm({
+    title: failed ? 'Partly shared' : 'Shared!',
+    message: failed
+      ? `Shared ${shared} of ${pending.length}. ${failed} failed — try again in a moment.`
+      : `All ${shared} assessment${shared !== 1 ? 's are' : ' is'} now on the leaderboard.`,
+    confirmLabel: 'OK',
+    cancelLabel: '',
+  });
+}
+
+if (elements.shareAllAssessments) {
+  elements.shareAllAssessments.addEventListener('click', shareAllAssessmentsToLeaderboard);
 }
 
 async function fetchLeaderboard() {
@@ -5454,7 +5500,19 @@ function renderAssessmentSortState() {
   });
 }
 
+function renderShareAllButton() {
+  const button = elements.shareAllAssessments;
+  if (!button) return;
+  button.hidden = !appwriteState.user?.labels?.includes('friends');
+  const unshared = getAllAssessments().filter((a) => !a.leaderboardDocId).length;
+  button.disabled = unshared === 0;
+  button.innerHTML = unshared === 0
+    ? '<i class="ph ph-cloud-check"></i>All shared'
+    : `<i class="ph ph-share-network"></i>Share all (${unshared})`;
+}
+
 function renderAssessments() {
+  renderShareAllButton();
   if (!elements.assessmentTable) return;
   if (!ASSESSMENT_SORT_KEYS.has(state.assessmentTable.sortKey)) {
     state.assessmentTable.sortKey = 'date';

@@ -3181,6 +3181,9 @@ button.calendar-event:focus-visible {
 .assessment-tools {
   display: flex;
   justify-content: flex-end;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .assessment-search {
