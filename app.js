@@ -177,6 +177,7 @@ const SUBJECT_ALIASES = {
   'eco': 'Economics',
   'economics': 'Economics',
 };
+const CORE_LEADERBOARD_SUBJECTS = new Set(['Mathematics', 'English', 'Science', 'History', 'Geography', 'Commerce']);
 const LIGHT_THEMES = ['pearl', 'mint', 'sunrise', 'sky'];
 const DARK_THEMES = ['midnight', 'aurora', 'cosmic', 'sapphire'];
 const MONTH_AXIS_LABELS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
@@ -2450,11 +2451,14 @@ function renderLeaderboardView(docs) {
   if (elements.leaderboardSubjectSelect) {
     const currentValue = elements.leaderboardSubjectSelect.value;
     elements.leaderboardSubjectSelect.innerHTML = '<option value="all">All Subjects</option>' +
+      '<option value="core">Main 6 Subjects</option>' +
       Array.from(subjects).sort().map(s => `<option value="${s}">${s}</option>`).join('');
-    elements.leaderboardSubjectSelect.value = subjects.has(currentValue) ? currentValue : 'all';
+    elements.leaderboardSubjectSelect.value = currentValue === 'core' || subjects.has(currentValue) ? currentValue : 'all';
   }
 
-  const filteredDocs = selectedSubject === 'all' ? docs : docs.filter(d => d.subjectName === selectedSubject);
+  const filteredDocs = selectedSubject === 'all' ? docs
+    : selectedSubject === 'core' ? docs.filter(d => CORE_LEADERBOARD_SUBJECTS.has(d.subjectName))
+    : docs.filter(d => d.subjectName === selectedSubject);
 
   if (filteredDocs.length === 0) {
     elements.leaderboardList.innerHTML = '<div class="empty-state">No marks shared for this subject.</div>';
@@ -2500,7 +2504,7 @@ function renderLeaderboardView(docs) {
     const highlight = isCurrentUser(user.userId) ? ' leaderboard-entry--you' : '';
 
     // Build meta text based on filter
-    const isFiltered = selectedSubject !== 'all';
+    const isFiltered = selectedSubject !== 'all' && selectedSubject !== 'core';
     const metaText = isFiltered
       ? `${assessmentCount} assessment${assessmentCount !== 1 ? 's' : ''}`
       : `${subjectCount} subject${subjectCount !== 1 ? 's' : ''} · ${assessmentCount} assessment${assessmentCount !== 1 ? 's' : ''}`;
