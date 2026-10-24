@@ -1,0 +1,822 @@
+/*
+ * Sapphire V2 (beta): Timetable page.
+ * Loaded after styles-v2.css; every rule is scoped to :root[data-ui="v2"] and uses its tokens.
+ *
+ * Page anatomy (V2 markup from renderTimetable / renderTimetableV2* in app.js):
+ *   .timetable-week-card   header (Week X, badge, range | Current/A/B + Swap), day tabs (phones),
+ *                          5-column week grid of subject-tinted .lesson-card
+ *   .timetable-map-card    "Classes · n of m linked", grid of tinted class cards
+ *   .timetable-card        import card: full empty state with no timetable, a compact
+ *                          file row (at the bottom of the page) once one is imported
+ */
+
+/* Icons used here that styles-v2.css doesn't map yet. */
+:root[data-ui="v2"] .view[data-view="timetable"] .ph-calendar-dots::before,
+:root[data-ui="v2"] .view[data-view="timetable"] .ph-arrows-left-right::before {
+  font-family: "lucide" !important;
+  font-weight: normal !important;
+  font-style: normal;
+}
+
+:root[data-ui="v2"] .view[data-view="timetable"] .ph-calendar-dots::before { content: "\e2b9"; }
+:root[data-ui="v2"] .view[data-view="timetable"] .ph-arrows-left-right::before { content: "\e24a"; }
+
+/* ── Layout ── */
+
+:root[data-ui="v2"] .view[data-view="timetable"].is-active {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+:root[data-ui="v2"] .view[data-view="timetable"] > .card {
+  margin-top: 0;
+}
+
+:root[data-ui="v2"] .timetable-week-card {
+  order: 1;
+  gap: 16px;
+}
+
+:root[data-ui="v2"] .timetable-map-card {
+  order: 2;
+}
+
+/* With a timetable, file management is secondary: it moves to the bottom. */
+:root[data-ui="v2"] .timetable-card {
+  order: 3;
+}
+
+/* Without one, the import card is the whole page. */
+:root[data-ui="v2"] .view[data-view="timetable"][data-tt-empty] .timetable-card {
+  order: 0;
+}
+
+:root[data-ui="v2"] .view[data-view="timetable"][data-tt-empty] .timetable-week-card,
+:root[data-ui="v2"] .view[data-view="timetable"][data-tt-empty] .timetable-map-card {
+  display: none;
+}
+
+/* V1-only pieces of the shared markup. */
+:root[data-ui="v2"] .timetable-card > .timetable-header,
+:root[data-ui="v2"] .timetable-card > .timetable-meta,
+:root[data-ui="v2"] .timetable-card > .timetable-import-moved-note,
+:root[data-ui="v2"] .timetable-card .timetable-file-field > span,
+:root[data-ui="v2"] .timetable-card .timetable-file-note,
+:root[data-ui="v2"] .timetable-week-header .section-eyebrow,
+:root[data-ui="v2"] #timetable-swap-weeks,
+:root[data-ui="v2"] .timetable-map-card > .section-eyebrow,
+:root[data-ui="v2"] .timetable-map-card > .section-title:not(.tt-map-title) {
+  display: none;
+}
+
+/* ── Import card ── */
+
+:root[data-ui="v2"] .timetable-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  padding: 16px 20px;
+}
+
+:root[data-ui="v2"] .tt-import-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+:root[data-ui="v2"] .tt-import-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 18px;
+}
+
+:root[data-ui="v2"] .tt-import-copy {
+  min-width: 0;
+}
+
+:root[data-ui="v2"] .tt-import-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+:root[data-ui="v2"] .tt-import-sub {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--text-tertiary);
+  overflow-wrap: anywhere;
+}
+
+:root[data-ui="v2"] #timetable-import-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+:root[data-ui="v2"] .timetable-card .timetable-import-row {
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+}
+
+:root[data-ui="v2"] .timetable-card .timetable-file-field {
+  flex: none;
+  min-width: 0;
+  margin: 0;
+}
+
+:root[data-ui="v2"] .timetable-card .timetable-file-control {
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+/* The upload trigger is an ordinary secondary button. Its V1 text ("Timetable") is a
+   bare text node, so the label's own text is zeroed and the V2 label shown instead. */
+:root[data-ui="v2"] .timetable-file-trigger {
+  gap: 8px;
+  min-height: 0;
+  height: var(--control-height);
+  padding: 0 14px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+:root[data-ui="v2"] .timetable-file-trigger:hover {
+  transform: none;
+  border-color: var(--input-border);
+  background: var(--bg-hover);
+}
+
+:root[data-ui="v2"] .timetable-file-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+:root[data-ui="v2"] .timetable-card .timetable-file-trigger {
+  font-size: 0;
+}
+
+:root[data-ui="v2"] .timetable-card .timetable-file-trigger .button-icon {
+  font-size: 15px;
+}
+
+:root[data-ui="v2"] .timetable-card .tt-upload-label {
+  font-size: 14px;
+}
+
+/* Outside the timetable page (Settings, onboarding) the trigger keeps its own text. */
+:root[data-ui="v2"] .timetable-file-note {
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .timetable-card .timetable-import-actions {
+  flex-wrap: nowrap;
+}
+
+:root[data-ui="v2"] .view[data-view="timetable"][data-tt-empty] .timetable-import-actions {
+  display: none;
+}
+
+:root[data-ui="v2"] .timetable-card .form-message {
+  margin: 0;
+  font-size: 13px;
+  text-align: right;
+}
+
+:root[data-ui="v2"] .timetable-card .form-message:empty {
+  display: none;
+}
+
+/* Empty state: centred prompt with the upload button under it. */
+:root[data-ui="v2"] .view[data-view="timetable"][data-tt-empty] .timetable-card {
+  flex-direction: column;
+  justify-content: center;
+  gap: 16px;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+:root[data-ui="v2"] .view[data-view="timetable"][data-tt-empty] .tt-import-head {
+  flex: none;
+  flex-direction: column;
+  gap: 12px;
+}
+
+:root[data-ui="v2"] .view[data-view="timetable"][data-tt-empty] .tt-import-icon {
+  width: 44px;
+  height: 44px;
+  font-size: 20px;
+}
+
+:root[data-ui="v2"] .view[data-view="timetable"][data-tt-empty] .tt-import-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+:root[data-ui="v2"] .view[data-view="timetable"][data-tt-empty] .tt-import-sub {
+  max-width: 420px;
+  margin: 4px auto 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .view[data-view="timetable"][data-tt-empty] #timetable-import-controls {
+  align-items: center;
+}
+
+:root[data-ui="v2"] .view[data-view="timetable"][data-tt-empty] .timetable-card .form-message {
+  text-align: center;
+}
+
+/* ── Week header ── */
+
+:root[data-ui="v2"] .timetable-week-header {
+  align-items: center;
+  gap: 12px 16px;
+}
+
+:root[data-ui="v2"] .timetable-week-header > div:first-child {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 10px;
+  min-width: 0;
+}
+
+:root[data-ui="v2"] .timetable-week-header .section-title {
+  margin: 0;
+}
+
+:root[data-ui="v2"] .tt-week-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+:root[data-ui="v2"] .tt-week-badge.is-current {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--text-primary);
+}
+
+:root[data-ui="v2"] .timetable-week-range {
+  flex-basis: 100%;
+  margin-top: 0;
+  font-size: 13px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-ui="v2"] .timetable-week-switch {
+  margin-left: auto;
+}
+
+:root[data-ui="v2"] .tt-swap-button {
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* ── Day tabs (phones only) ── */
+
+:root[data-ui="v2"] .tt-day-tabs {
+  display: none;
+}
+
+/* ── Week grid ── */
+
+:root[data-ui="v2"] .timetable-week-grid-wrap {
+  margin: 0 -6px;
+}
+
+:root[data-ui="v2"] .timetable-week-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+  min-width: 0;
+}
+
+:root[data-ui="v2"] .timetable-day-column {
+  gap: 8px;
+  padding: 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  min-width: 0;
+}
+
+:root[data-ui="v2"] .timetable-day-column.is-today {
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--card-border));
+  background: color-mix(in srgb, var(--accent) 5%, var(--card-surface));
+}
+
+:root[data-ui="v2"] .timetable-grid-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-height: 28px;
+  padding: 2px 4px 6px;
+  border: none;
+  border-bottom: 1px solid var(--card-border);
+  border-radius: 0;
+  background: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+:root[data-ui="v2"] .timetable-grid-head .sub {
+  display: inline;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-ui="v2"] .is-today > .timetable-grid-head {
+  border-bottom-color: color-mix(in srgb, var(--accent) 28%, var(--card-border));
+}
+
+:root[data-ui="v2"] .is-today .tt-day-name {
+  color: var(--accent);
+}
+
+:root[data-ui="v2"] .tt-today-tag,
+:root[data-ui="v2"] .tt-now-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+:root[data-ui="v2"] .tt-today-tag {
+  margin-left: auto;
+  align-self: center;
+  background: var(--accent-soft-strong);
+  color: var(--text-primary);
+}
+
+:root[data-ui="v2"] .timetable-day-list {
+  gap: 6px;
+}
+
+:root[data-ui="v2"] .tt-day-empty,
+:root[data-ui="v2"] .timetable-day-column > .empty-state {
+  padding: 12px 4px;
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+/* ── Lesson cards: subject-tinted fill, uniform outline in the subject colour (as the
+   dashboard's Today cards), thicker for the lesson happening now. ── */
+
+:root[data-ui="v2"] .lesson-card {
+  gap: 4px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--lesson-border) 50%, var(--card-surface));
+  border-radius: var(--radius);
+  background: var(--lesson-bg, var(--card-surface));
+  box-shadow: none;
+}
+
+:root[data-ui="v2"] .lesson-card.is-current {
+  border-color: color-mix(in srgb, var(--lesson-border) 75%, var(--card-surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lesson-border) 75%, var(--card-surface));
+}
+
+:root[data-ui="v2"] .lesson-card.is-past {
+  opacity: 0.55;
+}
+
+:root[data-ui="v2"] .lesson-card .lesson-top {
+  justify-content: flex-start;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .lesson-card .lesson-period {
+  font-weight: 500;
+}
+
+:root[data-ui="v2"] .lesson-card .lesson-time {
+  margin-left: auto;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-ui="v2"] .tt-now-tag {
+  flex: none;
+  border: 1px solid color-mix(in srgb, var(--lesson-border) 75%, var(--card-surface));
+  background: var(--card-surface);
+  color: var(--text-primary);
+}
+
+:root[data-ui="v2"] .lesson-card .lesson-subject-row {
+  gap: 6px;
+  min-width: 0;
+}
+
+:root[data-ui="v2"] .lesson-card .lesson-icon-wrap {
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: var(--lesson-color, var(--text-primary));
+}
+
+:root[data-ui="v2"] .lesson-card .lesson-subject-icon.ph,
+:root[data-ui="v2"] .lesson-card .lesson-icon-wrap .ph {
+  font-size: 15px;
+}
+
+:root[data-ui="v2"] .lesson-card .lesson-subject {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--text-primary);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+:root[data-ui="v2"] .lesson-card .lesson-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* ── Classes: a list of tinted rows showing which subject each class is linked to ── */
+
+:root[data-ui="v2"] .timetable-map-card {
+  gap: 16px;
+}
+
+:root[data-ui="v2"] .timetable-map-card > .muted {
+  display: none;
+}
+
+:root[data-ui="v2"] .tt-map-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+}
+
+:root[data-ui="v2"] .tt-map-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+}
+
+:root[data-ui="v2"] .tt-map-summary {
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-ui="v2"] .tt-map-hint {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+/* Two rows of compact tinted cards that scroll sideways. */
+:root[data-ui="v2"] .timetable-map-list {
+  display: grid;
+  grid-template-rows: repeat(2, auto);
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(250px, 270px);
+  gap: 8px;
+  padding: 0 0 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  scrollbar-color: var(--card-border) transparent;
+  border: none;
+  border-radius: 0;
+}
+
+:root[data-ui="v2"] .timetable-map-list > .empty-state {
+  grid-row: 1 / -1;
+  padding: 24px;
+  text-align: center;
+}
+
+:root[data-ui="v2"] .tt-class-row {
+  --tt-tint: 10%;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--class-color, var(--card-border)) 40%, var(--card-border));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--class-color, transparent) var(--tt-tint), var(--card-surface));
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  scroll-snap-align: start;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+:root[data-ui="v2"][data-theme="dark"] .tt-class-row {
+  --tt-tint: 14%;
+}
+
+:root[data-ui="v2"] .tt-class-row:hover {
+  border-color: color-mix(in srgb, var(--class-color, var(--card-border)) 70%, var(--card-border));
+  background: color-mix(in srgb, var(--class-color, transparent) calc(var(--tt-tint) + 6%), var(--card-surface));
+}
+
+/* Classes with no subject get a dashed amber outline so they stand out. */
+:root[data-ui="v2"] .tt-class-row[data-link-status="none"] {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--grade-c) 55%, var(--card-border));
+}
+
+:root[data-ui="v2"] .tt-class-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius);
+  color: var(--class-color, var(--text-secondary));
+  background: color-mix(in srgb, var(--class-color, var(--text-tertiary)) 20%, var(--card-surface));
+}
+
+:root[data-ui="v2"] .tt-class-icon .ph {
+  font-size: 18px;
+}
+
+:root[data-ui="v2"] .tt-class-body {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+:root[data-ui="v2"] .tt-class-name {
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+:root[data-ui="v2"] .tt-class-code {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+:root[data-ui="v2"] .tt-class-code b {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* Linked classes need no label; the others say what to do. */
+:root[data-ui="v2"] .tt-class-state {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .tt-class-state[data-state="none"] {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--grade-c) 14%, transparent);
+  color: var(--grade-c);
+}
+
+:root[data-ui="v2"] .tt-class-state:empty {
+  display: none;
+}
+
+/* ── Class setup popup ── */
+
+@media (min-width: 701px) {
+  :root[data-ui="v2"] #timetable-class-modal .modal-panel {
+    width: min(560px, 92vw);
+    max-width: 560px;
+  }
+}
+
+:root[data-ui="v2"] .timetable-class-form {
+  gap: 16px;
+}
+
+:root[data-ui="v2"] .timetable-class-form .field small {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .timetable-class-lock-note {
+  padding: 8px 10px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  color: var(--text-secondary) !important;
+}
+
+:root[data-ui="v2"] .timetable-class-customize {
+  gap: 16px;
+}
+
+:root[data-ui="v2"] .timetable-class-form.is-linked-lock .timetable-class-customize {
+  opacity: 0.5;
+  filter: none;
+}
+
+:root[data-ui="v2"] .timetable-class-style-panel {
+  gap: 12px;
+}
+
+/* ── Medium screens: keep five readable columns, scroll sideways if needed ── */
+
+@media (max-width: 960px) {
+  :root[data-ui="v2"] .timetable-week-grid-wrap {
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  :root[data-ui="v2"] .timetable-week-grid {
+    min-width: 760px;
+  }
+}
+
+/* ── Phones: one day at a time, picked with the day tabs ── */
+
+@media (max-width: 700px) {
+  :root[data-ui="v2"] .view[data-view="timetable"].is-active {
+    gap: 16px;
+  }
+
+  :root[data-ui="v2"] .timetable-week-card,
+  :root[data-ui="v2"] .timetable-map-card {
+    padding: 16px;
+  }
+
+  :root[data-ui="v2"] .timetable-week-header {
+    align-items: flex-start;
+  }
+
+  :root[data-ui="v2"] .timetable-week-switch {
+    margin-left: 0;
+  }
+
+  :root[data-ui="v2"] .tt-day-tabs {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 2px;
+    padding: 3px;
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    background: var(--bg-secondary);
+  }
+
+  :root[data-ui="v2"] .tt-day-tab {
+    display: grid;
+    justify-items: center;
+    gap: 1px;
+    min-width: 0;
+    padding: 5px 2px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    color: var(--text-secondary);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  :root[data-ui="v2"] .tt-day-tab:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  :root[data-ui="v2"] .tt-day-tab.is-active {
+    background: var(--bg-depth);
+    color: var(--text-primary);
+    box-shadow: inset 0 0 0 1px var(--card-border);
+  }
+
+  :root[data-ui="v2"] .tt-day-tab-name {
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  :root[data-ui="v2"] .tt-day-tab-date {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  :root[data-ui="v2"] .tt-day-tab.is-today .tt-day-tab-name {
+    color: var(--accent);
+  }
+
+  :root[data-ui="v2"] .timetable-week-grid-wrap {
+    margin: 0;
+    overflow: visible;
+  }
+
+  :root[data-ui="v2"] .timetable-week-grid {
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+  }
+
+  :root[data-ui="v2"] .timetable-day-column {
+    display: none;
+    padding: 0;
+    border: none;
+    background: none;
+  }
+
+  :root[data-ui="v2"] .timetable-day-column.is-selected {
+    display: grid;
+  }
+
+  /* The tabs already name the day. */
+  :root[data-ui="v2"] .timetable-grid-head {
+    display: none;
+  }
+
+  :root[data-ui="v2"] .lesson-card {
+    padding: 12px;
+  }
+
+  :root[data-ui="v2"] .timetable-map-list {
+    grid-auto-columns: minmax(230px, 78vw);
+  }
+
+  :root[data-ui="v2"] .timetable-card {
+    padding: 16px;
+  }
+
+  :root[data-ui="v2"] #timetable-import-controls {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  :root[data-ui="v2"] .timetable-card .timetable-import-row {
+    justify-content: flex-start;
+  }
+
+  :root[data-ui="v2"] .timetable-card .timetable-import-actions {
+    width: auto;
+  }
+
+  :root[data-ui="v2"] .timetable-card .form-message {
+    text-align: left;
+  }
+}

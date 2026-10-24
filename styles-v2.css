@@ -1,8 +1,8 @@
-@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap");
 
 /*
  * Sapphire V2 (beta) design.
- * Flat, neutral surfaces with one accent colour (from the chosen theme), Geist type and
+ * Flat, neutral surfaces with one accent colour (from the chosen theme), Space Grotesk type and
  * Lucide icons. Every rule is scoped to :root[data-ui="v2"], so V1 is untouched unless
  * the beta is switched on in Settings (see setUiVersion in app.js). V2 reuses V1's
  * markup and design tokens, overriding the tokens first and components after.
@@ -53,6 +53,7 @@
   --danger: #dc2626;
   --danger-soft: #fef2f2;
   --danger-border: #fecaca;
+  --danger-solid: #dc2626; /* filled destructive buttons (white text) */
   --logo-gradient-1: var(--accent);
   --logo-gradient-2: var(--accent);
   --input-bg: #ffffff;
@@ -70,12 +71,26 @@
   --popup-gradient-top: #ffffff;
   --popup-border: #e6e6e6;
   --popup-border-start: #e6e6e6;
-  --font-sans: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-sans: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  /* Space Grotesk everywhere, including the places that used a monospace (class codes etc.). */
+  --font-mono: var(--font-sans);
   --radius: 8px;
   --radius-lg: 12px;
   --popover-surface: #ffffff;
   --popover-border: #e6e6e6;
+  /* A selected control (chosen theme, ticked elective, active icon): the accent tint is
+     mixed into the control colour, so it never ends up darker than an unselected one. */
+  --accent-control: color-mix(in srgb, var(--accent) 12%, var(--bg-secondary));
+  /* Progress / slider tracks. */
+  --track: #ebebeb;
+  /* Shared sizes: control height, nested-panel padding, popup padding, popup widths. */
+  --control-height: 36px;
+  --panel-padding: 16px;
+  --modal-padding: 24px;
+  --modal-width: 600px;
+  --modal-width-small: 480px;
+  --modal-width-large: 880px;
+  color-scheme: light;
 }
 
 :root[data-ui="v2"][data-theme="dark"] {
@@ -89,6 +104,7 @@
   --bg-hover: #1a1a1a;
   --popover-surface: #1c1c1c;
   --popover-border: #2e2e2e;
+  --track: #262626;
   --text-primary: #ededed;
   --text-secondary: #a1a1a1;
   --text-tertiary: #737373;
@@ -111,7 +127,7 @@
   --danger: #f87171;
   --danger-soft: #2a1212;
   --danger-border: #4c1d1d;
-  --input-bg: #0f0f0f;
+  --input-bg: #141414; /* inputs are controls: same as --bg-secondary */
   --input-border: #2a2a2a;
   --input-placeholder: #5c5c5c;
   --modal-surface: #0a0a0a;
@@ -124,6 +140,7 @@
   --popup-gradient-top: #0a0a0a;
   --popup-border: #2a2a2a;
   --popup-border-start: #2a2a2a;
+  color-scheme: dark;
 }
 
 /* Popups share the page background, so give them a slightly brighter border to stand out. */
@@ -320,11 +337,68 @@
   height: 30px;
 }
 
+/* Profile menu: a popover like the Add mark and More menus. */
 :root[data-ui="v2"] .profile-dropdown {
+  top: calc(100% + 6px);
+  min-width: 240px;
+  padding: 6px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--popover-border);
   background: var(--popover-surface);
   box-shadow: var(--shadow-popover);
+}
+
+:root[data-ui="v2"] .profile-card {
+  grid-template-columns: 36px minmax(0, 1fr);
+  justify-items: start;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--popover-border);
+}
+
+:root[data-ui="v2"] .profile-card-avatar {
+  width: 36px;
+  height: 36px;
+  border-color: var(--popover-border);
+  background: var(--bg-depth);
+}
+
+:root[data-ui="v2"] .profile-card-fallback {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+:root[data-ui="v2"] .profile-card-name {
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+:root[data-ui="v2"] .profile-menu-action {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 400;
+  text-align: left;
+}
+
+:root[data-ui="v2"] .profile-menu-action:hover,
+:root[data-ui="v2"] .profile-menu-action:focus-visible {
+  transform: none;
+  box-shadow: none;
+  background: var(--bg-hover);
+  outline: none;
 }
 
 /* ── Page ── */
@@ -402,11 +476,60 @@
   font-size: 14px;
 }
 
+/* ── Corners: V1 uses 14–36px radii; V2 caps them (generated from styles.css). ── */
+
+:root[data-ui="v2"] .danger-button,
+:root[data-ui="v2"] .field input,
+:root[data-ui="v2"] .field select,
+:root[data-ui="v2"] .field textarea,
+:root[data-ui="v2"] .ghost-button,
+:root[data-ui="v2"] .history-item,
+:root[data-ui="v2"] .icon-button,
+:root[data-ui="v2"] .leaderboard-entry,
+:root[data-ui="v2"] .lesson-card,
+:root[data-ui="v2"] .logo,
+:root[data-ui="v2"] .nav-item,
+:root[data-ui="v2"] .order-item,
+:root[data-ui="v2"] .primary-button,
+:root[data-ui="v2"] .profile-dropdown,
+:root[data-ui="v2"] .stat-box,
+:root[data-ui="v2"] .subject-chart,
+:root[data-ui="v2"] .theme-button,
+:root[data-ui="v2"] .theme-controls,
+:root[data-ui="v2"] .timetable-grid-head,
+:root[data-ui="v2"] .timetable-map-class-card,
+:root[data-ui="v2"] .timetable-map-row,
+:root[data-ui="v2"] .today-lesson-card,
+:root[data-ui="v2"] .upcoming-item {
+  border-radius: var(--radius);
+}
+
+:root[data-ui="v2"] .brand-mark,
+:root[data-ui="v2"] .calendar-cell,
+:root[data-ui="v2"] .card,
+:root[data-ui="v2"] .export-panel,
+:root[data-ui="v2"] .grade-square,
+:root[data-ui="v2"] .icon-picker-preview,
+:root[data-ui="v2"] .insight-item,
+:root[data-ui="v2"] .mini-stat,
+:root[data-ui="v2"] .modal-chart,
+:root[data-ui="v2"] .modal-panel,
+:root[data-ui="v2"] .subject-color-panel,
+:root[data-ui="v2"] .subject-icon,
+:root[data-ui="v2"] .target-strip,
+:root[data-ui="v2"] .what-if {
+  border-radius: var(--radius-lg);
+}
+
 /* ── Buttons ── */
 
 :root[data-ui="v2"] .primary-button,
 :root[data-ui="v2"] .ghost-button {
-  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: var(--control-height);
   padding: 0 14px;
   border-radius: var(--radius);
   font-size: 14px;
@@ -443,7 +566,24 @@
   height: 30px;
   padding: 0 10px;
   font-size: 13px;
-  border-radius: 7px;
+  border-radius: var(--radius);
+}
+
+/* A mark that's on the leaderboard: same control, accent text. */
+:root[data-ui="v2"] .ghost-button.is-shared {
+  border-color: var(--accent-border);
+  background: var(--bg-secondary);
+  color: var(--accent);
+}
+
+:root[data-ui="v2"] .ghost-button.is-shared:hover:not(:disabled) {
+  background: var(--accent-control);
+  border-color: var(--accent-border);
+}
+
+/* Icons in buttons are sized by the button, not by inline V1 margins. */
+:root[data-ui="v2"] :is(.ghost-button, .primary-button) .ph {
+  margin-right: 0 !important;
 }
 
 :root[data-ui="v2"] .with-icon {
@@ -486,7 +626,51 @@
   background: var(--danger-soft);
 }
 
+/* Destructive actions: an outlined control that fills red on hover (Settings → Reset). */
+:root[data-ui="v2"] .danger-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: start;
+  gap: 6px;
+  height: var(--control-height);
+  padding: 0 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--danger-border);
+  background: var(--bg-secondary);
+  color: var(--danger);
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+:root[data-ui="v2"] .danger-button:hover {
+  transform: none;
+  box-shadow: none;
+  background: var(--danger-soft);
+  border-color: var(--danger);
+}
+
+/* The confirm popup's accept button turns red for destructive confirms. */
+:root[data-ui="v2"] .primary-button.confirm-danger {
+  background: var(--danger-solid) !important;
+  color: #ffffff;
+}
+
+:root[data-ui="v2"] .primary-button.confirm-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger-solid) 86%, #000000) !important;
+  filter: none;
+}
+
+:root[data-ui="v2"] .primary-button:disabled,
+:root[data-ui="v2"] .ghost-button:disabled {
+  opacity: 0.5;
+}
+
 /* ── Inputs ── */
+/* Inputs are controls: --input-bg (= --bg-secondary in dark), hairline border, 8px radius,
+   one height everywhere (fields, what-if rows, custom electives). */
 
 :root[data-ui="v2"] .field {
   gap: 6px;
@@ -495,36 +679,198 @@
   color: var(--text-secondary);
 }
 
+:root[data-ui="v2"] .field small {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-tertiary);
+}
+
 :root[data-ui="v2"] .field input,
 :root[data-ui="v2"] .field textarea,
 :root[data-ui="v2"] .field select,
 :root[data-ui="v2"] .modal-panel .field input,
 :root[data-ui="v2"] .modal-panel .field textarea,
-:root[data-ui="v2"] .modal-panel .field select {
+:root[data-ui="v2"] .modal-panel .field select,
+:root[data-ui="v2"] .modal-panel .export-textarea,
+:root[data-ui="v2"] .what-if-row input,
+:root[data-ui="v2"] .custom-elective-name,
+:root[data-ui="v2"] .custom-elective-color {
   border-radius: var(--radius);
   border: 1px solid var(--input-border);
   background-color: var(--input-bg);
+  color: var(--text-primary);
   font-size: 14px;
   font-weight: 400;
   font-family: var(--font-sans);
+  box-shadow: none;
 }
 
 :root[data-ui="v2"] .field input,
-:root[data-ui="v2"] .field select {
-  height: 38px;
+:root[data-ui="v2"] .field select,
+:root[data-ui="v2"] .what-if-row input,
+:root[data-ui="v2"] .custom-elective-name {
+  height: var(--control-height);
+  min-height: 0;
   padding: 0 12px;
 }
 
 :root[data-ui="v2"] .field select {
   padding-right: 34px;
+  background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%;
+  background-size: 5px 5px, 5px 5px;
+}
+
+:root[data-ui="v2"] .field textarea,
+:root[data-ui="v2"] .modal-panel .export-textarea {
+  padding: 8px 12px;
+  line-height: 1.5;
+}
+
+/* Share strings are code, not prose. */
+:root[data-ui="v2"] .modal-panel .export-textarea {
+  min-height: 96px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  word-break: break-all;
+}
+
+:root[data-ui="v2"] .field input::placeholder,
+:root[data-ui="v2"] .field textarea::placeholder,
+:root[data-ui="v2"] .what-if-row input::placeholder,
+:root[data-ui="v2"] .custom-elective-name::placeholder {
+  color: var(--input-placeholder);
+}
+
+:root[data-ui="v2"] .field input:hover:not(:focus):not(:disabled),
+:root[data-ui="v2"] .field select:hover:not(:focus):not(:disabled),
+:root[data-ui="v2"] .field textarea:hover:not(:focus):not(:disabled) {
+  border-color: color-mix(in srgb, var(--input-border) 60%, var(--text-tertiary));
 }
 
 :root[data-ui="v2"] .field input:focus,
 :root[data-ui="v2"] .field select:focus,
-:root[data-ui="v2"] .field textarea:focus {
+:root[data-ui="v2"] .field textarea:focus,
+:root[data-ui="v2"] .modal-panel .field input:focus,
+:root[data-ui="v2"] .modal-panel .field select:focus,
+:root[data-ui="v2"] .modal-panel .field textarea:focus,
+:root[data-ui="v2"] .what-if-row input:focus,
+:root[data-ui="v2"] .custom-elective-name:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--input-focus);
+}
+
+:root[data-ui="v2"] .field input:disabled,
+:root[data-ui="v2"] .field select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Colour pickers: a control-height swatch with the same frame as an input. */
+:root[data-ui="v2"] .color-input {
+  width: var(--control-height);
+  height: var(--control-height);
+}
+
+:root[data-ui="v2"] .color-input::-webkit-color-swatch {
+  border-radius: var(--radius);
+  border: 1px solid var(--input-border);
+}
+
+:root[data-ui="v2"] .color-input::-moz-color-swatch {
+  border-radius: var(--radius);
+  border: 1px solid var(--input-border);
+}
+
+:root[data-ui="v2"] .custom-elective-color {
+  height: var(--control-height);
+  min-height: 0;
+  padding: 3px;
+}
+
+:root[data-ui="v2"] .custom-elective-color::-webkit-color-swatch {
+  border-radius: 5px;
+}
+
+:root[data-ui="v2"] .custom-elective-color::-moz-color-swatch {
+  border-radius: 5px;
+}
+
+:root[data-ui="v2"] .color-value {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+/* Preset colours: round swatches; the chosen one gets a ring in the text colour. */
+:root[data-ui="v2"] .color-swatches {
+  gap: 6px;
+}
+
+:root[data-ui="v2"] .color-swatch {
+  width: 24px;
+  height: 24px;
+  border: none;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #000000 12%, transparent);
+  transition: box-shadow 0.15s ease;
+}
+
+:root[data-ui="v2"] .color-swatch:hover {
+  box-shadow: 0 0 0 2px var(--modal-surface), 0 0 0 3px var(--card-border);
+}
+
+:root[data-ui="v2"] .color-swatch.is-active {
+  border: none;
+  box-shadow: 0 0 0 2px var(--modal-surface), 0 0 0 4px var(--text-primary);
+}
+
+/* Range slider (graph smoothing): thin track, accent fill, round thumb. */
+:root[data-ui="v2"] .theme-slider {
+  height: 16px;
+}
+
+:root[data-ui="v2"] .theme-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border: none;
+  background: linear-gradient(
+    to right,
+    var(--accent) 0%,
+    var(--accent) var(--slider-fill),
+    var(--track) var(--slider-fill),
+    var(--track) 100%
+  );
+}
+
+:root[data-ui="v2"] .theme-slider::-webkit-slider-thumb {
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  border: 2px solid var(--modal-surface);
+  box-shadow: 0 0 0 1px var(--card-border);
+}
+
+:root[data-ui="v2"] .theme-slider::-moz-range-track {
+  height: 4px;
+  border: none;
+  background: var(--track);
+}
+
+:root[data-ui="v2"] .theme-slider::-moz-range-progress {
+  height: 4px;
+}
+
+:root[data-ui="v2"] .theme-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--modal-surface);
+  box-shadow: 0 0 0 1px var(--card-border);
+}
+
+:root[data-ui="v2"] .theme-slider-value {
+  min-width: 40px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Pills and badges ── */
@@ -583,7 +929,20 @@
   background: color-mix(in srgb, var(--grade-d) 12%, transparent);
 }
 
-/* ── Modals ── */
+/* ── Modals ──
+   Every popup has the same anatomy:
+     .modal-header  small label (.section-eyebrow), title, description (.modal-meta), close
+                    button top-right. Sticks to the top while the body scrolls.
+     .modal-body    fields / sections / nested panels, 16px apart.
+     footer         the .form-actions that is a direct child of .modal-body: a full-width
+                    bar under a hairline, message on the left, Cancel then the primary
+                    action on the right. Sticks to the bottom.
+   Elevation: the panel is a base surface (same background as the page) with a hairline
+   border and a shadow. Nested panels (.export-panel, .target-strip, .what-if, lists…) are
+   base surfaces too, separated by hairlines, 12px radius, --panel-padding. Only controls
+   are lighter (--bg-secondary → --bg-hover), and menus (--popover-surface) above those.
+   Widths: --modal-width (default), --modal-width-small, --modal-width-large; set the
+   variable on a modal to resize it without fighting the phone sheet rules. */
 
 :root[data-ui="v2"] .modal-backdrop {
   background: color-mix(in srgb, #000000 40%, transparent);
@@ -595,30 +954,888 @@
 }
 
 :root[data-ui="v2"] .modal-panel {
+  width: min(var(--modal-width), calc(100vw - 32px));
+  max-width: none;
+  max-height: 88vh;
   background: var(--modal-surface);
   border: 1px solid var(--modal-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-strong);
-  padding: 24px;
+  padding: 0 var(--modal-padding) var(--modal-padding);
+  overscroll-behavior: contain;
 }
 
+:root[data-ui="v2"] .modal-panel--small {
+  width: min(var(--modal-width-small), calc(100vw - 32px));
+}
+
+:root[data-ui="v2"] .modal-panel--large {
+  width: min(var(--modal-width-large), calc(100vw - 32px));
+}
+
+/* Single-column forms read better narrow, even where V1 made them large. */
+:root[data-ui="v2"] :is(#add-subject-modal, #edit-subject-modal, #settings-modal, #onboarding-modal) {
+  --modal-width-large: 640px;
+}
+
+:root[data-ui="v2"] #assessment-modal {
+  --modal-width: 560px;
+}
+
+:root[data-ui="v2"] #confirm-modal,
+:root[data-ui="v2"] #icon-picker-modal {
+  --modal-width-small: 440px;
+}
+
+/* Cards inside a popup are part of the popup, not a second layer. */
 :root[data-ui="v2"] .modal-panel .card,
 :root[data-ui="v2"] .modal-panel .settings-card {
   background: transparent;
   border: none;
   padding: 0;
+  box-shadow: none;
+}
+
+:root[data-ui="v2"] .modal-header {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 calc(-1 * var(--modal-padding));
+  padding: 20px var(--modal-padding) 16px;
+  background: var(--modal-surface);
+  border-bottom: 1px solid var(--card-border);
+}
+
+:root[data-ui="v2"] .modal-header > div:first-child {
+  min-width: 0;
+}
+
+:root[data-ui="v2"] .modal-header .section-eyebrow {
+  font-size: 13px;
+  color: var(--text-tertiary);
 }
 
 :root[data-ui="v2"] .modal-header .section-title {
-  font-size: 20px;
+  margin-top: 2px;
+  font-size: 18px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
 :root[data-ui="v2"] .modal-meta {
   margin-top: 4px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .modal-meta:empty {
+  display: none;
+}
+
+:root[data-ui="v2"] .modal-meta code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid var(--card-border);
+  background: var(--bg-secondary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+:root[data-ui="v2"] .modal-header .icon-button {
+  flex: none;
+  margin: -4px -8px 0 auto;
 }
 
 :root[data-ui="v2"] .modal-body {
   margin-top: 20px;
+  gap: 16px;
+  align-content: start;
+}
+
+/* Inline action rows inside a popup body (export, onboarding sign-in, etc.). */
+:root[data-ui="v2"] .modal-panel .form-actions,
+:root[data-ui="v2"] .modal-panel .modal-actions {
+  margin-top: 0;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* The footer. */
+:root[data-ui="v2"] .modal-body > .form-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  justify-content: flex-end;
+  margin: 4px calc(-1 * var(--modal-padding)) calc(-1 * var(--modal-padding)) !important;
+  padding: 16px var(--modal-padding) calc(16px + env(safe-area-inset-bottom, 0px));
+  background: var(--modal-surface);
+  border-top: 1px solid var(--card-border);
+}
+
+:root[data-ui="v2"] .modal-body > .form-actions > .form-message {
+  order: -1;
+  margin-right: auto;
+  min-width: 0;
+}
+
+:root[data-ui="v2"] .modal-body > .form-actions > .form-message:empty {
+  display: none;
+}
+
+:root[data-ui="v2"] .modal-body > .form-actions > .ghost-button {
+  order: 1;
+  height: var(--control-height);
+  padding: 0 14px;
+  font-size: 14px;
+}
+
+:root[data-ui="v2"] .modal-body > .form-actions > .primary-button {
+  order: 2;
+}
+
+/* Onboarding: Next is the step's main action. */
+:root[data-ui="v2"] #onboarding-next {
+  order: 2;
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--text-on-accent);
+}
+
+:root[data-ui="v2"] #onboarding-next:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 88%, var(--text-primary));
+}
+
+:root[data-ui="v2"] .form-message {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* Section headings inside a popup body follow the header: small label, title, text. */
+:root[data-ui="v2"] .modal-body .section-title,
+:root[data-ui="v2"] .modal-body .settings-title {
+  margin-top: 2px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+:root[data-ui="v2"] .modal-body .section-title + .muted,
+:root[data-ui="v2"] .modal-body .section-title + p {
+  margin-top: 4px;
+  font-size: 14px;
+}
+
+:root[data-ui="v2"] .modal-body .form-note {
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+/* Labels inside panels ("Subject icon", "Components") read like field labels. */
+:root[data-ui="v2"] .subject-color-header .section-eyebrow,
+:root[data-ui="v2"] .assessment-components-panel > .section-eyebrow,
+:root[data-ui="v2"] .theme-controls .section-eyebrow,
+:root[data-ui="v2"] .history-title,
+:root[data-ui="v2"] .custom-elective-toolbar {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .subject-color-meta,
+:root[data-ui="v2"] .theme-control-meta {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* Nested panels: base surface, hairline border, 12px radius, same padding. */
+:root[data-ui="v2"] .subject-color-panel,
+:root[data-ui="v2"] .export-panel,
+:root[data-ui="v2"] .theme-controls,
+:root[data-ui="v2"] .modal-panel .theme-controls,
+:root[data-ui="v2"] .target-strip,
+:root[data-ui="v2"] .what-if,
+:root[data-ui="v2"] .modal-chart,
+:root[data-ui="v2"] .custom-elective-row {
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  background: var(--modal-inner-surface);
+  box-shadow: none;
+}
+
+:root[data-ui="v2"] .subject-color-panel,
+:root[data-ui="v2"] .export-panel,
+:root[data-ui="v2"] .theme-controls,
+:root[data-ui="v2"] .target-strip {
+  padding: var(--panel-padding);
+  gap: 16px;
+}
+
+:root[data-ui="v2"] .theme-controls {
+  margin-top: 0;
+  gap: 12px;
+}
+
+/* Empty lists in popups: one dashed placeholder style everywhere. */
+:root[data-ui="v2"] :is(.history-list, .order-list, .import-map-list) > .empty-state,
+:root[data-ui="v2"] .modal-body .upcoming-list > .empty-state,
+:root[data-ui="v2"] .assessment-components-list > .muted {
+  display: block;
+  padding: 16px;
+  border: 1px dashed var(--card-border);
+  border-radius: var(--radius-lg);
+  background: none;
+  text-align: center;
+  font-size: 13px !important;
+  color: var(--text-tertiary);
+}
+
+/* Lists in popups (marks, upcoming, subject order, import mapping): one bordered list
+   with hairline dividers, like the dashboard's subject list. */
+:root[data-ui="v2"] :is(.history-list, .order-list, .import-map-list),
+:root[data-ui="v2"] .modal-body .upcoming-list {
+  display: grid;
+  gap: 0;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  background: var(--modal-inner-surface);
+  overflow-x: hidden;
+}
+
+:root[data-ui="v2"] :is(.history-list, .order-list, .import-map-list):has(> .empty-state),
+:root[data-ui="v2"] .modal-body .upcoming-list:has(> .empty-state) {
+  border: none;
+  background: none;
+}
+
+:root[data-ui="v2"] .history-list {
+  max-height: 360px;
+}
+
+:root[data-ui="v2"] .history-item,
+:root[data-ui="v2"] .order-item,
+:root[data-ui="v2"] .import-map-item,
+:root[data-ui="v2"] .modal-body .upcoming-item {
+  margin: 0;
+  padding: 10px 14px;
+  border: none;
+  border-top: 1px solid var(--card-border);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+:root[data-ui="v2"] :is(.history-item, .order-item, .import-map-item, .modal-body .upcoming-item):first-child {
+  border-top: none;
+}
+
+:root[data-ui="v2"] .modal-body .upcoming-item {
+  transition: background 0.15s ease;
+}
+
+:root[data-ui="v2"] .modal-body .upcoming-item:hover,
+:root[data-ui="v2"] .order-item:hover {
+  background: var(--bg-hover);
+}
+
+:root[data-ui="v2"] .modal-body .upcoming-item:hover .upcoming-name {
+  color: var(--text-primary);
+}
+
+:root[data-ui="v2"] .history-item {
+  gap: 12px;
+}
+
+:root[data-ui="v2"] .history-item > div:first-child {
+  min-width: 0;
+}
+
+:root[data-ui="v2"] .history-name {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+:root[data-ui="v2"] .history-meta {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-ui="v2"] .history-right {
+  gap: 6px;
+  flex: none;
+}
+
+:root[data-ui="v2"] .history-date {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* Subject order: rows with the dashboard's tinted subject icon and a drag handle. */
+:root[data-ui="v2"] .order-item {
+  padding: 8px 14px;
+  cursor: grab;
+  transition: background 0.15s ease;
+}
+
+:root[data-ui="v2"] .order-item.is-dragging {
+  opacity: 0.5;
+  transform: none;
+}
+
+:root[data-ui="v2"] .order-item.is-drop-target {
+  background: var(--accent-control);
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+
+:root[data-ui="v2"] .order-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+  color: var(--swatch);
+  background: color-mix(in srgb, var(--swatch) 14%, transparent);
+}
+
+:root[data-ui="v2"] .order-icon .ph {
+  font-size: 16px;
+}
+
+:root[data-ui="v2"] .order-name {
+  font-weight: 500;
+}
+
+:root[data-ui="v2"] .order-handle {
+  font-size: 16px;
+  color: var(--text-tertiary);
+}
+
+/* Import mapping: each unmatched subject is a row with its select. */
+:root[data-ui="v2"] .import-map-item {
+  padding: 12px 14px;
+}
+
+/* ── Subject details popup ── */
+
+:root[data-ui="v2"] .modal-chart {
+  height: 240px;
+  padding: 12px;
+}
+
+:root[data-ui="v2"] .subject-upcoming-grid,
+:root[data-ui="v2"] .subject-upcoming,
+:root[data-ui="v2"] .subject-history {
+  margin-top: 0;
+}
+
+:root[data-ui="v2"] .subject-upcoming-grid {
+  gap: 16px;
+}
+
+:root[data-ui="v2"] .subject-upcoming,
+:root[data-ui="v2"] .subject-history {
+  gap: 8px;
+}
+
+:root[data-ui="v2"] .subject-upcoming .upcoming-list {
+  max-height: 240px;
+}
+
+/* Target strip */
+:root[data-ui="v2"] .target-strip {
+  gap: 10px;
+}
+
+:root[data-ui="v2"] .target-strip--empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  font-size: 14px;
+}
+
+:root[data-ui="v2"] .target-strip-head {
+  font-size: 14px;
+}
+
+:root[data-ui="v2"] .target-strip-head strong {
+  font-weight: 600;
+}
+
+:root[data-ui="v2"] .target-strip-status {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+:root[data-ui="v2"] .target-bar {
+  height: 6px;
+  background: var(--track);
+}
+
+:root[data-ui="v2"] .target-bar-marker {
+  opacity: 1;
+}
+
+:root[data-ui="v2"] .target-needed {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* What-if: a disclosure panel; opening it adds a divider under the summary. */
+:root[data-ui="v2"] .what-if-summary {
+  gap: 8px;
+  padding: 12px var(--panel-padding);
+  border-radius: calc(var(--radius-lg) - 1px);
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.15s ease;
+}
+
+:root[data-ui="v2"] .what-if-summary:hover {
+  background: var(--bg-hover);
+}
+
+:root[data-ui="v2"] .what-if-summary:focus-visible {
+  outline-offset: -2px;
+}
+
+:root[data-ui="v2"] .what-if-summary > .ph {
+  font-size: 15px;
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .what-if-summary::after {
+  content: "\e071"; /* Lucide chevron-down */
+  margin-left: auto;
+  font-family: "lucide";
+  font-size: 16px;
+  line-height: 1;
+  color: var(--text-tertiary);
+  transition: transform 0.15s ease;
+}
+
+:root[data-ui="v2"] .what-if[open] > .what-if-summary {
+  border-bottom: 1px solid var(--card-border);
+  border-radius: calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px) 0 0;
+}
+
+:root[data-ui="v2"] .what-if[open] > .what-if-summary::after {
+  transform: rotate(180deg);
+}
+
+:root[data-ui="v2"] .what-if-hint {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .what-if-body {
+  gap: 12px;
+  padding: var(--panel-padding);
+}
+
+:root[data-ui="v2"] .what-if-rows {
+  gap: 8px;
+}
+
+:root[data-ui="v2"] .what-if-row {
+  grid-template-columns: minmax(0, 1fr) 72px auto 72px 80px var(--control-height);
+  gap: 6px;
+}
+
+:root[data-ui="v2"] .what-if-row .delete-button {
+  display: grid;
+  place-items: center;
+  width: var(--control-height);
+  height: var(--control-height);
+  padding: 0;
+  border-radius: var(--radius);
+}
+
+:root[data-ui="v2"] .what-if-result {
+  width: 100%;
+  padding-top: 12px;
+  border-top: 1px solid var(--card-border);
+  font-size: 14px;
+}
+
+:root[data-ui="v2"] .what-if-delta,
+:root[data-ui="v2"] .what-if-target {
+  font-weight: 500;
+}
+
+/* ── Add / edit subject: fields, then Icon and Colour as divided sections ── */
+
+:root[data-ui="v2"] :is(#add-subject-modal, #edit-subject-modal) .subject-color-panel {
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  gap: 16px;
+}
+
+:root[data-ui="v2"] :is(#add-subject-modal, #edit-subject-modal) .subject-color-header {
+  padding-top: 16px;
+  border-top: 1px solid var(--card-border);
+}
+
+/* Edit subject: name and target side by side. */
+:root[data-ui="v2"] #edit-subject-modal .subject-color-panel {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+
+:root[data-ui="v2"] #edit-subject-modal .subject-color-panel > :not(.field) {
+  grid-column: 1 / -1;
+}
+
+/* Icon picker carousel and preview. */
+:root[data-ui="v2"] .subject-icon-control,
+:root[data-ui="v2"] .color-control {
+  gap: 10px;
+}
+
+:root[data-ui="v2"] .subject-icon-control {
+  margin-top: 8px;
+}
+
+:root[data-ui="v2"] .subject-icon-preview {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius);
+}
+
+:root[data-ui="v2"] .subject-icon-preview .ph {
+  font-size: 20px;
+}
+
+:root[data-ui="v2"] .icon-carousel-nav,
+:root[data-ui="v2"] .icon-carousel-item {
+  border-radius: var(--radius);
+  border: 1px solid var(--card-border);
+  background: var(--bg-secondary);
+  box-shadow: none;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+:root[data-ui="v2"] .icon-carousel-nav {
+  width: var(--control-height);
+  height: var(--control-height);
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .icon-carousel-nav .ph {
+  font-size: 16px;
+}
+
+:root[data-ui="v2"] .icon-carousel-item {
+  width: 40px;
+  height: 40px;
+}
+
+:root[data-ui="v2"] .icon-carousel-item .ph {
+  font-size: 18px;
+}
+
+:root[data-ui="v2"] .icon-carousel-nav:hover,
+:root[data-ui="v2"] .icon-carousel-item:hover {
+  transform: none;
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+:root[data-ui="v2"] .icon-carousel-item.is-active,
+:root[data-ui="v2"] .icon-carousel-item.is-active:hover {
+  border-color: var(--accent);
+  background: var(--accent-control);
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+:root[data-ui="v2"] .icon-carousel-track {
+  gap: 6px;
+  padding: 2px;
+  scrollbar-width: none;
+}
+
+:root[data-ui="v2"] .icon-carousel-track::-webkit-scrollbar {
+  display: none;
+}
+
+/* Custom icon popup. */
+:root[data-ui="v2"] .icon-picker-body {
+  gap: 16px;
+}
+
+:root[data-ui="v2"] .icon-picker-preview {
+  width: 72px;
+  height: 72px;
+  border-color: var(--card-border);
+  background: var(--accent-control);
+}
+
+:root[data-ui="v2"] .icon-picker-preview .ph {
+  font-size: 32px;
+}
+
+:root[data-ui="v2"] .icon-picker-message {
+  min-height: 0;
+}
+
+:root[data-ui="v2"] .icon-picker-message:empty {
+  display: none;
+}
+
+/* Confirm popup. */
+:root[data-ui="v2"] .confirm-body {
+  gap: 16px;
+}
+
+:root[data-ui="v2"] #confirm-message {
+  font-size: 14px;
+}
+
+/* ── Add / edit assessment, upcoming: short fields pair up ── */
+
+:root[data-ui="v2"] #assessment-form,
+:root[data-ui="v2"] #upcoming-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+:root[data-ui="v2"] #assessment-form > :not(.field),
+:root[data-ui="v2"] #assessment-form > .field:has(input[name="assessment"]),
+:root[data-ui="v2"] #upcoming-form > :not(.field),
+:root[data-ui="v2"] #upcoming-form > .field:has(input[name="upcomingName"]),
+:root[data-ui="v2"] #upcoming-form > .field:has(input[name="upcomingNotes"]),
+:root[data-ui="v2"] #upcoming-form > #upcoming-weight-field[hidden] + .field {
+  grid-column: 1 / -1;
+}
+
+/* Optional components. */
+:root[data-ui="v2"] .assessment-components-panel {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  padding-top: 16px;
+  border-top: 1px solid var(--card-border);
+}
+
+:root[data-ui="v2"] .assessment-components-panel > .section-eyebrow {
+  margin-top: 0 !important;
+}
+
+:root[data-ui="v2"] .assessment-components-list {
+  width: 100%;
+  margin-bottom: 0 !important;
+}
+
+/* Component rows are rendered with inline styles; restyle them as nested panels. */
+:root[data-ui="v2"] .assessment-components-list > div {
+  gap: 10px !important;
+  margin: 0 !important;
+  padding: 12px !important;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg) !important;
+  background: var(--modal-inner-surface) !important;
+}
+
+:root[data-ui="v2"] .assessment-components-list > div > .icon-button {
+  margin-bottom: 2px !important;
+  color: var(--text-tertiary) !important;
+}
+
+:root[data-ui="v2"] .assessment-components-list > div > .icon-button:hover {
+  color: var(--danger) !important;
+  background: var(--danger-soft);
+}
+
+/* ── Share / import ── */
+
+:root[data-ui="v2"] .export-grid {
+  gap: 16px;
+}
+
+:root[data-ui="v2"] .export-panel {
+  align-content: start;
+}
+
+:root[data-ui="v2"] .export-panel .section-title {
+  font-size: 15px;
+}
+
+:root[data-ui="v2"] .export-panel .form-message:empty {
+  display: none;
+}
+
+/* ── Selectable tiles: electives, export subjects, themes ──
+   These are controls: --bg-secondary, hover --bg-hover, selected = accent border on
+   --accent-control (never darker than unselected). */
+
+:root[data-ui="v2"] .checkbox-grid,
+:root[data-ui="v2"] .elective-grid {
+  gap: 8px;
+}
+
+:root[data-ui="v2"] .checkbox-item {
+  min-height: var(--control-height);
+  padding: 7px 12px 7px 36px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 13px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+:root[data-ui="v2"] .checkbox-item:hover {
+  transform: none;
+  background: var(--bg-hover);
+}
+
+:root[data-ui="v2"] .checkbox-item:has(input:checked) {
+  transform: none;
+  border-color: var(--accent-border);
+  background: var(--accent-control);
+  color: var(--text-primary);
+}
+
+:root[data-ui="v2"] .checkbox-item:has(input:focus-visible) {
+  outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  outline-offset: 2px;
+}
+
+:root[data-ui="v2"] .checkbox-item::before {
+  left: 12px;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--input-border) 50%, var(--text-tertiary));
+  background: var(--input-bg);
+  box-sizing: border-box;
+}
+
+:root[data-ui="v2"] .checkbox-item:has(input:checked)::before {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+/* Tick (Lucide check) drawn over the filled box. */
+:root[data-ui="v2"] .checkbox-item:has(input:checked)::after {
+  content: "\e070";
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  width: 14px;
+  transform: translateY(-50%);
+  font-family: "lucide";
+  font-size: 11px;
+  line-height: 14px;
+  text-align: center;
+  color: var(--text-on-accent);
+}
+
+:root[data-ui="v2"] .checkbox-item-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--text-secondary);
+  opacity: 1;
+}
+
+:root[data-ui="v2"] .checkbox-item-icon .ph {
+  font-size: 15px;
+}
+
+:root[data-ui="v2"] .theme-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+:root[data-ui="v2"] .theme-button {
+  height: var(--control-height);
+  padding: 0 12px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+:root[data-ui="v2"] .theme-button:hover {
+  transform: none;
+  box-shadow: none;
+  background: var(--bg-hover);
+}
+
+:root[data-ui="v2"] .theme-button.is-active,
+:root[data-ui="v2"] .theme-button.is-active:hover {
+  border-color: var(--accent-border);
+  background: var(--accent-control);
+}
+
+:root[data-ui="v2"] .theme-swatch {
+  width: 12px;
+  height: 12px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #000000 15%, transparent);
+}
+
+/* ── Onboarding ── */
+
+/* The progress bar is a hairline under the header that fills in. */
+:root[data-ui="v2"] .modal-header:has(+ .onboarding-progress) {
+  border-bottom: none;
+}
+
+:root[data-ui="v2"] .onboarding-progress {
+  height: 2px;
+  margin: 0 calc(-1 * var(--modal-padding));
+  width: auto;
+  border: none;
+  border-radius: 0;
+  background: var(--card-border);
+}
+
+:root[data-ui="v2"] .onboarding-progress-bar {
+  border-radius: 0;
+}
+
+:root[data-ui="v2"] .onboarding-grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+:root[data-ui="v2"] .onboarding-section {
+  gap: 16px;
+}
+
+:root[data-ui="v2"] .elective-grid {
+  max-height: 300px;
+  padding-right: 0;
+}
+
+:root[data-ui="v2"] .mini-button:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+:root[data-ui="v2"] .custom-elective-panel {
+  gap: 8px;
+}
+
+:root[data-ui="v2"] .custom-elective-list {
+  gap: 8px;
+}
+
+:root[data-ui="v2"] .custom-elective-row {
+  padding: 12px;
+  gap: 8px;
 }
 
 /* ── Dashboard ── */
@@ -748,7 +1965,7 @@
   height: 30px;
   padding: 0 10px;
   font-size: 13px;
-  border-radius: 7px;
+  border-radius: var(--radius);
 }
 
 /* "New subject" is secondary here; "Add mark" is the page's primary action. */
@@ -856,11 +2073,7 @@
   position: relative;
   height: 6px;
   border-radius: 999px;
-  background: var(--bg-depth);
-}
-
-:root[data-ui="v2"][data-theme="dark"] .v2-subject-progress {
-  background: #262626;
+  background: var(--track);
 }
 
 :root[data-ui="v2"] .v2-subject-fill {
@@ -992,7 +2205,7 @@
 :root[data-ui="v2"] .timetable-progress {
   height: 6px;
   border: none;
-  background: var(--bg-depth);
+  background: var(--track);
 }
 
 :root[data-ui="v2"] .timetable-progress-track {
@@ -1049,6 +2262,12 @@
 :root[data-ui="v2"] .upcoming-tag {
   height: 20px;
   font-size: 11px;
+}
+
+:root[data-ui="v2"] .upcoming-tag.is-overdue {
+  border-color: var(--danger-border);
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 :root[data-ui="v2"] .upcoming-remove {
@@ -1119,7 +2338,6 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 7px 8px;
   border: none;
   border-radius: 6px;
   background: none;
@@ -1149,28 +2367,7 @@
   font-size: 15px;
 }
 
-/* ── Subject popup ── */
-
-:root[data-ui="v2"] .modal-chart {
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--card-border);
-  background: var(--card-surface);
-}
-
-:root[data-ui="v2"] .history-item,
-:root[data-ui="v2"] .target-strip,
-:root[data-ui="v2"] .what-if {
-  border-radius: var(--radius-lg);
-  background: var(--card-surface);
-}
-
-:root[data-ui="v2"] .history-title {
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--text-secondary);
-}
+/* ── Subject popup "More" menu ── */
 
 :root[data-ui="v2"] .more-menu {
   position: relative;
@@ -1194,11 +2391,17 @@
   display: none;
 }
 
+/* Menu items (More, Add mark, profile) share one size. */
+:root[data-ui="v2"] .more-menu-list button,
+:root[data-ui="v2"] .quick-add-item {
+  min-height: 32px;
+  padding: 6px 8px;
+}
+
 :root[data-ui="v2"] .more-menu-list button {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 7px 8px;
   border: none;
   border-radius: 6px;
   background: none;
@@ -1208,23 +2411,46 @@
   cursor: pointer;
 }
 
+:root[data-ui="v2"] .more-menu-list button .ph {
+  font-size: 15px;
+  color: var(--text-secondary);
+}
+
 :root[data-ui="v2"] .more-menu-list button:hover,
 :root[data-ui="v2"] .more-menu-list button:focus-visible {
   background: var(--bg-hover);
   outline: none;
 }
 
+/* The destructive item sits under a divider. */
 :root[data-ui="v2"] .more-menu-list .is-danger {
-  margin-top: 4px;
+  position: relative;
+  margin-top: 9px;
   color: var(--danger);
 }
 
-:root[data-ui="v2"] .more-menu-list .is-danger:hover {
-  background: var(--danger-soft);
+:root[data-ui="v2"] .more-menu-list .is-danger::before {
+  content: "";
+  position: absolute;
+  left: -6px;
+  right: -6px;
+  top: -5px;
+  height: 1px;
+  background: var(--popover-border);
+}
+
+:root[data-ui="v2"] .more-menu-list .is-danger .ph {
+  color: inherit;
+}
+
+:root[data-ui="v2"] .more-menu-list .is-danger:hover,
+:root[data-ui="v2"] .more-menu-list .is-danger:focus-visible {
+  background: color-mix(in srgb, var(--danger) 12%, var(--popover-surface));
 }
 
 /* ── Settings ── */
 
+/* V2 saves the name on change, so the form has no Save button. */
 :root[data-ui="v2"] #settings-form .primary-button {
   display: none;
 }
@@ -1238,6 +2464,7 @@
 }
 
 :root[data-ui="v2"] .settings-block {
+  gap: 12px;
   padding: 20px 0;
   border-top: 1px solid var(--card-border);
 }
@@ -1247,25 +2474,40 @@
   border-top: none;
 }
 
+:root[data-ui="v2"] .settings-form {
+  gap: 8px;
+}
+
 :root[data-ui="v2"] .settings-title {
   font-size: 15px;
   font-weight: 600;
 }
 
-:root[data-ui="v2"] .theme-button {
-  border-radius: var(--radius);
+:root[data-ui="v2"] #settings-modal .timetable-meta {
   font-size: 13px;
-  font-weight: 500;
-  background: var(--bg-secondary);
+  color: var(--text-tertiary);
 }
 
-:root[data-ui="v2"] .theme-button:hover {
+:root[data-ui="v2"] #settings-modal .form-message:empty {
+  display: none;
+}
+
+/* The "New look" card at the top of Settings: a flat nested panel in V2. */
+:root[data-ui="v2"] .ui-beta-card {
+  padding: var(--panel-padding);
+  border-radius: var(--radius-lg);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--card-border));
+  background: var(--modal-inner-surface);
+}
+
+:root[data-ui="v2"] .ui-beta-card:hover {
+  transform: none;
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--card-border));
   background: var(--bg-hover);
 }
 
-:root[data-ui="v2"] .theme-button.is-active {
-  border-color: var(--text-primary);
-  background: var(--bg-secondary);
+:root[data-ui="v2"] .ui-beta-preview {
+  border-radius: var(--radius);
 }
 
 .beta-tag {
@@ -1431,178 +2673,90 @@
   }
 }
 
-/* ── Calendar: one flat grid with hairline borders ── */
+/* ── Toggle groups: calendar filter, timetable week switch ── */
 
-:root[data-ui="v2"] .calendar-weekdays {
-  gap: 0;
-  padding: 0;
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-:root[data-ui="v2"] .calendar-grid {
-  gap: 1px;
-  background: var(--card-border);
+:root[data-ui="v2"] .calendar-type-filter,
+:root[data-ui="v2"] .timetable-week-switch {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
   border: 1px solid var(--card-border);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-}
-
-:root[data-ui="v2"] .calendar-cell {
-  height: 128px;
-  min-height: 0;
-  overflow: hidden;
-  gap: 4px;
-  padding: 8px;
-  border: none;
-  border-radius: 0;
-  background: var(--card-surface);
-}
-
-:root[data-ui="v2"] .calendar-cell.is-muted {
-  opacity: 1;
-  background: var(--surface-soft);
-  color: var(--text-tertiary);
-}
-
-:root[data-ui="v2"] .calendar-cell.is-today {
-  border: none;
-  box-shadow: none;
-}
-
-:root[data-ui="v2"] .calendar-cell.is-today .calendar-day {
-  display: inline-grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 999px;
-  background: var(--accent);
-  color: var(--text-on-accent);
-}
-
-:root[data-ui="v2"] .calendar-day {
-  font-size: 12px;
-  font-weight: 500;
-}
-
-:root[data-ui="v2"] .calendar-events {
-  gap: 3px;
-}
-
-:root[data-ui="v2"] .calendar-event {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  min-width: 0;
-  padding: 3px 6px;
-  border-radius: 5px;
-  border: none;
-  background: color-mix(in srgb, var(--event-color) 14%, transparent);
-  font-size: 12px;
-  line-height: 1.35;
-  cursor: pointer;
-}
-
-:root[data-ui="v2"] .calendar-event::before {
-  content: "";
-  flex: none;
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background: var(--event-color);
-  transform: translateY(-1px);
-}
-
-:root[data-ui="v2"] .calendar-event:hover {
-  background: color-mix(in srgb, var(--event-color) 22%, transparent);
-}
-
-:root[data-ui="v2"] .calendar-event-title {
-  display: block;
-  min-width: 0;
-  font-weight: 500;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-:root[data-ui="v2"] .calendar-event-type-icon {
-  display: none;
-}
-
-:root[data-ui="v2"] .calendar-event-sub {
-  flex: 1 1 auto;
-  min-width: 0;
-  color: var(--text-tertiary);
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-:root[data-ui="v2"] .calendar-more {
-  padding-left: 6px;
-  font-size: 12px;
-  color: var(--text-tertiary);
-}
-
-:root[data-ui="v2"] .calendar-event-tag {
-  display: none;
-}
-
-:root[data-ui="v2"] .calendar-controls,
-:root[data-ui="v2"] .calendar-type-filter {
   border-radius: var(--radius);
   background: var(--bg-secondary);
 }
 
-/* ── Analytics ── */
-
-:root[data-ui="v2"] .insight-item {
-  padding: 12px 0;
+:root[data-ui="v2"] .calendar-type-filter-button,
+:root[data-ui="v2"] .chip {
+  height: 28px;
+  padding: 0 10px;
   border: none;
-  border-top: 1px solid var(--card-border);
-  border-radius: 0;
+  border-radius: 6px;
   background: none;
-}
-
-:root[data-ui="v2"] .insight-item:first-child {
-  border-top: none;
-}
-
-:root[data-ui="v2"] .insight-item strong {
+  color: var(--text-secondary);
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-secondary);
 }
 
-:root[data-ui="v2"] .insight-item span {
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-/* ── Tables and charts ── */
-
-:root[data-ui="v2"] thead th {
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--text-tertiary);
-}
-
-:root[data-ui="v2"] tbody tr:hover {
+:root[data-ui="v2"] .calendar-type-filter-button:hover,
+:root[data-ui="v2"] .chip:hover {
   background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
-:root[data-ui="v2"] .chart-tooltip {
-  background: var(--popover-surface);
-  border: 1px solid var(--popover-border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-popover);
+:root[data-ui="v2"] .calendar-type-filter-button.is-active,
+:root[data-ui="v2"] .chip.is-active {
+  background: var(--bg-depth);
   color: var(--text-primary);
+  box-shadow: inset 0 0 0 1px var(--card-border);
+}
+
+/* Chips that aren't in a group (e.g. analytics subject keys) keep a light outline. */
+:root[data-ui="v2"] :not(.timetable-week-switch) > .chip {
+  border: 1px solid var(--card-border);
+}
+
+/* ── Switches: on/off checkboxes in the leaderboard and its privacy popup ── */
+
+:root[data-ui="v2"] .lb-toggle {
+  gap: 10px;
+  font-size: 13px;
+}
+
+:root[data-ui="v2"] .lb-toggle input[type="checkbox"] {
+  appearance: none;
+  flex: none;
+  position: relative;
+  width: 32px;
+  height: 18px;
+  margin: 1px 0 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-primary) 20%, transparent);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+:root[data-ui="v2"] .lb-toggle input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #ffffff;
+  transition: transform 0.15s ease;
+}
+
+:root[data-ui="v2"] .lb-toggle input[type="checkbox"]:checked {
+  background: var(--accent);
+}
+
+:root[data-ui="v2"] .lb-toggle input[type="checkbox"]:checked::after {
+  transform: translateX(14px);
+}
+
+:root[data-ui="v2"] .lb-toggle input[type="checkbox"]:disabled {
+  cursor: not-allowed;
 }
 
 /* ── Medium screens ── */
@@ -1658,6 +2812,7 @@
   :root[data-ui="v2"] #settings-open {
     width: 32px;
     padding: 0;
+    gap: 0;
     font-size: 0;
   }
 
@@ -1716,6 +2871,7 @@
   :root[data-ui="v2"] .subjects-toolbar #subjects-order-open {
     width: 30px;
     padding: 0;
+    gap: 0;
     font-size: 0;
   }
 
@@ -1723,113 +2879,106 @@
     font-size: 15px;
   }
 
-  /* Big popups become full-screen sheets with a sticky header. */
-  :root[data-ui="v2"] .modal-panel--large {
+  /* Popups: tighter padding everywhere (the header and footer follow --modal-padding). */
+  :root[data-ui="v2"] .modal-panel {
+    --modal-padding: 16px;
+    --panel-padding: 14px;
+    width: calc(100vw - 24px);
+    max-height: calc(100dvh - 24px);
+  }
+
+  /* Every popup except the small dialogs becomes a full-screen sheet. */
+  :root[data-ui="v2"] .modal-panel:not(.modal-panel--small) {
     width: 100vw;
-    max-width: none;
     height: 100dvh;
     max-height: 100dvh;
     border: none;
     border-radius: 0;
-    padding: 0 16px 24px;
+    box-shadow: none;
   }
 
-  :root[data-ui="v2"] .modal-panel--large > .modal-header {
-    position: sticky;
-    top: 0;
-    z-index: 3;
-    margin: 0 -16px;
-    padding: 16px;
-    background: var(--modal-surface);
-    border-bottom: 1px solid var(--card-border);
+  :root[data-ui="v2"] .modal-panel:not(.modal-panel--small) > .modal-header {
+    padding-top: calc(14px + env(safe-area-inset-top, 0px));
   }
 
-  :root[data-ui="v2"] .modal-panel--large .modal-body {
+  :root[data-ui="v2"] .modal-header {
+    padding: 14px var(--modal-padding) 12px;
+  }
+
+  :root[data-ui="v2"] .modal-header .section-title {
+    font-size: 17px;
+  }
+
+  :root[data-ui="v2"] .modal-meta {
+    font-size: 13px;
+  }
+
+  :root[data-ui="v2"] .modal-body {
     margin-top: 16px;
   }
 
-  /* The analytics table becomes a list. */
-  :root[data-ui="v2"] .table-wrap {
-    overflow: visible;
+  /* Footer: buttons share the row; a message gets its own line above them. */
+  :root[data-ui="v2"] .modal-body > .form-actions {
+    padding-top: 12px;
   }
 
-  :root[data-ui="v2"] .table-wrap thead {
-    display: none;
-  }
-
-  :root[data-ui="v2"] .table-wrap table,
-  :root[data-ui="v2"] .table-wrap tbody {
-    display: block;
+  :root[data-ui="v2"] .modal-body > .form-actions > :is(.primary-button, .ghost-button) {
+    flex: 1 1 0;
     min-width: 0;
   }
 
-  :root[data-ui="v2"] #assessment-table tr {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
-    grid-template-areas:
-      "name percent grade"
-      "meta score score"
-      "date actions actions";
+  :root[data-ui="v2"] .modal-body > .form-actions > .form-message:not(:empty) {
+    flex-basis: 100%;
+    margin-right: 0;
+  }
+
+  :root[data-ui="v2"] .modal-chart {
+    height: 200px;
+    padding: 8px;
+  }
+
+  :root[data-ui="v2"] .history-item {
+    flex-wrap: wrap;
+  }
+
+  :root[data-ui="v2"] .history-right {
+    width: 100%;
+    grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
-    gap: 6px 10px;
-    padding: 12px 0;
-    border-top: 1px solid var(--card-border);
+    text-align: left;
   }
 
-  :root[data-ui="v2"] #assessment-table tr:hover {
-    background: none;
+  :root[data-ui="v2"] .what-if-row {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) minmax(0, 1fr) var(--control-height);
   }
 
-  :root[data-ui="v2"] #assessment-table td {
-    display: block;
-    padding: 0;
-    border: none;
-  }
-
-  :root[data-ui="v2"] #assessment-table td.empty-state {
+  :root[data-ui="v2"] .what-if-row .what-if-name {
     grid-column: 1 / -1;
   }
 
-  :root[data-ui="v2"] #assessment-table td:nth-child(1) {
-    grid-area: meta;
-    font-size: 13px;
-    color: var(--text-secondary);
-  }
-
-  :root[data-ui="v2"] #assessment-table td:nth-child(2) {
-    grid-area: name;
-    font-weight: 500;
-  }
-
-  :root[data-ui="v2"] #assessment-table td:nth-child(3) {
-    grid-area: score;
-    justify-self: end;
-    font-size: 13px;
-    color: var(--text-secondary);
-  }
-
-  :root[data-ui="v2"] #assessment-table td:nth-child(4) {
+  :root[data-ui="v2"] .what-if-hint {
     display: none;
   }
 
-  :root[data-ui="v2"] #assessment-table td:nth-child(5) {
-    grid-area: percent;
-    font-weight: 600;
+  :root[data-ui="v2"] #edit-subject-modal .subject-color-panel {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  :root[data-ui="v2"] #assessment-table td:nth-child(6) {
-    grid-area: grade;
+  :root[data-ui="v2"] .theme-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  :root[data-ui="v2"] #assessment-table td:nth-child(7) {
-    grid-area: date;
-    font-size: 12px;
-    color: var(--text-tertiary);
+  :root[data-ui="v2"] .export-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  :root[data-ui="v2"] #assessment-table td:nth-child(8) {
-    grid-area: actions;
-    justify-self: end;
+  :root[data-ui="v2"] .modal-body .upcoming-item {
+    flex-wrap: wrap;
+  }
+
+  /* Menus inside a sheet stay on screen. */
+  :root[data-ui="v2"] .more-menu-list {
+    min-width: min(240px, calc(100vw - 32px));
   }
 }
 
@@ -1840,6 +2989,7 @@
 :root[data-ui="v2"] .ph-arrows-clockwise::before,
 :root[data-ui="v2"] .ph-arrows-counter-clockwise::before,
 :root[data-ui="v2"] .ph-arrows-down-up::before,
+:root[data-ui="v2"] .ph-arrows-left-right::before,
 :root[data-ui="v2"] .ph-atom::before,
 :root[data-ui="v2"] .ph-baby::before,
 :root[data-ui="v2"] .ph-bank::before,
@@ -1852,6 +3002,7 @@
 :root[data-ui="v2"] .ph-broadcast::before,
 :root[data-ui="v2"] .ph-calculator::before,
 :root[data-ui="v2"] .ph-calendar::before,
+:root[data-ui="v2"] .ph-calendar-dots::before,
 :root[data-ui="v2"] .ph-camera::before,
 :root[data-ui="v2"] .ph-car::before,
 :root[data-ui="v2"] .ph-caret-down::before,
@@ -1887,6 +3038,7 @@
 :root[data-ui="v2"] .ph-leaf::before,
 :root[data-ui="v2"] .ph-lightbulb::before,
 :root[data-ui="v2"] .ph-link-simple::before,
+:root[data-ui="v2"] .ph-lock::before,
 :root[data-ui="v2"] .ph-map-trifold::before,
 :root[data-ui="v2"] .ph-medal::before,
 :root[data-ui="v2"] .ph-microphone::before,
@@ -1930,6 +3082,7 @@
 :root[data-ui="v2"] .ph-arrows-clockwise::before { content: "\e149"; }
 :root[data-ui="v2"] .ph-arrows-counter-clockwise::before { content: "\e14c"; }
 :root[data-ui="v2"] .ph-arrows-down-up::before { content: "\e381"; }
+:root[data-ui="v2"] .ph-arrows-left-right::before { content: "\e24a"; }
 :root[data-ui="v2"] .ph-atom::before { content: "\e3db"; }
 :root[data-ui="v2"] .ph-baby::before { content: "\e2ce"; }
 :root[data-ui="v2"] .ph-bank::before { content: "\e23a"; }
@@ -1942,6 +3095,7 @@
 :root[data-ui="v2"] .ph-broadcast::before { content: "\e146"; }
 :root[data-ui="v2"] .ph-calculator::before { content: "\e1bc"; }
 :root[data-ui="v2"] .ph-calendar::before { content: "\e067"; }
+:root[data-ui="v2"] .ph-calendar-dots::before { content: "\e2b9"; }
 :root[data-ui="v2"] .ph-camera::before { content: "\e068"; }
 :root[data-ui="v2"] .ph-car::before { content: "\e1d5"; }
 :root[data-ui="v2"] .ph-caret-down::before { content: "\e071"; }
@@ -1977,6 +3131,7 @@
 :root[data-ui="v2"] .ph-leaf::before { content: "\e2de"; }
 :root[data-ui="v2"] .ph-lightbulb::before { content: "\e1c2"; }
 :root[data-ui="v2"] .ph-link-simple::before { content: "\e108"; }
+:root[data-ui="v2"] .ph-lock::before { content: "\e10f"; }
 :root[data-ui="v2"] .ph-map-trifold::before { content: "\e114"; }
 :root[data-ui="v2"] .ph-medal::before { content: "\e373"; }
 :root[data-ui="v2"] .ph-microphone::before { content: "\e11c"; }

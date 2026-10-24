@@ -24,6 +24,10 @@
     </script>
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="styles-v2.css" />
+    <link rel="stylesheet" href="styles-v2-analytics.css" />
+    <link rel="stylesheet" href="styles-v2-calendar.css" />
+    <link rel="stylesheet" href="styles-v2-timetable.css" />
+    <link rel="stylesheet" href="styles-v2-leaderboard.css" />
   </head>
   <body>
     <div class="layout">
@@ -301,11 +305,23 @@
         </section>
 
         <section class="view" data-view="analytics">
+          <section class="v2-stats v2-only an-stats" id="analytics-stats" aria-label="Analytics overview"></section>
           <section class="analytics-grid">
             <div class="card progress-card glow-soft">
-              <div class="section-eyebrow">Progress</div>
-              <h2 class="section-title">Weighted trend</h2>
-              <p class="muted">
+              <div class="an-card-head v2-only">
+                <div>
+                  <h2 class="an-card-title">Average over time</h2>
+                  <div class="an-trend-figure" id="analytics-trend-figure"></div>
+                </div>
+                <div class="an-range" id="analytics-range" role="group" aria-label="Time range">
+                  <button type="button" data-analytics-range="30">1M</button>
+                  <button type="button" data-analytics-range="90">3M</button>
+                  <button type="button" data-analytics-range="all">All</button>
+                </div>
+              </div>
+              <div class="section-eyebrow an-v1-only">Progress</div>
+              <h2 class="section-title an-v1-only">Weighted trend</h2>
+              <p class="muted an-v1-only">
                 Your overall average after each assessment, plotted over time.
               </p>
               <div class="chart-wrap">
@@ -316,16 +332,43 @@
               </div>
             </div>
             <div class="card insights-card glow-soft">
-              <div class="section-eyebrow">Insights</div>
-              <h2 class="section-title">Performance highlights</h2>
+              <h2 class="an-card-title v2-only">Recent marks</h2>
+              <div class="section-eyebrow an-v1-only">Insights</div>
+              <h2 class="section-title an-v1-only">Performance highlights</h2>
               <div class="insight-list" id="insight-list"></div>
             </div>
           </section>
 
+          <section class="card v2-only an-subjects-card">
+            <div class="an-card-head">
+              <div>
+                <h2 class="an-card-title">By subject</h2>
+                <p class="an-card-desc">Averages, recent trend and progress towards your targets. Click a subject for details.</p>
+              </div>
+            </div>
+            <div class="an-subjects" id="analytics-subjects"></div>
+          </section>
+
+          <section class="card v2-only an-grades-card">
+            <div class="an-card-head">
+              <div>
+                <h2 class="an-card-title">Grade breakdown</h2>
+                <p class="an-card-desc" id="analytics-grades-summary">How many of your marks landed in each grade.</p>
+              </div>
+            </div>
+            <div class="an-grades" id="analytics-grades" role="group" aria-label="Marks in each grade. Choose a grade to list its marks."></div>
+          </section>
+
           <section class="card progress-card glow-soft subjects-chart-section">
-            <div class="section-eyebrow">Subjects</div>
-            <h2 class="section-title">Subject score lines</h2>
-            <p class="muted">
+            <div class="an-card-head v2-only">
+              <div>
+                <h2 class="an-card-title">Subjects over time</h2>
+                <p class="an-card-desc">Every mark, one line per subject.</p>
+              </div>
+            </div>
+            <div class="section-eyebrow an-v1-only">Subjects</div>
+            <h2 class="section-title an-v1-only">Subject score lines</h2>
+            <p class="muted an-v1-only">
               Each subject plotted with its own color for quick comparison.
             </p>
             <div class="chart-wrap">
@@ -338,8 +381,16 @@
           </section>
 
           <section class="card assessment-card glow-soft">
-            <div class="section-eyebrow">All assessments</div>
-            <h2 class="section-title">Detailed breakdown</h2>
+            <div class="an-card-head v2-only">
+              <div>
+                <h2 class="an-card-title">
+                  All assessments <span class="an-count" id="analytics-assessment-count"></span>
+                  <button class="an-filter-tag" id="analytics-grade-filter" type="button" hidden></button>
+                </h2>
+              </div>
+            </div>
+            <div class="section-eyebrow an-v1-only">All assessments</div>
+            <h2 class="section-title an-v1-only">Detailed breakdown</h2>
             <div class="assessment-tools">
               <button id="share-all-assessments" class="ghost-button with-icon" type="button" hidden>
                 <i class="ph ph-share-network"></i>Share all
@@ -439,6 +490,10 @@
                   Stay on top of upcoming due dates and logged results.
                 </p>
               </div>
+              <div class="calendar-v2-heading v2-only">
+                <h2 class="calendar-v2-title" id="calendar-v2-title" aria-live="polite">Month</h2>
+                <p class="calendar-v2-summary" id="calendar-v2-summary"></p>
+              </div>
               <div class="calendar-header-actions">
                 <div
                   class="calendar-type-filter"
@@ -470,15 +525,22 @@
                     Both
                   </button>
                 </div>
+                <button class="ghost-button ghost-button--small calendar-v2-today v2-only" type="button" id="calendar-today">
+                  Today
+                </button>
                 <div class="calendar-controls">
-                  <button class="calendar-nav" type="button" id="calendar-prev">
+                  <button class="calendar-nav" type="button" id="calendar-prev" aria-label="Previous month">
                     <i class="ph ph-caret-left" aria-hidden="true"></i>
                   </button>
                   <div class="calendar-month" id="calendar-month">Month</div>
-                  <button class="calendar-nav" type="button" id="calendar-next">
+                  <button class="calendar-nav" type="button" id="calendar-next" aria-label="Next month">
                     <i class="ph ph-caret-right" aria-hidden="true"></i>
                   </button>
                 </div>
+                <button class="primary-button with-icon calendar-v2-add v2-only" type="button" id="calendar-add" aria-label="Add upcoming item">
+                  <i class="ph ph-plus button-icon" aria-hidden="true"></i>
+                  <span class="calendar-v2-add-label">Add</span>
+                </button>
               </div>
             </div>
             <div class="calendar-weekdays">
@@ -491,6 +553,7 @@
               <span>Sun</span>
             </div>
             <div class="calendar-grid" id="calendar-grid"></div>
+            <aside class="calendar-agenda v2-only" id="calendar-agenda" aria-label="Selected day"></aside>
           </section>
         </section>
 
@@ -509,6 +572,20 @@
                 </p>
               </div>
             </div>
+            <div class="tt-import-head v2-only">
+              <span class="tt-import-icon" aria-hidden="true"
+                ><i class="ph ph-calendar-dots"></i
+              ></span>
+              <div class="tt-import-copy">
+                <div class="tt-import-title" id="tt-import-title">
+                  Import your timetable
+                </div>
+                <div class="tt-import-sub" id="tt-import-sub">
+                  Upload your Sentral .ics export to build your Week A / Week B
+                  timetable and the dashboard's Today view.
+                </div>
+              </div>
+            </div>
             <div id="timetable-import-controls">
               <div class="timetable-import-row">
                 <div class="field timetable-file-field">
@@ -523,6 +600,9 @@
                         aria-hidden="true"
                       ></i>
                       Timetable
+                      <span class="v2-only tt-upload-label" id="tt-upload-label"
+                        >Upload .ics</span
+                      >
                     </label>
                     <span class="timetable-file-note"
                       >Sentral export (.ics)</span
@@ -570,6 +650,7 @@
               <div>
                 <div class="section-eyebrow">Weekly view</div>
                 <h3 class="section-title" id="timetable-week-title">Week A</h3>
+                <span class="tt-week-badge v2-only" id="tt-week-badge"></span>
                 <div
                   class="timetable-week-range"
                   id="timetable-week-range"
@@ -601,7 +682,26 @@
                   Swap A/B
                 </button>
               </div>
+              <button
+                class="ghost-button ghost-button--small with-icon tt-swap-button v2-only"
+                type="button"
+                id="tt-swap-weeks"
+                title="Swap which weeks are Week A and Week B"
+                hidden
+              >
+                <i
+                  class="ph ph-arrows-left-right button-icon"
+                  aria-hidden="true"
+                ></i>
+                Swap A/B
+              </button>
             </div>
+            <div
+              class="tt-day-tabs v2-only"
+              id="tt-day-tabs"
+              role="tablist"
+              aria-label="Day"
+            ></div>
             <div class="timetable-week-grid-wrap">
               <div class="timetable-week-grid" id="timetable-week-grid"></div>
             </div>
@@ -610,6 +710,15 @@
           <section class="card timetable-map-card glow-soft">
             <div class="section-eyebrow">Subject linking</div>
             <h3 class="section-title">Class to subject assignments</h3>
+            <div class="tt-map-head v2-only">
+              <div>
+                <h3 class="section-title tt-map-title">
+                  Classes
+                  <span class="tt-map-summary" id="tt-map-summary"></span>
+                </h3>
+                <p class="tt-map-hint">Link each class to a subject so its lessons use that subject's colour and icon.</p>
+              </div>
+            </div>
             <p class="muted">
               Classes are auto-linked on import. Click a class card to link it
               or set a custom name, color, and icon.
@@ -625,6 +734,8 @@
                 <div class="section-eyebrow">Leaderboard</div>
                 <h2 class="section-title">Shared Marks</h2>
                 <p class="muted">See how you compare with your friends.</p>
+                <h2 class="lb-v2-title v2-only">Leaderboard</h2>
+                <p class="lb-v2-desc v2-only">See how your averages compare with friends who share their marks. You choose what's shared in Privacy.</p>
               </div>
               <div class="leaderboard-filters">
                 <label class="lb-toggle" title="Automatically share new and edited marks">
@@ -645,6 +756,7 @@
                 </label>
               </div>
             </div>
+            <div class="lb-summary v2-only" id="leaderboard-summary" aria-label="Your standing" hidden></div>
             <div class="leaderboard-list" id="leaderboard-list">
               <div class="empty-state">Loading leaderboard...</div>
             </div>
@@ -882,6 +994,9 @@
             </button>
           </div>
           <div class="form-actions" style="margin-top: 1rem;">
+            <button class="ghost-button v2-only" type="button" data-action="close-assessment">
+              Cancel
+            </button>
             <button class="primary-button" type="submit">
               Save Assessment
             </button>
@@ -967,6 +1082,9 @@
             <input name="upcomingNotes" placeholder="e.g. Chapter 6 and 7" />
           </label>
           <div class="form-actions">
+            <button class="ghost-button v2-only" type="button" data-action="close-upcoming">
+              Cancel
+            </button>
             <button class="primary-button" id="upcoming-submit" type="submit">
               Save Upcoming
             </button>
@@ -1561,7 +1679,7 @@
         </div>
         <div class="modal-body privacy-body">
           <section class="privacy-section">
-            <div class="history-title">Subjects to share</div>
+            <div class="history-title">Subjects to share<span class="lb-privacy-count v2-only" id="leaderboard-privacy-count"></span></div>
             <div class="privacy-subjects" id="leaderboard-privacy-subjects"></div>
             <div class="muted privacy-note" id="leaderboard-privacy-new-note" hidden>
               New subjects aren't shared until you tick them.
@@ -1588,6 +1706,10 @@
             knows your old average and you add one new mark, they can still roughly estimate it.
           </p>
           <div class="form-actions">
+            <div class="lb-danger-text v2-only">
+              <strong>Unshare everything</strong>
+              <span>Removes all your entries from the leaderboard and turns off auto-sharing. Your marks stay saved in Sapphire.</span>
+            </div>
             <button class="delete-button with-icon" type="button" data-action="leaderboard-unshare-all">
               <i class="ph ph-eye-slash button-icon" aria-hidden="true"></i>
               Unshare everything
@@ -2069,6 +2191,13 @@
             ></textarea>
           </label>
           <div class="form-actions">
+            <button
+              class="ghost-button v2-only"
+              type="button"
+              data-action="close-onboarding-import"
+            >
+              Cancel
+            </button>
             <button
               class="primary-button with-icon"
               type="button"

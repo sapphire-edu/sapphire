@@ -502,6 +502,8 @@ const calendarState = {
   year: new Date().getFullYear(),
   month: new Date().getMonth(),
   filter: 'both',
+  // V2 only: the day shown in the agenda panel (YYYY-MM-DD).
+  selected: null,
 };
 
 let activeSubjectId = null;
@@ -1739,10 +1741,31 @@ if (elements.upcomingList) {
 if (elements.calendarGrid) {
   elements.calendarGrid.addEventListener('click', (event) => {
     const actionTarget = event.target.closest('[data-action="edit-upcoming"]');
-    if (!actionTarget) return;
+    if (!actionTarget) {
+      // V2: clicking a day (or its "+N more" / a logged mark) selects it for the agenda panel.
+      const dayTarget = isUiV2() ? event.target.closest('[data-calendar-date]') : null;
+      if (dayTarget) selectCalendarDay(dayTarget.dataset.calendarDate);
+      return;
+    }
     const subjectId = actionTarget.dataset.subjectId;
     const upcomingId = actionTarget.dataset.upcomingId;
+    if (isUiV2() && actionTarget.dataset.calendarDate) {
+      calendarState.selected = actionTarget.dataset.calendarDate;
+      renderCalendar();
+    }
     openUpcomingEditor(subjectId, upcomingId);
+  });
+  // V2: arrow keys move the selected day while a day number has focus.
+  elements.calendarGrid.addEventListener('keydown', (event) => {
+    if (!isUiV2()) return;
+    const dayButton = event.target.closest('.calendar-v2-day');
+    if (!dayButton) return;
+    const steps = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 };
+    if (!(event.key in steps)) return;
+    event.preventDefault();
+    const [y, m, d] = dayButton.dataset.calendarDate.split('-').map(Number);
+    const next = new Date(y, m - 1, d + steps[event.key]);
+    selectCalendarDay(dateKeyFromParts(next.getFullYear(), next.getMonth(), next.getDate()), { focus: true });
   });
 }
 
@@ -1776,6 +1799,38 @@ if (elements.calendarNext) {
       calendarState.year += 1;
     }
     renderCalendar();
+  });
+}
+
+// V2 calendar: Today button, Add button and the selected-day agenda panel.
+const calendarTodayButton = document.getElementById('calendar-today');
+const calendarAddButton = document.getElementById('calendar-add');
+const calendarAgenda = document.getElementById('calendar-agenda');
+
+if (calendarTodayButton) {
+  calendarTodayButton.addEventListener('click', () => selectCalendarDay(today));
+}
+
+if (calendarAddButton) {
+  calendarAddButton.addEventListener('click', () => {
+    const selected = calendarState.selected;
+    openCalendarAddUpcoming(selected && dateStringValue(selected) >= todayValue ? selected : today);
+  });
+}
+
+if (calendarAgenda) {
+  calendarAgenda.addEventListener('click', (event) => {
+    const actionTarget = event.target.closest('[data-action]');
+    if (actionTarget) {
+      const { action, subjectId, upcomingId } = actionTarget.dataset;
+      if (action === 'edit-upcoming') openUpcomingEditor(subjectId, upcomingId);
+      if (action === 'complete-upcoming') openAssessmentForUpcoming(subjectId, upcomingId);
+      if (action === 'calendar-open-subject') openSubjectModal(subjectId);
+      if (action === 'calendar-add-on-day') openCalendarAddUpcoming(actionTarget.dataset.calendarDate);
+      return;
+    }
+    const dayTarget = event.target.closest('[data-calendar-date]');
+    if (dayTarget) selectCalendarDay(dayTarget.dataset.calendarDate);
   });
 }
 
@@ -2922,6 +2977,12 @@ function renderLeaderboardPrivacyModal() {
           .join('')
       : '<div class="empty-state">No subjects yet.</div>';
   }
+  const privacyCount = document.getElementById('leaderboard-privacy-count');
+  if (privacyCount) {
+    const total = state.data.subjects.length;
+    const shared = state.data.subjects.filter((subject) => isSubjectShareable(subject.id)).length;
+    privacyCount.textContent = total ? `${shared} of ${total} shared` : '';
+  }
   if (elements.leaderboardPrivacyNewNote) {
     elements.leaderboardPrivacyNewNote.hidden = privacy.subjectIds === null;
   }
@@ -3184,7 +3245,8 @@ function updateLeaderboardRanks(filter, users) {
 
 function leaderboardMovementHtml(movement) {
   if (movement === 'new') return '<span class="lb-move lb-move--new">New</span>';
-  if (!movement) return '';
+  // V2 keeps the column lined up with a dash; V1 shows nothing.
+  if (!movement) return '<span class="lb-move lb-move--none v2-only" title="No change since you last looked">–</span>';
   const up = movement > 0;
   return `<span class="lb-move lb-move--${up ? 'up' : 'down'}" title="${up ? 'Up' : 'Down'} ${Math.abs(movement)} since you last looked"><i class="ph ph-bold ph-caret-${up ? 'up' : 'down'}"></i>${Math.abs(movement)}</span>`;
 }
@@ -3197,9 +3259,30 @@ function leaderboardAverage(docs) {
 function renderLeaderboardView(docs) {
   if (!elements.leaderboardList) return;
   leaderboardDocs = docs;
+  const summaryEl = document.getElementById('leaderboard-summary');
+  const clearSummary = () => {
+    if (!summaryEl) return;
+    summaryEl.hidden = true;
+    summaryEl.innerHTML = '';
+  };
+  // V1 shows only the plain text; V2 adds an icon, a title and a hint.
+  const emptyHtml = (icon, title, hint, v1Text) => `
+    <div class="empty-state lb-empty">
+      <span class="lb-empty-icon v2-only" aria-hidden="true"><i class="ph ${icon}"></i></span>
+      <strong class="lb-empty-title v2-only">${title}</strong>
+      <span class="lb-empty-hint v2-only">${hint}</span>
+      <span class="lb-empty-v1">${v1Text}</span>
+    </div>
+  `;
 
   if (docs.length === 0) {
-    elements.leaderboardList.innerHTML = '<div class="empty-state">No shared marks yet. Be the first to share!</div>';
+    clearSummary();
+    elements.leaderboardList.innerHTML = emptyHtml(
+      'ph-trophy',
+      'No shared marks yet',
+      'Share a mark from a subject, or turn on “Keep everything shared”, and you’ll show up here for your friends.',
+      'No shared marks yet. Be the first to share!'
+    );
     return;
   }
 
@@ -3220,7 +3303,13 @@ function renderLeaderboardView(docs) {
     : docs.filter(d => d.subjectName === selectedSubject);
 
   if (filteredDocs.length === 0) {
-    elements.leaderboardList.innerHTML = '<div class="empty-state">No marks shared for this subject.</div>';
+    clearSummary();
+    elements.leaderboardList.innerHTML = emptyHtml(
+      'ph-books',
+      'Nothing shared here yet',
+      'Nobody has shared marks for this filter. Try another subject or “All Subjects”.',
+      'No marks shared for this subject.'
+    );
     return;
   }
 
@@ -3258,8 +3347,61 @@ function renderLeaderboardView(docs) {
   updateLeaderboardRanks(selectedSubject, users);
 
   const isCurrentUser = (uid) => appwriteState.user?.$id === uid;
+  const avatarInitials = (name) => {
+    const base = String(name || '').trim();
+    return base ? escapeHtml(initials(base)) : '?';
+  };
+  // V2-only extras sit alongside the V1 markup (hidden in V1 by .v2-only).
+  const v2RankHtml = (rank) => rank <= 3
+    ? `<span class="lb-medal v2-only" data-place="${rank}" title="${rank === 1 ? '1st' : rank === 2 ? '2nd' : '3rd'}"><i class="ph ${rank === 1 ? 'ph-trophy' : 'ph-medal'}" aria-hidden="true"></i></span>`
+    : `<span class="lb-rank-v2 v2-only">${rank}</span>`;
 
-  elements.leaderboardList.innerHTML = users.map((user) => {
+  if (summaryEl) {
+    const me = users.find((u) => isCurrentUser(u.userId));
+    const leaders = users.filter((u) => u.rank === 1);
+    const top = users[0];
+    const filterLabel = selectedSubject === 'all' ? 'All subjects'
+      : selectedSubject === 'core' ? 'Main 6 subjects'
+      : selectedSubject;
+    const meGrade = me ? getLetterGrade(me.average) : null;
+    const gap = me && top ? top.average - me.average : 0;
+    const meMove = me && typeof me.movement === 'number' && me.movement !== 0
+      ? `<span class="lb-move lb-move--${me.movement > 0 ? 'up' : 'down'}"><i class="ph ph-caret-${me.movement > 0 ? 'up' : 'down'}" aria-hidden="true"></i>${Math.abs(me.movement)}</span> since you last looked`
+      : me?.movement === 'new' ? 'New on this board' : 'No change since you last looked';
+    const cell = (label, value, sub) => `
+      <div class="lb-stat">
+        <div class="lb-stat-label">${label}</div>
+        <div class="lb-stat-value">${value}</div>
+        <div class="lb-stat-sub">${sub}</div>
+      </div>
+    `;
+    summaryEl.innerHTML = [
+      cell('Your rank',
+        me ? `#${me.rank}<span class="lb-stat-of"> of ${users.length}</span>` : '—',
+        me ? meMove : 'Share a mark to join'),
+      cell('Your average',
+        me ? `${me.average.toFixed(1)}%${meGrade ? ` <span class="v2-grade" data-grade="${meGrade[0]}">${meGrade}</span>` : ''}` : '—',
+        !me ? 'Not on this board yet' : me.rank === 1 ? 'Top of the board' : `${gap.toFixed(1)}% behind #1`),
+      cell('Top average',
+        `${top.average.toFixed(1)}%`,
+        escapeHtml(leaders.length > 1 ? `${leaders.length} tied for #1` : top.userName || 'Anonymous')),
+      cell('Sharing',
+        `${users.length}<span class="lb-stat-of"> ${users.length === 1 ? 'person' : 'people'}</span>`,
+        escapeHtml(filterLabel)),
+    ].join('');
+    summaryEl.hidden = false;
+  }
+
+  const v2HeadHtml = `
+    <div class="lb-head v2-only" aria-hidden="true">
+      <span>Rank</span>
+      <span class="lb-head-student">Student</span>
+      <span class="lb-head-grade">Grade</span>
+      <span class="lb-head-average">Average</span>
+    </div>
+  `;
+
+  elements.leaderboardList.innerHTML = v2HeadHtml + users.map((user) => {
     const rank = user.rank;
     const rankIcon = rank === 1 ? '<i class="ph ph-fill ph-trophy" style="color: #f6b96e; font-size: 20px;"></i>'
       : rank === 2 ? '<i class="ph ph-fill ph-medal" style="color: #a8b4c4; font-size: 20px;"></i>'
@@ -3268,6 +3410,7 @@ function renderLeaderboardView(docs) {
     const subjectCount = Object.keys(user.subjectGroups).length;
     const assessmentCount = user.assessments.filter((a) => !isLeaderboardSummaryDoc(a)).length;
     const highlight = isCurrentUser(user.userId) ? ' leaderboard-entry--you' : '';
+    const grade = getLetterGrade(user.average);
 
     // Build meta text based on filter
     const isFiltered = selectedSubject !== 'all' && selectedSubject !== 'core';
@@ -3281,15 +3424,18 @@ function renderLeaderboardView(docs) {
     return `
       <div class="leaderboard-entry${highlight}" data-user-id="${escapeHtml(user.userId)}" data-action="open-lb-popup">
         <div class="leaderboard-entry-summary" style="cursor: pointer;">
-          <div class="lb-rank">${rankIcon}</div>
+          <div class="lb-rank">${rankIcon}${v2RankHtml(rank)}</div>
+          <span class="lb-avatar v2-only" aria-hidden="true">${avatarInitials(user.userName)}</span>
           <div class="lb-info">
             <div class="lb-name">${escapeHtml(user.userName)}${isCurrentUser(user.userId) ? ' <span class="badge" style="font-size: 0.7rem;">You</span>' : ''}</div>
             <div class="lb-meta muted">${metaText}</div>
           </div>
+          <span class="lb-grade v2-only">${grade ? `<span class="v2-grade" data-grade="${grade[0]}">${grade}</span>` : '—'}</span>
           <div class="lb-score">
             <div class="lb-average">${user.average.toFixed(1)}%</div>
             ${leaderboardMovementHtml(user.movement)}
           </div>
+          <i class="ph ph-caret-right lb-chevron v2-only" aria-hidden="true"></i>
         </div>
       </div>
     `;
@@ -3360,6 +3506,82 @@ function openLeaderboardPopup(userData) {
 
   const header = popup.querySelector('#lb-popup-header');
   const body = popup.querySelector('#lb-popup-body');
+
+  if (isUiV2()) {
+    const isYou = appwriteState.user?.$id === userData.userId;
+    const name = String(userData.userName || '').trim();
+    const grade = getLetterGrade(userData.average);
+    const rank = userData.rank;
+    const rankIcon = rank === 1 ? 'ph-trophy' : rank <= 3 ? 'ph-medal' : '';
+    const gradeHtml = (letter) => (letter ? `<span class="v2-grade" data-grade="${letter[0]}">${letter}</span>` : '');
+    const subjectsHtml = Object.entries(userData.subjectGroups).map(([subName, assessments]) => {
+      const subAvg = leaderboardAverage(assessments);
+      // Same rules as V1: averages-only entries have no rows; hidden raw marks show just the %.
+      const items = assessments.filter((a) => !isLeaderboardSummaryDoc(a));
+      const rows = items.map((a) => {
+        const rawHidden = a.total === 100 && a.score === Math.round(a.percent) && Number.isInteger(a.percent);
+        return `
+          <div class="lb-pop-row">
+            <span class="lb-pop-row-name">${escapeHtml(a.assessmentName || 'Assessment')}</span>
+            <span class="lb-pop-row-raw">${rawHidden ? '' : `${a.score} / ${a.total}`}</span>
+            <span class="lb-pop-row-pct">${rawHidden ? a.percent : a.percent.toFixed(1)}%</span>
+          </div>
+        `;
+      }).join('');
+      const countLabel = items.length
+        ? `${items.length} assessment${items.length !== 1 ? 's' : ''}`
+        : 'Average only';
+      return `
+        <section class="lb-pop-subject">
+          <div class="lb-pop-subject-head">
+            <div class="lb-pop-subject-title">
+              <span class="lb-pop-subject-name">${escapeHtml(subName)}</span>
+              <span class="lb-pop-subject-count">${countLabel}</span>
+            </div>
+            <div class="lb-pop-subject-avg">${gradeHtml(getLetterGrade(subAvg))}<span>${subAvg.toFixed(1)}%</span></div>
+          </div>
+          <div class="lb-pop-bar" aria-hidden="true"><span style="width:${Math.max(0, Math.min(100, subAvg)).toFixed(1)}%"></span></div>
+          ${rows
+            ? `<div class="lb-pop-rows">${rows}</div>`
+            : '<div class="lb-pop-summary-note"><i class="ph ph-lock" aria-hidden="true"></i>Shared as a rounded average only</div>'}
+        </section>
+      `;
+    }).join('');
+
+    header.innerHTML = `
+      <div class="lb-pop-id">
+        <span class="lb-avatar lb-avatar--lg${isYou ? ' is-you' : ''}" aria-hidden="true">${name ? escapeHtml(initials(name)) : '?'}</span>
+        <div>
+          <h2 class="section-title">${escapeHtml(userData.userName)}${isYou ? ' <span class="badge lb-you-badge">You</span>' : ''}</h2>
+          <div class="modal-meta">${subjectCount} subject${subjectCount !== 1 ? 's' : ''}${countText}</div>
+        </div>
+      </div>
+      <button class="icon-button" type="button" data-action="close-lb-popup" aria-label="Close">
+        <i class="ph ph-x" aria-hidden="true"></i>
+      </button>
+    `;
+
+    body.innerHTML = `
+      <div class="lb-pop-stats">
+        <div class="lb-stat">
+          <div class="lb-stat-label">Rank</div>
+          <div class="lb-stat-value">${rankIcon ? `<span class="lb-medal" data-place="${rank}"><i class="ph ${rankIcon}" aria-hidden="true"></i></span>` : ''}#${rank}</div>
+        </div>
+        <div class="lb-stat">
+          <div class="lb-stat-label">Average</div>
+          <div class="lb-stat-value">${userData.average.toFixed(1)}%</div>
+        </div>
+        <div class="lb-stat">
+          <div class="lb-stat-label">Grade</div>
+          <div class="lb-stat-value">${gradeHtml(grade) || '—'}</div>
+        </div>
+      </div>
+      <div class="lb-pop-subjects">${subjectsHtml}</div>
+    `;
+
+    openModal(popup);
+    return;
+  }
 
   header.innerHTML = `
     <div>
@@ -5285,6 +5507,14 @@ function updateTimetableClassModalState() {
   if (elements.timetableClassName) {
     elements.timetableClassName.disabled = isLinked;
   }
+  if (isUiV2()) {
+    // V2: header meta follows the subject picker.
+    if (elements.timetableClassMeta) {
+      elements.timetableClassMeta.textContent = linkedSubject
+        ? `Linked to ${linkedSubject.name}`
+        : 'Not linked · custom style';
+    }
+  }
   if (elements.timetableClassCustomize) {
     elements.timetableClassCustomize.classList.toggle('is-locked', isLinked);
   }
@@ -6337,7 +6567,322 @@ function renderV2Stats({ overallAverage, overallGrade, assessmentCount, topSubje
   ].join('');
 }
 
+// ── V2 Analytics page ──
+// V2 reuses the analytics canvases, table and search from V1 and fills extra v2-only
+// containers (stat strip, subject breakdown). State lives in storage/DOM rather than
+// top-level variables because render() runs before this part of the file is evaluated.
+
+function getAnalyticsRange() {
+  const value = safeGetItem('sapphire-analytics-range');
+  return ['30', '90', 'all'].includes(value) ? value : 'all';
+}
+
+function analyticsRangeCutoff(range) {
+  if (range === 'all') return null;
+  const now = new Date();
+  return Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) - Number(range) * 86400000;
+}
+
+function bindAnalyticsV2Controls() {
+  const rangeGroup = document.getElementById('analytics-range');
+  if (rangeGroup && !rangeGroup.dataset.bound) {
+    rangeGroup.dataset.bound = 'true';
+    rangeGroup.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-analytics-range]');
+      if (!button) return;
+      safeSetItem('sapphire-analytics-range', button.dataset.analyticsRange);
+      hideChartTooltip();
+      renderOverallChart();
+    });
+  }
+  [document.getElementById('analytics-subjects'), elements.insightList].forEach((container) => {
+    if (!container || container.dataset.openBound) return;
+    container.dataset.openBound = 'true';
+    container.addEventListener('click', (event) => {
+      const row = event.target.closest('[data-action="open-subject"]');
+      if (row) openSubjectModal(row.dataset.id);
+    });
+  });
+}
+
+function v2DeltaHtml(delta) {
+  if (!Number.isFinite(delta)) return '';
+  const dir = Math.abs(delta) < 0.05 ? 'flat' : delta > 0 ? 'up' : 'down';
+  const icon = dir === 'up' ? 'trend-up' : dir === 'down' ? 'trend-down' : 'minus';
+  const text = dir === 'flat' ? '0.0' : `${delta > 0 ? '+' : '−'}${Math.abs(delta).toFixed(1)}`;
+  return `<span class="v2-an-delta" data-dir="${dir}">${iconHtml(icon, 'v2-an-delta-icon')}${text}</span>`;
+}
+
+function v2GradeBadge(grade, extraClass = '') {
+  return `<span class="v2-grade${extraClass}" data-grade="${(grade || '-')[0]}">${grade ?? '—'}</span>`;
+}
+
+function buildAnalyticsSubjectRowV2(subject) {
+  const stats = subjectStats(subject);
+  const count = subject.assessments.length;
+  const sorted = sortAssessments(subject.assessments);
+  const latest = sorted[sorted.length - 1];
+  const previousAverage = sorted.length > 1 ? weightedAverage(sorted.slice(0, -1)) : null;
+  const delta = stats.average !== null && previousAverage !== null ? stats.average - previousAverage : null;
+  const average = stats.average === null ? 0 : clamp(stats.average, 0, 100);
+  const hasTarget = Number.isFinite(subject.target);
+  const metaParts = [`${count} mark${count === 1 ? '' : 's'}`];
+  if (latest) metaParts.push(`last ${formatDate(latest.date)}`);
+
+  let targetText = 'No target set';
+  let targetClass = '';
+  if (hasTarget) {
+    const targetLabel = `${formatPercentValue(subject.target)}%`;
+    if (stats.average === null) {
+      targetText = `Target ${targetLabel}`;
+    } else if (stats.average >= subject.target) {
+      targetText = `On target · ${targetLabel}`;
+      targetClass = ' is-met';
+    } else {
+      const required = requiredForTarget(subject);
+      targetClass = ' is-below';
+      targetText = !required || required.needed > 100
+        ? `${targetLabel} out of reach for now`
+        : `Need ${Math.ceil(required.needed)}%${required.pending.length > 1 ? ' avg' : ''} next to hit ${targetLabel}`;
+    }
+  }
+
+  return `
+    <button class="v2-an-subject" type="button" data-action="open-subject" data-id="${subject.id}" style="--subject-color:${subject.color}">
+      <span class="v2-subject-icon">${subjectIconHtml(resolveSubjectIcon(subject.icon, subject.name))}</span>
+      <span class="v2-subject-main">
+        <span class="v2-subject-name">${escapeHtml(subject.name)}</span>
+        <span class="v2-subject-meta">${metaParts.join(' · ')}</span>
+      </span>
+      <span class="v2-an-spark" aria-hidden="true"><canvas data-chart="v2-spark" data-id="${subject.id}"></canvas></span>
+      <span class="v2-an-target${hasTarget ? '' : ' is-empty'}">
+        <span class="v2-subject-progress" aria-hidden="true">
+          <span class="v2-subject-fill" style="width:${average}%"></span>
+          ${hasTarget ? `<span class="v2-subject-marker" style="left:${clamp(subject.target, 0, 100)}%"></span>` : ''}
+        </span>
+        <span class="v2-an-target-text${targetClass}">${targetText}</span>
+      </span>
+      <span class="v2-an-average">
+        <span class="v2-an-average-value">${stats.average === null ? '—' : `${stats.average.toFixed(1)}%`}</span>
+        ${v2DeltaHtml(delta)}
+      </span>
+      ${v2GradeBadge(stats.grade)}
+    </button>
+  `;
+}
+
+function renderAnalyticsV2() {
+  bindAnalyticsV2Controls();
+  const allAssessments = getAllAssessments();
+  const sorted = sortAssessments(allAssessments);
+  const timeline = buildOverallTimelinePoints(sorted);
+  const overallAverage = weightedAverage(allAssessments);
+  const overallGrade = getLetterGrade(overallAverage);
+  const lastChange = timeline.length > 1
+    ? timeline[timeline.length - 1].value - timeline[timeline.length - 2].value
+    : null;
+  const ranked = state.data.subjects
+    .map((subject) => ({ subject, stats: subjectStats(subject) }))
+    .filter((entry) => entry.stats.average !== null)
+    .sort((left, right) => right.stats.average - left.stats.average);
+  const best = ranked[0] || null;
+  const worst = ranked.length > 1 ? ranked[ranked.length - 1] : null;
+  const withTarget = state.data.subjects.filter((subject) => Number.isFinite(subject.target));
+  const targetsMet = withTarget.filter((subject) => {
+    const average = subjectStats(subject).average;
+    return average !== null && average >= subject.target;
+  }).length;
+
+  const statsContainer = document.getElementById('analytics-stats');
+  if (statsContainer) {
+    const tile = (label, value, sub, extraClass = '') => `
+      <div class="v2-stat${extraClass}">
+        <div class="v2-stat-label">${label}</div>
+        <div class="v2-stat-value">${value}</div>
+        <div class="v2-stat-sub">${sub}</div>
+      </div>
+    `;
+    const subjectTile = (label, entry, empty) => tile(
+      label,
+      entry ? `<span class="v2-an-stat-dot" style="--subject-color:${entry.subject.color}"></span>${escapeHtml(entry.subject.name)}` : '—',
+      entry ? `${entry.stats.average.toFixed(1)}% · ${entry.stats.grade}` : empty,
+      ' v2-stat--text'
+    );
+    const cutoff = analyticsRangeCutoff('30');
+    const recentCount = sorted.filter((item) => assessmentDateValue(item) >= cutoff).length;
+    const below = withTarget.length - targetsMet;
+    statsContainer.innerHTML = [
+      tile(
+        'Overall average',
+        overallAverage === null
+          ? '—'
+          : `${overallAverage.toFixed(1)}<span class="v2-stat-unit">%</span>${v2GradeBadge(overallGrade, ' v2-an-stat-grade')}`,
+        overallAverage === null
+          ? 'Add your first mark to begin'
+          : lastChange === null
+          ? `From ${allAssessments.length} assessment${allAssessments.length === 1 ? '' : 's'}`
+          : `${v2DeltaHtml(lastChange)} since last mark`
+      ),
+      subjectTile('Strongest subject', best, 'No marks yet'),
+      subjectTile('Needs focus', worst, ranked.length === 1 ? 'Add marks in another subject' : 'No marks yet'),
+      withTarget.length
+        ? tile(
+            'Targets met',
+            `${targetsMet}<span class="v2-stat-unit">&nbsp;/ ${withTarget.length}</span>`,
+            below === 0 ? 'Every target is on track' : `${below} subject${below === 1 ? '' : 's'} below target`
+          )
+        : tile(
+            'Assessments',
+            String(allAssessments.length),
+            `${recentCount} in the last 30 days`
+          ),
+    ].join('');
+  }
+
+  if (elements.insightList) {
+    const recent = sorted.slice(-6).reverse();
+    elements.insightList.innerHTML = recent.length
+      ? recent
+          .map((assessment) => {
+            const percent = assessment.total > 0 ? (assessment.score / assessment.total) * 100 : 0;
+            return `
+              <button class="v2-an-recent" type="button" data-action="open-subject" data-id="${assessment.subjectId}" style="--subject-color:${assessment.subjectColor}">
+                <span class="v2-an-dot" aria-hidden="true"></span>
+                <span class="v2-an-recent-main">
+                  <span class="v2-an-recent-name">${escapeHtml(assessment.name)}</span>
+                  <span class="v2-an-recent-meta">${escapeHtml(assessment.subjectName)} · ${formatDate(assessment.date)}</span>
+                </span>
+                <span class="v2-an-recent-percent">${percent.toFixed(1)}%</span>
+                ${v2GradeBadge(getLetterGrade(percent))}
+              </button>
+            `;
+          })
+          .join('')
+      : '<div class="empty-state">No marks yet. Your latest results will show up here.</div>';
+  }
+
+  renderAnalyticsGradesV2(allAssessments);
+
+  const subjectsContainer = document.getElementById('analytics-subjects');
+  if (subjectsContainer) {
+    if (!state.data.subjects.length) {
+      subjectsContainer.innerHTML = '<div class="empty-state">No subjects yet. Add a subject to start tracking results.</div>';
+    } else {
+      const ordered = state.data.subjects
+        .map((subject, index) => ({ subject, index, average: subjectStats(subject).average }))
+        .sort((left, right) => compareNullableNumbers(left.average, right.average, 'desc') || left.index - right.index);
+      subjectsContainer.innerHTML = ordered.map((entry) => buildAnalyticsSubjectRowV2(entry.subject)).join('');
+    }
+  }
+}
+
+// Grade breakdown: how many marks landed in each grade, A+ down to E. Clicking a
+// column filters the All assessments table below to that grade; clicking it again
+// clears the filter. The choice is kept on the container (render() runs before
+// top-level state this far down is initialised).
+function getAnalyticsGradeFilter() {
+  return document.getElementById('analytics-grades')?.dataset.selectedGrade || '';
+}
+
+function setAnalyticsGradeFilter(grade) {
+  const container = document.getElementById('analytics-grades');
+  if (!container) return;
+  container.dataset.selectedGrade = grade;
+  renderAnalyticsGradesV2(getAllAssessments());
+  renderAssessments();
+  if (!grade) return;
+  const table = document.querySelector('.assessment-card');
+  const rect = table?.getBoundingClientRect();
+  if (rect && (rect.top > window.innerHeight - 120 || rect.top < 0)) {
+    table.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+function renderAnalyticsGradesV2(allAssessments) {
+  const gradeOrder = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+', 'D', 'D-', 'E'];
+  const container = document.getElementById('analytics-grades');
+  const summary = document.getElementById('analytics-grades-summary');
+  if (!container) return;
+  bindAnalyticsGradesV2(container);
+
+  const counts = new Map(gradeOrder.map((grade) => [grade, 0]));
+  allAssessments
+    .filter((assessment) => assessment.total > 0)
+    .forEach((assessment) => {
+      const grade = getLetterGrade((assessment.score / assessment.total) * 100);
+      counts.set(grade, counts.get(grade) + 1);
+    });
+  const total = [...counts.values()].reduce((sum, count) => sum + count, 0);
+
+  if (!total) {
+    container.dataset.selectedGrade = '';
+    container.classList.remove('has-selection');
+    container.innerHTML = '<div class="empty-state">No marks yet. Your grade breakdown will show up here.</div>';
+    if (summary) summary.textContent = 'How many of your marks landed in each grade.';
+    return;
+  }
+
+  let selected = container.dataset.selectedGrade || '';
+  if (selected && !counts.get(selected)) selected = '';
+  container.dataset.selectedGrade = selected;
+  container.classList.toggle('has-selection', Boolean(selected));
+
+  const max = Math.max(...counts.values());
+  container.innerHTML = gradeOrder.map((grade, index) => {
+    const count = counts.get(grade);
+    const height = count ? Math.max(8, (count / max) * 100) : 0;
+    const bandStart = index > 0 && grade[0] !== gradeOrder[index - 1][0];
+    return `
+      <button class="an-grade-col${count ? '' : ' is-empty'}${bandStart ? ' is-band-start' : ''}${grade === selected ? ' is-selected' : ''}"
+        type="button" data-grade="${grade[0]}" data-grade-value="${grade}" ${count ? '' : 'disabled'}
+        aria-pressed="${grade === selected}" aria-label="${grade}: ${count} mark${count === 1 ? '' : 's'}${count ? ' — show them in the table' : ''}">
+        <span class="an-grade-count">${count || ''}</span>
+        <span class="an-grade-track"><span class="an-grade-bar" style="height:${height}%"></span></span>
+        <span class="an-grade-label">${grade}</span>
+      </button>
+    `;
+  }).join('');
+
+  if (summary) {
+    const [topGrade, topCount] = [...counts.entries()].reduce((best, entry) => (entry[1] > best[1] ? entry : best));
+    const aRange = ['A+', 'A', 'A-'].reduce((sum, grade) => sum + counts.get(grade), 0);
+    summary.textContent = `Most common: ${topGrade} (${topCount} of ${total} marks) · ${Math.round((aRange / total) * 100)}% in the A range. Click a grade to filter the table below.`;
+  }
+}
+
+function bindAnalyticsGradesV2(container) {
+  if (container.dataset.bound) return;
+  container.dataset.bound = 'true';
+  container.addEventListener('click', (event) => {
+    const column = event.target.closest('[data-grade-value]');
+    if (!column || column.disabled) return;
+    const grade = column.dataset.gradeValue;
+    setAnalyticsGradeFilter(getAnalyticsGradeFilter() === grade ? '' : grade);
+  });
+  document.getElementById('analytics-grade-filter')?.addEventListener('click', () => setAnalyticsGradeFilter(''));
+}
+
+function renderAnalyticsSparklines() {
+  if (!isUiV2()) return;
+  document.querySelectorAll('canvas[data-chart="v2-spark"]').forEach((canvas) => {
+    const subject = state.data.subjects.find((item) => item.id === canvas.dataset.id);
+    if (!subject) return;
+    // Spaced one step per mark rather than by date, so the shape reads as a trend.
+    const points = buildSubjectTimelinePoints(subject.assessments).map(({ value, label }) => ({ value, label }));
+    drawLineChart(canvas, points, {
+      stroke: subject.color,
+      showAxis: false,
+      v2: true,
+      compact: true,
+    });
+  });
+}
+
 function renderInsights() {
+  if (isUiV2()) {
+    renderAnalyticsV2();
+    return;
+  }
   if (!elements.insightList) return;
   const allAssessments = getAllAssessments();
   const overallAverage = weightedAverage(allAssessments);
@@ -6585,6 +7130,38 @@ function renderShareAllButton() {
     : `<i class="ph ph-share-network"></i>Share all (${unshared})`;
 }
 
+// One table row in V2: subject dot, tabular numbers, a grade badge and icon-only actions.
+// Keeps the same data-action buttons as V1 so the table's click handler works unchanged.
+function buildAssessmentRowV2(row) {
+  const { assessment, percent, grade } = row;
+  const ids = `data-subject-id="${assessment.subjectId}" data-assessment-id="${assessment.id}"`;
+  const shared = Boolean(assessment.leaderboardDocId);
+  const name = escapeHtml(assessment.name);
+  return `
+    <tr class="v2-an-row">
+      <td class="v2-an-cell-subject">
+        <span class="v2-an-subject-cell" style="--subject-color:${assessment.subjectColor}">
+          <span class="v2-an-dot" aria-hidden="true"></span>
+          <span class="v2-an-subject-name">${escapeHtml(assessment.subjectName)}</span>
+        </span>
+      </td>
+      <td class="v2-an-cell-name">${name}</td>
+      <td class="v2-an-num v2-an-cell-score">${assessment.score}<span class="v2-an-of"> / ${assessment.total}</span></td>
+      <td class="v2-an-num v2-an-cell-weight">${assessment.weight ?? '<span class="v2-an-none">—</span>'}</td>
+      <td class="v2-an-num v2-an-cell-percent">${percent.toFixed(1)}%</td>
+      <td class="v2-an-cell-grade">${v2GradeBadge(grade)}</td>
+      <td class="v2-an-cell-date">${formatDate(assessment.date)}</td>
+      <td class="v2-an-cell-actions">
+        <div class="v2-an-actions">
+          <button class="icon-button" type="button" data-action="edit-assessment" ${ids} title="Edit" aria-label="Edit ${name}">${iconHtml('pencil-simple')}</button>
+          <button class="icon-button${shared ? ' is-shared' : ''}" type="button" data-action="share-assessment" ${ids} title="${shared ? 'Shared to leaderboard' : 'Share to leaderboard'}" aria-label="${shared ? 'Shared' : 'Share'} ${name}" ${canShareSubjectMarks(assessment.subjectId) ? '' : 'hidden'}>${iconHtml(shared ? 'cloud-check' : 'share-network')}</button>
+          <button class="icon-button v2-an-remove" type="button" data-action="delete-assessment" ${ids} title="Remove" aria-label="Remove ${name}">${iconHtml('trash')}</button>
+        </div>
+      </td>
+    </tr>
+  `;
+}
+
 function renderAssessments() {
   renderShareAllButton();
   if (!elements.assessmentTable) return;
@@ -6594,20 +7171,42 @@ function renderAssessments() {
   state.assessmentTable.sortDirection = normalizeAssessmentSortDirection(state.assessmentTable.sortDirection);
   renderAssessmentSortState();
 
+  const v2 = isUiV2();
+  if (elements.assessmentSearch) {
+    elements.assessmentSearch.placeholder = v2 ? 'Search assessments or subjects' : 'Type an assessment name';
+  }
+  const countLabel = document.getElementById('analytics-assessment-count');
   const allAssessments = sortAssessments(getAllAssessments()).reverse();
   if (allAssessments.length === 0) {
+    if (countLabel) countLabel.textContent = '';
     elements.assessmentTable.innerHTML = '<tr><td colspan="8" class="empty-state">No assessments logged yet.</td></tr>';
     return;
   }
 
   const searchQuery = String(state.assessmentTable.search || '').trim().toLowerCase();
   const rows = buildAssessmentRows(allAssessments);
-  const filteredRows = searchQuery
-    ? rows.filter((row) => row.assessment.name.toLowerCase().includes(searchQuery))
-    : rows;
+  // V2 also matches the subject name, and can be narrowed to one grade from the Grade breakdown.
+  const gradeFilter = v2 ? getAnalyticsGradeFilter() : '';
+  const filterTag = document.getElementById('analytics-grade-filter');
+  if (filterTag) {
+    filterTag.hidden = !gradeFilter;
+    filterTag.innerHTML = gradeFilter ? `Grade ${escapeHtml(gradeFilter)}${iconHtml('x')}` : '';
+    filterTag.setAttribute('aria-label', gradeFilter ? `Showing grade ${gradeFilter} only. Show all assessments` : '');
+  }
+  const filteredRows = rows.filter((row) =>
+    (!gradeFilter || row.grade === gradeFilter) &&
+    (!searchQuery ||
+      row.assessment.name.toLowerCase().includes(searchQuery) ||
+      (v2 && String(row.assessment.subjectName || '').toLowerCase().includes(searchQuery)))
+  );
+  if (countLabel) {
+    countLabel.textContent = searchQuery || gradeFilter
+      ? `${filteredRows.length} of ${rows.length}`
+      : `${rows.length} total`;
+  }
 
   if (filteredRows.length === 0) {
-    elements.assessmentTable.innerHTML = '<tr><td colspan="8" class="empty-state">No assessments match your search.</td></tr>';
+    elements.assessmentTable.innerHTML = `<tr><td colspan="8" class="empty-state">${gradeFilter && !searchQuery ? `No ${escapeHtml(gradeFilter)} marks.` : 'No assessments match your search.'}</td></tr>`;
     return;
   }
 
@@ -6616,6 +7215,11 @@ function renderAssessments() {
     state.assessmentTable.sortKey,
     state.assessmentTable.sortDirection
   );
+
+  if (v2) {
+    elements.assessmentTable.innerHTML = orderedRows.map(buildAssessmentRowV2).join('');
+    return;
+  }
 
   elements.assessmentTable.innerHTML = orderedRows
     .map((row) => {
@@ -6694,12 +7298,64 @@ function renderCharts() {
   renderOverallChart();
   renderSubjectCharts();
   renderSubjectsChart();
+  renderAnalyticsSparklines();
+}
+
+// V2: the overall trend card has a range switch (1M / 3M / All) and a headline figure.
+// The running average is still computed over every mark; the range only crops the view.
+function renderOverallChartV2(sorted, points) {
+  const range = getAnalyticsRange();
+  const cutoff = analyticsRangeCutoff(range);
+  const visible = cutoff === null ? points : points.filter((point) => point.xValue >= cutoff);
+  const baseline = cutoff === null
+    ? points[0]
+    : [...points].reverse().find((point) => point.xValue < cutoff) || visible[0];
+  const current = points[points.length - 1];
+
+  document.querySelectorAll('#analytics-range [data-analytics-range]').forEach((button) => {
+    const active = button.dataset.analyticsRange === range;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+
+  const figure = document.getElementById('analytics-trend-figure');
+  if (figure) {
+    const rangeLabel = range === 'all' ? 'since your first mark' : `in the last ${range === '30' ? '30' : '90'} days`;
+    const change = current && baseline && visible.length && current !== baseline ? current.value - baseline.value : null;
+    // The overall average itself is in the stat strip above; this card leads with the change.
+    const dir = change === null || Math.abs(change) < 0.05 ? 'flat' : change > 0 ? 'up' : 'down';
+    const changeText = change === null ? '—' : dir === 'flat' ? '0.0' : `${change > 0 ? '+' : '−'}${Math.abs(change).toFixed(1)}`;
+    figure.innerHTML = current
+      ? `<span class="v2-an-figure-value" data-dir="${dir}">${changeText}<span class="v2-stat-unit">${change === null ? '' : '%'}</span></span>
+         <span class="v2-an-figure-change">${change === null ? 'Not enough marks to show a change yet' : `Average ${rangeLabel}`}</span>`
+      : '<span class="v2-an-figure-value">—</span><span class="v2-an-figure-change">Add marks to see your trend</span>';
+  }
+
+  if (elements.progressLegend) {
+    elements.progressLegend.textContent = points.length === 0
+      ? 'No marks yet.'
+      : visible.length === 0
+      ? 'No marks in this range.'
+      : `${visible.length} mark${visible.length === 1 ? '' : 's'} shown · last updated ${formatDate(sorted[sorted.length - 1].date)}`;
+  }
+
+  drawLineChart(elements.overallChart, addTimelineEdgeLabels(visible.map((point) => ({ ...point }))), {
+    stroke: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim(),
+    showAxis: true,
+    v2: true,
+    emptyText: points.length ? 'No marks in this range' : 'No marks yet',
+  });
 }
 
 function renderOverallChart() {
   if (!elements.overallChart) return;
   const sorted = sortAssessments(getAllAssessments());
   const points = buildOverallTimelinePoints(sorted);
+
+  if (isUiV2()) {
+    renderOverallChartV2(sorted, points);
+    return;
+  }
 
   if (elements.progressLegend) {
     if (points.length === 0) {
@@ -6735,6 +7391,7 @@ function renderSubjectsChart() {
       color: subject.color,
       icon: resolveSubjectIcon(subject.icon, subject.name),
       points: buildSubjectTimelinePoints(subject.assessments),
+      average: subjectStats(subject).average,
     }))
     .filter((subject) => subject.points.length > 0);
   const validIds = new Set(allSeries.map((subject) => subject.id));
@@ -6747,10 +7404,13 @@ function renderSubjectsChart() {
   const totalCount = allSeries.length;
   const visibleCount = series.length;
 
+  const v2 = isUiV2();
   if (elements.subjectsLegend) {
-    elements.subjectsLegend.textContent = totalCount
-      ? `${visibleCount}/${totalCount} subject lines visible · Hover for details. Tip: Click subject chips below to hide/show lines.`
-      : 'No subject data yet.';
+    elements.subjectsLegend.textContent = !totalCount
+      ? 'No subject data yet.'
+      : v2
+      ? `${visibleCount} of ${totalCount} subjects shown · Click a subject to show or hide its line.`
+      : `${visibleCount}/${totalCount} subject lines visible · Hover for details. Tip: Click subject chips below to hide/show lines.`;
   }
 
   if (elements.subjectsKey) {
@@ -6766,14 +7426,18 @@ function renderSubjectsChart() {
             title="Click to ${hiddenSubjectsChartIds.has(subject.id) ? 'show' : 'hide'} ${subject.name}"
           >
             <span class="chart-key-swatch" style="--swatch:${subject.color}"></span>
-            ${subject.name}
+            ${subject.name}${v2 && subject.average !== null ? `<span class="chart-key-value v2-only">${subject.average.toFixed(1)}%</span>` : ''}
           </button>
         `
       )
       .join('');
   }
 
-  drawMultiLineChart(elements.subjectsChart, series);
+  drawMultiLineChart(
+    elements.subjectsChart,
+    series,
+    v2 ? { v2: true, emptyText: totalCount ? 'Every subject is hidden' : 'No marks yet' } : undefined
+  );
 }
 
 function renderCalendar() {
@@ -6791,6 +7455,11 @@ function renderCalendar() {
       button.classList.toggle('is-active', isActive);
       button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
     });
+  }
+
+  if (isUiV2()) {
+    renderCalendarV2(year, month, activeFilter);
+    return;
   }
 
   const firstOfMonth = new Date(year, month, 1);
@@ -6876,6 +7545,237 @@ function renderCalendar() {
   }
 
   elements.calendarGrid.innerHTML = cells.join('');
+}
+
+// ── V2 calendar: month grid (chips on desktop, dots on phones) + selected-day agenda ──
+
+function calendarDateFromKey(dateKey) {
+  const [y, m, d] = String(dateKey || '').split('-').map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+}
+
+function calendarRelativeDayLabel(dateKey) {
+  const diff = Math.round((dateStringValue(dateKey) - todayValue) / 86400000);
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Tomorrow';
+  if (diff === -1) return 'Yesterday';
+  return diff > 0 ? `In ${diff} days` : `${-diff} days ago`;
+}
+
+function selectCalendarDay(dateKey, options = {}) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateKey || ''))) return;
+  const date = calendarDateFromKey(dateKey);
+  calendarState.year = date.getFullYear();
+  calendarState.month = date.getMonth();
+  calendarState.selected = dateKey;
+  renderCalendar();
+  if (options.focus && elements.calendarGrid) {
+    elements.calendarGrid.querySelector(`.calendar-v2-day[data-calendar-date="${dateKey}"]`)?.focus();
+  }
+}
+
+function openCalendarAddUpcoming(dateKey) {
+  openUpcomingModal();
+  const dateInput = elements.upcomingForm?.querySelector('input[name="upcomingDate"]');
+  if (dateInput && dateKey && elements.upcomingModal?.classList.contains('is-open')) {
+    dateInput.value = dateKey;
+  }
+}
+
+function calendarEventTypeLabel(event) {
+  return event.upcomingType === 'homework' ? 'Homework' : 'Assessment';
+}
+
+function buildCalendarChipV2(event, dateKey) {
+  const type = event.upcomingType === 'homework' ? 'homework' : 'assessment';
+  const isCompleted = event.type === 'completed';
+  const isOverdue = !isCompleted && type === 'homework' && isPastDate(dateKey);
+  const classes = `calendar-event calendar-v2-chip is-${type}${isCompleted ? ' is-completed' : ''}${isOverdue ? ' is-overdue' : ''}`;
+  const actionAttrs = isCompleted
+    ? ''
+    : `data-action="edit-upcoming" data-subject-id="${escapeHtml(event.subjectId)}" data-upcoming-id="${escapeHtml(event.upcomingId)}"`;
+  const title = `${event.name} · ${event.subject} · ${isCompleted ? 'Marked' : calendarEventTypeLabel(event)}`;
+  return `
+    <button class="${classes}" type="button" style="--event-color:${escapeHtml(event.color)}" data-calendar-date="${dateKey}" ${actionAttrs} title="${escapeHtml(title)}">
+      ${isCompleted ? iconHtml('check', 'calendar-v2-chip-icon') : '<span class="calendar-v2-chip-dot" aria-hidden="true"></span>'}
+      <span class="calendar-v2-chip-name">${escapeHtml(event.name)}</span>
+    </button>
+  `;
+}
+
+function buildCalendarAgendaItemV2(event, dateKey) {
+  const type = event.upcomingType === 'homework' ? 'homework' : 'assessment';
+  const isCompleted = event.type === 'completed';
+  const isOverdue = !isCompleted && type === 'homework' && isPastDate(dateKey);
+  const metaParts = [`<span class="calendar-v2-agenda-subject">${escapeHtml(event.subject)}</span>`, calendarEventTypeLabel(event)];
+  if (Number.isFinite(event.weight)) metaParts.push(`${event.weight}%`);
+  const badge = isCompleted
+    ? `<span class="calendar-v2-badge is-done">${iconHtml('check', '')}Marked</span>`
+    : isOverdue
+      ? '<span class="calendar-v2-badge is-overdue">Overdue</span>'
+      : '';
+  const mainAttrs = isCompleted
+    ? `data-action="calendar-open-subject" data-subject-id="${escapeHtml(event.subjectId)}" title="Open ${escapeHtml(event.subject)}"`
+    : `data-action="edit-upcoming" data-subject-id="${escapeHtml(event.subjectId)}" data-upcoming-id="${escapeHtml(event.upcomingId)}" title="Edit"`;
+  const actionHtml = !isCompleted && type === 'assessment'
+    ? `<button class="ghost-button ghost-button--small" type="button" data-action="complete-upcoming" data-subject-id="${escapeHtml(event.subjectId)}" data-upcoming-id="${escapeHtml(event.upcomingId)}">Add marks</button>`
+    : '';
+  return `
+    <li class="calendar-v2-agenda-item is-${type}${isCompleted ? ' is-completed' : ''}" style="--event-color:${escapeHtml(event.color)}">
+      <button class="calendar-v2-agenda-main" type="button" ${mainAttrs}>
+        <span class="calendar-v2-agenda-mark" aria-hidden="true"></span>
+        <span class="calendar-v2-agenda-text">
+          <span class="calendar-v2-agenda-name">${escapeHtml(event.name)}${badge}</span>
+          <span class="calendar-v2-agenda-meta">${metaParts.join('<span aria-hidden="true"> · </span>')}</span>
+          ${event.notes ? `<span class="calendar-v2-agenda-notes">${escapeHtml(event.notes)}</span>` : ''}
+        </span>
+      </button>
+      ${actionHtml ? `<div class="calendar-v2-agenda-actions">${actionHtml}</div>` : ''}
+    </li>
+  `;
+}
+
+function buildCalendarAgendaV2(selected, eventsByDate, filterEvents) {
+  const date = calendarDateFromKey(selected);
+  const heading = date.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
+  const items = filterEvents(eventsByDate[selected] || []);
+  const isToday = selected === today;
+  const countLabel = items.length ? `${items.length} item${items.length === 1 ? '' : 's'}` : 'Nothing scheduled';
+
+  const nextUp = [];
+  Object.keys(eventsByDate)
+    .filter((key) => key > selected)
+    .sort()
+    .some((key) => {
+      filterEvents(eventsByDate[key])
+        .filter((event) => event.type === 'upcoming')
+        .forEach((event) => nextUp.push({ event, dateKey: key }));
+      return nextUp.length >= 4;
+    });
+
+  const listHtml = items.length
+    ? `<ul class="calendar-v2-agenda-list">${items.map((event) => buildCalendarAgendaItemV2(event, selected)).join('')}</ul>`
+    : `
+      <div class="calendar-v2-agenda-empty">
+        <span>Nothing due on this day.</span>
+        <button class="ghost-button ghost-button--small with-icon" type="button" data-action="calendar-add-on-day" data-calendar-date="${selected}">${iconHtml('plus')}Add item</button>
+      </div>
+    `;
+
+  const nextHtml = nextUp.length
+    ? `
+      <div class="calendar-v2-next">
+        <div class="calendar-v2-next-title">Coming up</div>
+        <ul class="calendar-v2-next-list">
+          ${nextUp.slice(0, 4).map(({ event, dateKey }) => {
+            const d = calendarDateFromKey(dateKey);
+            return `
+              <li>
+                <button class="calendar-v2-next-item" type="button" data-calendar-date="${dateKey}" style="--event-color:${escapeHtml(event.color)}">
+                  <span class="calendar-v2-next-date">
+                    <span>${d.toLocaleDateString('en-AU', { weekday: 'short' })}</span>
+                    <strong>${d.getDate()}</strong>
+                  </span>
+                  <span class="calendar-v2-chip-dot is-${event.upcomingType === 'homework' ? 'homework' : 'assessment'}" aria-hidden="true"></span>
+                  <span class="calendar-v2-next-text">
+                    <span class="calendar-v2-next-name">${escapeHtml(event.name)}</span>
+                    <span class="calendar-v2-next-meta">${escapeHtml(event.subject)} · ${calendarRelativeDayLabel(dateKey)}</span>
+                  </span>
+                </button>
+              </li>
+            `;
+          }).join('')}
+        </ul>
+      </div>
+    `
+    : '';
+
+  return `
+    <div class="calendar-v2-agenda-head">
+      <div>
+        <div class="calendar-v2-agenda-kicker${isToday ? ' is-today' : ''}">${calendarRelativeDayLabel(selected)} · ${countLabel}</div>
+        <h3 class="calendar-v2-agenda-title">${heading}</h3>
+      </div>
+      <button class="icon-button" type="button" data-action="calendar-add-on-day" data-calendar-date="${selected}" aria-label="Add item on ${heading}" title="Add item">${iconHtml('plus')}</button>
+    </div>
+    ${listHtml}
+    ${nextHtml}
+  `;
+}
+
+function renderCalendarV2(year, month, activeFilter) {
+  const eventsByDate = buildCalendarEvents();
+  const filterEvents = (list) => (activeFilter === 'both' ? list : list.filter((event) => event.upcomingType === activeFilter));
+  const monthPrefix = dateKeyFromParts(year, month, 1).slice(0, 7);
+  if (!calendarState.selected || calendarState.selected.slice(0, 7) !== monthPrefix) {
+    calendarState.selected = today.slice(0, 7) === monthPrefix ? today : dateKeyFromParts(year, month, 1);
+  }
+  const selected = calendarState.selected;
+
+  const titleEl = document.getElementById('calendar-v2-title');
+  if (titleEl) titleEl.textContent = formatMonthYear(year, month);
+
+  const startOffset = (new Date(year, month, 1).getDay() + 6) % 7;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const weeks = Math.ceil((startOffset + daysInMonth) / 7);
+  let dueAssessments = 0;
+  let dueHomework = 0;
+  let marked = 0;
+  const cells = [];
+
+  for (let index = 0; index < weeks * 7; index += 1) {
+    const cellDate = new Date(year, month, index - startOffset + 1);
+    const dateKey = dateKeyFromParts(cellDate.getFullYear(), cellDate.getMonth(), cellDate.getDate());
+    const isMuted = cellDate.getMonth() !== month;
+    const isToday = dateKey === today;
+    const isSelected = dateKey === selected;
+    const isWeekend = index % 7 >= 5;
+    const events = filterEvents(eventsByDate[dateKey] || []);
+
+    if (!isMuted) {
+      events.forEach((event) => {
+        if (event.type === 'completed') marked += 1;
+        else if (event.upcomingType === 'homework') dueHomework += 1;
+        else dueAssessments += 1;
+      });
+    }
+
+    const visible = events.length > 3 ? events.slice(0, 2) : events;
+    const moreCount = events.length - visible.length;
+    const dayLabel = cellDate.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
+    const ariaLabel = `${dayLabel}${isToday ? ', today' : ''}${events.length ? `, ${events.length} item${events.length === 1 ? '' : 's'}` : ''}`;
+
+    cells.push(`
+      <div class="calendar-cell calendar-v2-cell${isMuted ? ' is-muted' : ''}${isToday ? ' is-today' : ''}${isSelected ? ' is-selected' : ''}${isWeekend ? ' is-weekend' : ''}${events.length ? ' has-events' : ''}" data-calendar-date="${dateKey}">
+        <button class="calendar-day calendar-v2-day" type="button" data-calendar-date="${dateKey}" aria-label="${ariaLabel}" aria-pressed="${isSelected ? 'true' : 'false'}" tabindex="${isSelected ? '0' : '-1'}">${cellDate.getDate()}</button>
+        ${events.length ? `
+          <div class="calendar-events calendar-v2-events">
+            ${visible.map((event) => buildCalendarChipV2(event, dateKey)).join('')}
+            ${moreCount > 0 ? `<button class="calendar-more calendar-v2-more" type="button" data-calendar-date="${dateKey}">+${moreCount} more</button>` : ''}
+          </div>
+          <div class="calendar-v2-dots" aria-hidden="true">
+            ${events.slice(0, 3).map((event) => `<span class="calendar-v2-chip-dot is-${event.upcomingType === 'homework' ? 'homework' : 'assessment'}${event.type === 'completed' ? ' is-completed' : ''}" style="--event-color:${escapeHtml(event.color)}"></span>`).join('')}
+            ${events.length > 3 ? `<span class="calendar-v2-dots-more">+${events.length - 3}</span>` : ''}
+          </div>
+        ` : ''}
+      </div>
+    `);
+  }
+
+  elements.calendarGrid.innerHTML = cells.join('');
+
+  const summaryEl = document.getElementById('calendar-v2-summary');
+  if (summaryEl) {
+    const parts = [];
+    if (dueAssessments) parts.push(`${dueAssessments} assessment${dueAssessments === 1 ? '' : 's'}`);
+    if (dueHomework) parts.push(`${dueHomework} homework`);
+    let text = parts.length ? `${parts.join(' and ')} due` : 'Nothing due';
+    if (marked) text += ` · ${marked} marked`;
+    summaryEl.textContent = `${text} this month`;
+  }
+
+  const agendaEl = document.getElementById('calendar-agenda');
+  if (agendaEl) agendaEl.innerHTML = buildCalendarAgendaV2(selected, eventsByDate, filterEvents);
 }
 
 function normalizeTimetableData(raw) {
@@ -7415,6 +8315,10 @@ function renderTimetable() {
   if (elements.timetableSwapWeeks) {
     elements.timetableSwapWeeks.hidden = !hasLessons;
   }
+  const useV2 = isUiV2();
+  if (useV2) {
+    renderTimetableV2ImportCard(hasLessons, sourceMeta);
+  }
 
   const currentWeekType = getCurrentTimetableWeekType(timetable);
   const selectedWeekControl = ['current', 'A', 'B'].includes(state.timetableView.selectedWeek)
@@ -7454,8 +8358,30 @@ function renderTimetable() {
       : `Week ${selectedWeekType}`;
   }
 
+  if (useV2) {
+    renderTimetableV2WeekHeader({
+      hasLessons,
+      selectedWeekType,
+      selectedWeekDates,
+      selectedWeekMonday,
+      currentWeekMonday,
+    });
+  }
+
   if (!hasLessons) {
     elements.timetableWeekGrid.innerHTML = '<div class="empty-state">Import an ICS timetable to show Week A and Week B.</div>';
+    renderTimetableMapList(timetable);
+    return;
+  }
+
+  if (useV2) {
+    renderTimetableV2Grid({
+      timetable,
+      weekLessons,
+      selectedWeekDates,
+      isThisWeek: selectedWeekMonday.getTime() === currentWeekMonday.getTime(),
+      nowDate,
+    });
     renderTimetableMapList(timetable);
     return;
   }
@@ -7484,6 +8410,141 @@ function renderTimetable() {
 
   elements.timetableWeekGrid.innerHTML = dayColumnsHtml;
   renderTimetableMapList(timetable);
+}
+
+/* V2 timetable page: import card stays visible (compact once a file exists). */
+function renderTimetableV2ImportCard(hasLessons, sourceMeta) {
+  const card = elements.timetableImportCard;
+  if (!card) return;
+  card.hidden = false;
+  if (elements.timetableImportControls) {
+    elements.timetableImportControls.hidden = false;
+  }
+  card.classList.toggle('is-compact', hasLessons);
+  card.closest('.view')?.toggleAttribute('data-tt-empty', !hasLessons);
+  const title = document.getElementById('tt-import-title');
+  if (title) {
+    title.textContent = hasLessons ? 'Timetable file' : 'Import your timetable';
+  }
+  const sub = document.getElementById('tt-import-sub');
+  if (sub) {
+    sub.textContent = hasLessons
+      ? sourceMeta
+      : "Upload your Sentral .ics export to build your Week A / Week B timetable and the dashboard's Today view.";
+  }
+  const uploadLabel = document.getElementById('tt-upload-label');
+  if (uploadLabel) {
+    uploadLabel.textContent = hasLessons ? 'Replace file' : 'Upload .ics';
+  }
+  const swapButton = document.getElementById('tt-swap-weeks');
+  if (swapButton) {
+    swapButton.hidden = !hasLessons;
+    swapButton.onclick = () => elements.timetableSwapWeeks?.click();
+  }
+}
+
+function renderTimetableV2WeekHeader({
+  hasLessons,
+  selectedWeekType,
+  selectedWeekDates,
+  selectedWeekMonday,
+  currentWeekMonday,
+}) {
+  if (elements.timetableWeekTitle) {
+    elements.timetableWeekTitle.textContent = `Week ${selectedWeekType}`;
+  }
+  if (elements.timetableWeekRange) {
+    elements.timetableWeekRange.textContent = hasLessons
+      ? `${formatShortDate(selectedWeekDates[0])} – ${formatShortDate(selectedWeekDates[4])}`
+      : 'No timetable imported yet';
+  }
+  const badge = document.getElementById('tt-week-badge');
+  if (badge) {
+    const weeksAhead = Math.round(
+      (selectedWeekMonday.getTime() - currentWeekMonday.getTime()) / (7 * 24 * 60 * 60 * 1000)
+    );
+    badge.textContent = weeksAhead <= 0
+      ? 'This week'
+      : weeksAhead === 1
+      ? 'Next week'
+      : `In ${weeksAhead} weeks`;
+    badge.classList.toggle('is-current', weeksAhead <= 0);
+    badge.hidden = !hasLessons;
+  }
+}
+
+function renderTimetableV2Grid({ timetable, weekLessons, selectedWeekDates, isThisWeek, nowDate }) {
+  const grid = elements.timetableWeekGrid;
+  const todayKey = dateKeyFromParts(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate());
+  const nowMinutes = getTimeMinutesWithSeconds(nowDate);
+  const todayIndex = isThisWeek ? selectedWeekDates.indexOf(todayKey) : -1;
+  const storedDay = Number.parseInt(grid.dataset.v2Day || '', 10);
+  const selectedDay = storedDay >= 0 && storedDay <= 4 ? storedDay : Math.max(0, todayIndex);
+
+  grid.innerHTML = TIMETABLE_DAYS.map((dayName, dayIndex) => {
+    const dayDate = selectedWeekDates[dayIndex];
+    const isToday = dayIndex === todayIndex;
+    const dayLessons = (weekLessons[dayIndex] || [])
+      .slice()
+      .sort((a, b) => a.startMinutes - b.startMinutes || a.endMinutes - b.endMinutes);
+    const currentLesson = isToday ? findCurrentLesson(dayLessons, nowMinutes) : null;
+    const listHtml = dayLessons.length
+      ? dayLessons.map((lesson) => buildLessonCardHtml(lesson, timetable, {
+        status: !isToday
+          ? ''
+          : lesson === currentLesson
+          ? 'current'
+          : lesson.endMinutes <= nowMinutes
+          ? 'past'
+          : '',
+      })).join('')
+      : '<div class="tt-day-empty">No classes</div>';
+    const columnClass = [
+      'timetable-day-column',
+      isToday ? 'is-today' : '',
+      dayIndex === selectedDay ? 'is-selected' : '',
+    ].filter(Boolean).join(' ');
+    return `
+      <section class="${columnClass}" data-day-index="${dayIndex}" aria-label="${dayName}">
+        <div class="timetable-grid-head">
+          <span class="tt-day-name">${dayName.slice(0, 3)}</span>
+          <span class="sub">${formatShortDate(dayDate)}</span>
+          ${isToday ? '<span class="tt-today-tag">Today</span>' : ''}
+        </div>
+        <div class="timetable-day-list">${listHtml}</div>
+      </section>
+    `;
+  }).join('');
+
+  // Phones show one day at a time; these tabs pick it.
+  const tabs = document.getElementById('tt-day-tabs');
+  if (!tabs) return;
+  tabs.innerHTML = TIMETABLE_DAYS.map((dayName, dayIndex) => `
+    <button
+      class="tt-day-tab${dayIndex === selectedDay ? ' is-active' : ''}${dayIndex === todayIndex ? ' is-today' : ''}"
+      type="button"
+      role="tab"
+      aria-selected="${dayIndex === selectedDay ? 'true' : 'false'}"
+      data-day-index="${dayIndex}"
+    >
+      <span class="tt-day-tab-name">${dayName.slice(0, 3)}</span>
+      <span class="tt-day-tab-date">${formatShortDate(selectedWeekDates[dayIndex])}</span>
+    </button>
+  `).join('');
+  tabs.onclick = (event) => {
+    const tab = event.target.closest('[data-day-index]');
+    if (!tab) return;
+    const dayIndex = tab.dataset.dayIndex;
+    grid.dataset.v2Day = dayIndex;
+    tabs.querySelectorAll('[data-day-index]').forEach((button) => {
+      const isActive = button.dataset.dayIndex === dayIndex;
+      button.classList.toggle('is-active', isActive);
+      button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+    grid.querySelectorAll('.timetable-day-column').forEach((column) => {
+      column.classList.toggle('is-selected', column.dataset.dayIndex === dayIndex);
+    });
+  };
 }
 
 function renderTodayTimetablePanel(
@@ -7551,7 +8612,7 @@ function renderTodayTimetablePanel(
   `;
 }
 
-function buildLessonCardHtml(lesson, timetable = state.data.timetable) {
+function buildLessonCardHtml(lesson, timetable = state.data.timetable, options = {}) {
   const presentation = resolveTimetableLessonPresentation(lesson, timetable);
   const subject = escapeHtml(presentation.displayName);
   const subjectIcon = subjectIconHtml(presentation.icon, 'lesson-subject-icon');
@@ -7564,6 +8625,25 @@ function buildLessonCardHtml(lesson, timetable = state.data.timetable) {
   if (lesson.teacher) metaParts.push(escapeHtml(lesson.teacher));
   const metaText = metaParts.length ? `<div class="lesson-meta">${metaParts.join(' · ')}</div>` : '';
   const tone = getTimetableLessonTone(lesson, timetable);
+  if (isUiV2()) {
+    // V2: same content, plus the raw subject colour and the current/past state for the weekly grid.
+    const status = options.status === 'current' || options.status === 'past' ? options.status : '';
+    const color = normalizeColorValue(presentation.color) || 'var(--accent)';
+    return `
+      <article class="lesson-card${status ? ` is-${status}` : ''}" style="--lesson-bg:${tone.background}; --lesson-border:${tone.border}; --lesson-color:${color}">
+        <div class="lesson-top">
+          <span class="lesson-period">${period || '&nbsp;'}</span>
+          ${status === 'current' ? '<span class="tt-now-tag">Now</span>' : ''}
+          <span class="lesson-time">${formatMinutesLabel(lesson.startMinutes)} – ${formatMinutesLabel(lesson.endMinutes)}</span>
+        </div>
+        <div class="lesson-subject-row">
+          <span class="lesson-icon-wrap">${subjectIcon}</span>
+          <span class="lesson-subject">${subject}</span>
+        </div>
+        ${metaText}
+      </article>
+    `;
+  }
   return `
     <article class="lesson-card" style="--lesson-bg:${tone.background}; --lesson-border:${tone.border}">
       <div class="lesson-top">
@@ -7885,12 +8965,17 @@ function formatShortDate(dateKey) {
 function renderTimetableMapList(timetable) {
   if (!elements.timetableMapList) return;
   const lessons = timetable?.lessons || [];
+  const useV2 = isUiV2();
+  const mapSummary = useV2 ? document.getElementById('tt-map-summary') : null;
   if (!lessons.length) {
     elements.timetableMapList.innerHTML = '<div class="empty-state">Import a timetable to manage class links.</div>';
+    if (mapSummary) mapSummary.textContent = '';
     return;
   }
   const classRows = getTimetableClassRows(lessons);
-  elements.timetableMapList.innerHTML = classRows
+  let linkedCount = 0;
+  const v2Rows = [];
+  const v1Html = classRows
     .map((row) => {
       const profile = getTimetableClassProfile(row.key, timetable);
       const subject = profile.subjectId && profile.subjectId !== '__none__'
@@ -7909,6 +8994,32 @@ function renderTimetableMapList(timetable) {
         : profile.name || profile.color || profile.icon
         ? 'Custom style'
         : 'Not linked';
+      if (useV2) {
+        if (subject) linkedCount += 1;
+        const statusKey = subject ? 'linked' : status === 'Custom style' ? 'custom' : 'none';
+        v2Rows.push({
+          statusKey,
+          html: `
+          <button
+            class="tt-class-row"
+            type="button"
+            data-action="open-timetable-class"
+            data-timetable-map-key="${escapeHtml(row.key)}"
+            data-link-status="${statusKey}"
+            style="--class-color:${displayColor}"
+            title="${escapeHtml(subject ? `Linked to ${subject.name}` : status)}"
+          >
+            <span class="tt-class-icon">${subjectIconHtml(displayIcon, '')}</span>
+            <span class="tt-class-body">
+              <span class="tt-class-name">${escapeHtml(displayName)}</span>
+              <span class="tt-class-code">${row.classCode ? `<b>${escapeHtml(row.classCode)}</b> ` : ''}${escapeHtml(row.subject || '')}</span>
+            </span>
+            <span class="tt-class-state" data-state="${statusKey}">${statusKey === 'none' ? 'Link' : statusKey === 'custom' ? 'Custom' : ''}</span>
+          </button>
+        `,
+        });
+        return '';
+      }
       return `
         <button
           class="timetable-map-class-card"
@@ -7927,6 +9038,21 @@ function renderTimetableMapList(timetable) {
       `;
     })
     .join('');
+  if (!useV2) {
+    elements.timetableMapList.innerHTML = v1Html;
+    return;
+  }
+  renderTimetableClassListV2(v2Rows, linkedCount, mapSummary);
+}
+
+// V2 classes: a two-row strip that scrolls sideways, with classes that still need a subject first.
+function renderTimetableClassListV2(rows, linkedCount, mapSummary) {
+  const order = { none: 0, custom: 1, linked: 2 };
+  const sorted = rows
+    .map((row, index) => ({ ...row, index }))
+    .sort((left, right) => order[left.statusKey] - order[right.statusKey] || left.index - right.index);
+  if (mapSummary) mapSummary.textContent = `${linkedCount} of ${rows.length} linked`;
+  elements.timetableMapList.innerHTML = sorted.map((row) => row.html).join('');
 }
 
 function getTimetableClassRows(lessons) {
@@ -8079,7 +9205,9 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
-function traceSmoothLine(ctx, points, smoothness = 0.35) {
+// options.clampY keeps each curve segment between its two points' heights, so
+// smoothing can't overshoot into loops or above 100% (used by V2 charts).
+function traceSmoothLine(ctx, points, smoothness = 0.35, options = {}) {
   if (!points.length) return;
   const s = clamp(smoothness, 0, 1);
   ctx.beginPath();
@@ -8103,11 +9231,13 @@ function traceSmoothLine(ctx, points, smoothness = 0.35) {
     const cp2y = p2.y - (p3.y - p1.y) * factor;
     const minX = Math.min(p1.x, p2.x);
     const maxX = Math.max(p1.x, p2.x);
+    const minY = Math.min(p1.y, p2.y);
+    const maxY = Math.max(p1.y, p2.y);
     ctx.bezierCurveTo(
       clamp(cp1x, minX, maxX),
-      cp1y,
+      options.clampY ? clamp(cp1y, minY, maxY) : cp1y,
       clamp(cp2x, minX, maxX),
-      cp2y,
+      options.clampY ? clamp(cp2y, minY, maxY) : cp2y,
       p2.x,
       p2.y
     );
@@ -8292,8 +9422,17 @@ function buildDateAxisLabels(minDateValue, maxDateValue, minX, maxX) {
   });
 }
 
+// Canvas text can't trigger a web-font download, so V2 asks for it and redraws the charts once it's ready.
+if (document.fonts && typeof document.fonts.load === 'function') {
+  window.addEventListener('load', () => {
+    document.fonts.load('400 12px "Space Grotesk"').then(() => {
+      if (isUiV2()) renderCharts();
+    }).catch(() => {});
+  });
+}
+
 function chartFont(size) {
-  return `${size}px ${isUiV2() ? '"Geist", sans-serif' : '"Red Hat Display", sans-serif'}`;
+  return `${size}px ${isUiV2() ? '"Space Grotesk", sans-serif' : '"Red Hat Display", sans-serif'}`;
 }
 
 function drawLineChart(canvas, points, options = {}) {
@@ -8314,6 +9453,11 @@ function drawLineChart(canvas, points, options = {}) {
   );
   const axisColor = getComputedStyle(document.documentElement).getPropertyValue('--text-tertiary').trim() || '#7a8292';
   const showAxis = options.showAxis !== false;
+  // V2 (optional): hairline grid, left-hand labels, flat fill and an end dot.
+  // `compact` draws a bare sparkline. V1 callers don't pass these and render as before.
+  const v2 = options.v2 === true;
+  const compact = v2 && options.compact === true;
+  const v2Colors = v2 ? getV2ChartColors() : null;
 
   canvas.width = width * dpr;
   canvas.height = height * dpr;
@@ -8321,6 +9465,12 @@ function drawLineChart(canvas, points, options = {}) {
   ctx.clearRect(0, 0, width, height);
 
   const hasPlottableValues = series.some((point) => Number.isFinite(point?.value));
+  if (!hasPlottableValues && v2) {
+    if (!compact) drawV2EmptyChart(ctx, width, height, v2Colors, options.emptyText);
+    canvas._chartPoints = [];
+    bindChartHover(canvas);
+    return;
+  }
   if (!hasPlottableValues) {
     drawEmptyChartState(ctx, width, height, {
       paddingLeft: 36,
@@ -8335,9 +9485,9 @@ function drawLineChart(canvas, points, options = {}) {
     return;
   }
 
-  const paddingLeft = 36;
-  const paddingRight = 36;
-  const paddingTop = 18;
+  const paddingLeft = compact ? 4 : v2 ? 34 : 36;
+  const paddingRight = compact ? 4 : v2 ? 14 : 36;
+  const paddingTop = compact ? 4 : v2 ? 12 : 18;
   const datedValues = series
     .map((point) => (Number.isFinite(point.xValue) ? point.xValue : null))
     .filter((value) => Number.isFinite(value));
@@ -8350,7 +9500,7 @@ function drawLineChart(canvas, points, options = {}) {
     Number.isFinite(maxDateValue) &&
     maxDateValue > minDateValue;
   const hasAxisLabels = showAxis && (series.some((point) => point.axisLabel) || canScaleByDate);
-  const paddingBottom = hasAxisLabels ? 30 : 18;
+  const paddingBottom = compact ? 4 : v2 ? (hasAxisLabels ? 28 : 12) : hasAxisLabels ? 30 : 18;
   const fallbackDenom = Math.max(series.length - 1, 1);
   const resolveX = (point, index) => {
     if (canScaleByDate && Number.isFinite(point.xValue)) {
@@ -8365,7 +9515,17 @@ function drawLineChart(canvas, points, options = {}) {
   const valueRange = getValueRange(series, { min: 0, max: 100 });
   const ticks = buildTicks(valueRange.min, valueRange.max, 4);
 
-  if (showAxis) {
+  if (showAxis && v2) {
+    drawV2Grid(ctx, ticks, valueRange, { width, height, paddingLeft, paddingRight, paddingTop, paddingBottom }, v2Colors);
+    if (hasAxisLabels) {
+      const labels = canScaleByDate
+        ? buildDateAxisLabels(minDateValue, maxDateValue, paddingLeft, width - paddingRight)
+        : series
+            .map((point, index) => (point.axisLabel ? { x: resolveX(point, index), text: point.axisLabel } : null))
+            .filter(Boolean);
+      drawV2XLabels(ctx, labels, width, height, v2Colors);
+    }
+  } else if (showAxis) {
     ctx.fillStyle = axisColor;
     ctx.font = chartFont(12);
     ctx.textBaseline = 'middle';
@@ -8446,10 +9606,21 @@ function drawLineChart(canvas, points, options = {}) {
   const realPoints = drawablePoints.filter((point) => !point.preview);
   const previewPoints = drawablePoints.filter((point) => point.preview);
 
-  ctx.lineWidth = 2.5;
+  // V2: a faint flat area under the line, painted first so the line sits on top.
+  if (v2 && !compact && realPoints.length > 1) {
+    ctx.fillStyle = withAlpha(stroke, 0.08);
+    traceSmoothLine(ctx, realPoints, lineSmoothness, { clampY: options.v2 === true });
+    ctx.lineTo(realPoints[realPoints.length - 1].x, height - paddingBottom);
+    ctx.lineTo(realPoints[0].x, height - paddingBottom);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  ctx.lineWidth = compact ? 1.75 : v2 ? 2 : 2.5;
   ctx.strokeStyle = stroke;
+  if (v2) ctx.lineJoin = 'round';
   if (realPoints.length > 1) {
-    traceSmoothLine(ctx, realPoints, lineSmoothness);
+    traceSmoothLine(ctx, realPoints, lineSmoothness, { clampY: options.v2 === true });
     ctx.stroke();
   } else if (realPoints.length === 1) {
     ctx.beginPath();
@@ -8458,12 +9629,14 @@ function drawLineChart(canvas, points, options = {}) {
     ctx.fill();
   }
 
-  const gradient = ctx.createLinearGradient(0, paddingTop, 0, height - paddingBottom);
-  gradient.addColorStop(0, withAlpha(stroke, 0.35));
-  gradient.addColorStop(1, withAlpha(stroke, 0.05));
-  if (realPoints.length > 2) {
+  const gradient = v2 ? null : ctx.createLinearGradient(0, paddingTop, 0, height - paddingBottom);
+  if (gradient) {
+    gradient.addColorStop(0, withAlpha(stroke, 0.35));
+    gradient.addColorStop(1, withAlpha(stroke, 0.05));
+  }
+  if (!v2 && realPoints.length > 2) {
     ctx.fillStyle = gradient;
-    traceSmoothLine(ctx, realPoints, lineSmoothness);
+    traceSmoothLine(ctx, realPoints, lineSmoothness, { clampY: options.v2 === true });
     ctx.lineTo(realPoints[realPoints.length - 1].x, height - paddingBottom);
     ctx.lineTo(realPoints[0].x, height - paddingBottom);
     ctx.closePath();
@@ -8488,11 +9661,95 @@ function drawLineChart(canvas, points, options = {}) {
     });
   }
 
+  if (v2 && realPoints.length > 1) {
+    drawV2EndDot(ctx, realPoints[realPoints.length - 1], stroke, v2Colors, compact ? 2.25 : 3.25);
+  }
+
   canvas._chartPoints = drawablePoints;
   bindChartHover(canvas);
 }
 
-function drawMultiLineChart(canvas, series) {
+function getV2ChartColors() {
+  const styles = getComputedStyle(document.documentElement);
+  return {
+    text: styles.getPropertyValue('--text-tertiary').trim() || '#737373',
+    grid: styles.getPropertyValue('--card-border').trim() || '#222222',
+    surface: styles.getPropertyValue('--card-surface').trim() || '#0a0a0a',
+  };
+}
+
+// Hairline horizontal grid with value labels on the left (V2 charts).
+function drawV2Grid(ctx, ticks, range, box, colors) {
+  const { width, height, paddingLeft, paddingRight, paddingTop, paddingBottom } = box;
+  const span = Math.max(range.max - range.min, 1e-6);
+  ctx.save();
+  ctx.font = chartFont(11);
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  ctx.lineWidth = 1;
+  ticks
+    .filter((tick) => tick >= range.min - 0.001 && tick <= range.max + 0.001)
+    .forEach((tick) => {
+      const y = Math.round(height - paddingBottom - ((tick - range.min) / span) * (height - paddingTop - paddingBottom)) + 0.5;
+      ctx.strokeStyle = colors.grid;
+      ctx.beginPath();
+      ctx.moveTo(paddingLeft, y);
+      ctx.lineTo(width - paddingRight, y);
+      ctx.stroke();
+      ctx.fillStyle = colors.text;
+      ctx.fillText(`${Math.round(tick)}`, paddingLeft - 8, y);
+    });
+  ctx.restore();
+}
+
+function drawV2XLabels(ctx, labels, width, height, colors) {
+  // Narrow charts keep only the first, middle and last dates.
+  const items = width < 420 && labels.length === 5 ? [labels[0], labels[2], labels[4]] : labels;
+  ctx.save();
+  ctx.font = chartFont(11);
+  ctx.fillStyle = colors.text;
+  ctx.textBaseline = 'alphabetic';
+  items.forEach((item, index) => {
+    const isFirst = items.length > 1 && index === 0;
+    const isLast = items.length > 1 && index === items.length - 1;
+    ctx.textAlign = isFirst ? 'left' : isLast ? 'right' : 'center';
+    ctx.fillText(item.text, item.x, height - 8);
+  });
+  ctx.restore();
+}
+
+function drawV2EndDot(ctx, point, color, colors, radius) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(point.x, point.y, radius + 2, 0, Math.PI * 2);
+  ctx.fillStyle = colors.surface;
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawV2EmptyChart(ctx, width, height, colors, text) {
+  const box = { width, height, paddingLeft: 34, paddingRight: 14, paddingTop: 12, paddingBottom: 12 };
+  drawV2Grid(ctx, [0, 25, 50, 75, 100], { min: 0, max: 100 }, box, colors);
+  const label = text || 'No marks yet';
+  ctx.save();
+  ctx.font = chartFont(13);
+  const x = (box.paddingLeft + width - box.paddingRight) / 2;
+  const y = height / 2;
+  const textWidth = ctx.measureText(label).width;
+  ctx.fillStyle = colors.surface;
+  ctx.fillRect(x - textWidth / 2 - 10, y - 12, textWidth + 20, 24);
+  ctx.fillStyle = colors.text;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, x, y);
+  ctx.restore();
+}
+
+function drawMultiLineChart(canvas, series, options = {}) {
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
@@ -8506,12 +9763,20 @@ function drawMultiLineChart(canvas, series) {
   ctx.scale(dpr, dpr);
   ctx.clearRect(0, 0, width, height);
 
-  const paddingLeft = 36;
-  const paddingRight = 36;
-  const paddingTop = 18;
-  const paddingBottom = 18;
+  const v2 = options.v2 === true;
+  const v2Colors = v2 ? getV2ChartColors() : null;
+  const paddingLeft = v2 ? 34 : 36;
+  const paddingRight = v2 ? 14 : 36;
+  const paddingTop = v2 ? 12 : 18;
+  const paddingBottom = v2 ? 28 : 18;
   const allSeriesPoints = series.flatMap((line) => line.points || []);
   const hasPlottableValues = allSeriesPoints.some((point) => Number.isFinite(point?.value));
+  if (v2 && (!series || series.length === 0 || !hasPlottableValues)) {
+    drawV2EmptyChart(ctx, width, height, v2Colors, options.emptyText || 'No marks yet');
+    canvas._chartPoints = [];
+    bindChartHover(canvas);
+    return;
+  }
   if (!series || series.length === 0 || !hasPlottableValues) {
     const axisColor = getComputedStyle(document.documentElement).getPropertyValue('--text-tertiary').trim() || '#7a8292';
     drawEmptyChartState(ctx, width, height, {
@@ -8534,7 +9799,7 @@ function drawMultiLineChart(canvas, series) {
     minPadding: 1.5,
     roundToStep: 5,
   });
-  const tickStep = 5;
+  const tickStep = v2 && valueRange.max - valueRange.min > 40 ? 10 : 5;
   const tickMin = Math.floor(valueRange.min / tickStep) * tickStep;
   const tickMax = Math.ceil(valueRange.max / tickStep) * tickStep;
   const ticks = [];
@@ -8543,10 +9808,23 @@ function drawMultiLineChart(canvas, series) {
   }
   const axisColor = getComputedStyle(document.documentElement).getPropertyValue('--text-tertiary').trim() || '#7a8292';
 
-  ctx.fillStyle = axisColor;
+  // V2 puts every line on one shared date scale and labels it along the bottom.
+  const sharedDateValues = v2
+    ? allSeriesPoints.map((point) => point.xValue).filter((value) => Number.isFinite(value))
+    : [];
+  const sharedMinDate = sharedDateValues.length ? Math.min(...sharedDateValues) : null;
+  const sharedMaxDate = sharedDateValues.length ? Math.max(...sharedDateValues) : null;
+  const hasSharedDateScale = v2 && sharedDateValues.length >= 2 && sharedMaxDate > sharedMinDate;
+  if (v2) {
+    drawV2Grid(ctx, ticks, valueRange, { width, height, paddingLeft, paddingRight, paddingTop, paddingBottom }, v2Colors);
+    if (hasSharedDateScale) {
+      drawV2XLabels(ctx, buildDateAxisLabels(sharedMinDate, sharedMaxDate, paddingLeft, width - paddingRight), width, height, v2Colors);
+    }
+  }
+  if (!v2) ctx.fillStyle = axisColor;
   ctx.font = chartFont(12);
   ctx.textBaseline = 'middle';
-  ticks.forEach((tick) => {
+  if (!v2) ticks.forEach((tick) => {
     const y =
       height -
       paddingBottom -
@@ -8559,18 +9837,19 @@ function drawMultiLineChart(canvas, series) {
   });
 
   const allPoints = [];
+  const lineEnds = [];
   series.forEach((line) => {
     const points = line.points;
     if (!points.length) return;
-    ctx.lineWidth = 2.2;
+    ctx.lineWidth = v2 ? 1.75 : 2.2;
     ctx.strokeStyle = line.color || '#2aa9ff';
     const denom = Math.max(points.length - 1, 1);
     const lineDateValues = points
       .map((point) => (Number.isFinite(point.xValue) ? point.xValue : null))
       .filter((value) => Number.isFinite(value));
-    const hasLineDateScale = lineDateValues.length >= 2;
-    const lineMinDateValue = hasLineDateScale ? Math.min(...lineDateValues) : null;
-    const lineMaxDateValue = hasLineDateScale ? Math.max(...lineDateValues) : null;
+    const hasLineDateScale = v2 ? hasSharedDateScale : lineDateValues.length >= 2;
+    const lineMinDateValue = hasLineDateScale ? (v2 ? sharedMinDate : Math.min(...lineDateValues)) : null;
+    const lineMaxDateValue = hasLineDateScale ? (v2 ? sharedMaxDate : Math.max(...lineDateValues)) : null;
     const canScaleLineByDate =
       hasLineDateScale &&
       Number.isFinite(lineMinDateValue) &&
@@ -8608,8 +9887,9 @@ function drawMultiLineChart(canvas, series) {
       });
     }
     if (drawablePoints.length > 1) {
-      traceSmoothLine(ctx, drawablePoints, state.graphSmoothness);
+      traceSmoothLine(ctx, drawablePoints, state.graphSmoothness, { clampY: v2 });
       ctx.stroke();
+      if (v2) lineEnds.push({ point: drawablePoints[drawablePoints.length - 1], color: line.color || '#2aa9ff' });
     } else if (drawablePoints.length === 1) {
       ctx.beginPath();
       ctx.arc(drawablePoints[0].x, drawablePoints[0].y, 2.2, 0, Math.PI * 2);
@@ -8617,6 +9897,8 @@ function drawMultiLineChart(canvas, series) {
       ctx.fill();
     }
   });
+
+  lineEnds.forEach((end) => drawV2EndDot(ctx, end.point, end.color, v2Colors, 3));
 
   canvas._chartPoints = allPoints;
   bindChartHover(canvas);

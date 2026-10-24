@@ -1,0 +1,790 @@
+/*
+ * Sapphire V2 (beta): Calendar page.
+ * Loaded after styles-v2.css; every rule is scoped to :root[data-ui="v2"] and uses its tokens.
+ *
+ * Layout: header row (month + summary | filter, Today, prev/next, Add), then a month grid
+ * with a selected-day agenda panel beside it (below it on narrower screens). On phones the
+ * grid shows coloured dots per day instead of chips. Markup comes from renderCalendarV2().
+ */
+
+/* ── Page frame: no outer card, the grid and agenda are the surfaces ── */
+
+:root[data-ui="v2"] .calendar-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "header"
+    "weekdays"
+    "grid"
+    "agenda";
+  grid-template-rows: auto;
+  gap: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  align-items: start;
+}
+
+/* ── Header ── */
+
+:root[data-ui="v2"] .calendar-header {
+  grid-area: header;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+:root[data-ui="v2"] .calendar-header > div:not(.calendar-header-actions):not(.calendar-v2-heading) {
+  display: none;
+}
+
+:root[data-ui="v2"] .calendar-v2-heading {
+  min-width: 0;
+}
+
+:root[data-ui="v2"] .calendar-v2-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:root[data-ui="v2"] .calendar-v2-summary {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .calendar-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+:root[data-ui="v2"] .calendar-type-filter {
+  border-radius: var(--radius);
+}
+
+:root[data-ui="v2"] .calendar-v2-today {
+  height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+  border-radius: var(--radius);
+}
+
+/* Prev / next as one joined button pair; the month label lives in the heading instead. */
+:root[data-ui="v2"] .calendar-controls {
+  display: inline-flex;
+  gap: 0;
+  padding: 0;
+  height: 36px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+
+:root[data-ui="v2"] .calendar-month {
+  display: none;
+}
+
+:root[data-ui="v2"] .calendar-nav {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 16px;
+}
+
+:root[data-ui="v2"] .calendar-nav + .calendar-nav,
+:root[data-ui="v2"] .calendar-month + .calendar-nav {
+  border-left: 1px solid var(--card-border);
+}
+
+:root[data-ui="v2"] .calendar-nav:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+:root[data-ui="v2"] .calendar-v2-add {
+  height: 36px;
+  padding: 0 12px;
+}
+
+/* ── Month grid ── */
+
+:root[data-ui="v2"] .calendar-weekdays {
+  grid-area: weekdays;
+  gap: 0;
+  padding: 0;
+  border: 1px solid var(--card-border);
+  border-bottom: none;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .calendar-weekdays span {
+  padding: 8px 10px;
+  text-align: left;
+}
+
+:root[data-ui="v2"] .calendar-grid {
+  grid-area: grid;
+  gap: 1px;
+  grid-auto-rows: 118px;
+  background: var(--card-border);
+  border: 1px solid var(--card-border);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  overflow: hidden;
+}
+
+:root[data-ui="v2"] .calendar-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  height: auto;
+  min-height: 0;
+  padding: 6px;
+  overflow: hidden;
+  border: none;
+  border-radius: 0;
+  background: var(--card-surface);
+  box-shadow: none;
+  opacity: 1;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+:root[data-ui="v2"] .calendar-cell:hover {
+  background: color-mix(in srgb, var(--bg-hover) 55%, var(--card-surface));
+}
+
+:root[data-ui="v2"] .calendar-cell.is-today {
+  border: none;
+  box-shadow: none;
+}
+
+:root[data-ui="v2"] .calendar-cell.is-selected {
+  background: color-mix(in srgb, var(--accent) 5%, var(--card-surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+/* Day number */
+:root[data-ui="v2"] .calendar-v2-day {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  align-self: flex-start;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 999px;
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+:root[data-ui="v2"] .calendar-cell.is-weekend .calendar-v2-day {
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .calendar-cell.is-muted .calendar-v2-day {
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .calendar-cell.is-today .calendar-v2-day {
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-weight: 600;
+}
+
+:root[data-ui="v2"] .calendar-v2-day:focus-visible {
+  outline-offset: 0;
+}
+
+/* Event chips */
+:root[data-ui="v2"] .calendar-v2-events {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+:root[data-ui="v2"] .calendar-cell.is-muted .calendar-v2-events {
+  opacity: 0.55;
+}
+
+:root[data-ui="v2"] .calendar-v2-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  height: 22px;
+  margin: 0;
+  padding: 0 6px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  text-align: left;
+  opacity: 1;
+  cursor: pointer;
+}
+
+:root[data-ui="v2"] .calendar-v2-chip.is-assessment,
+:root[data-ui="v2"] .calendar-v2-chip.is-homework {
+  border-left: none;
+}
+
+:root[data-ui="v2"] .calendar-v2-chip.is-assessment {
+  background: color-mix(in srgb, var(--event-color) 15%, transparent);
+  color: var(--text-primary);
+}
+
+:root[data-ui="v2"] .calendar-v2-chip.is-homework {
+  background: transparent;
+}
+
+:root[data-ui="v2"] .calendar-v2-chip:hover,
+:root[data-ui="v2"] button.calendar-v2-chip:hover {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--event-color) 22%, transparent);
+  color: var(--text-primary);
+}
+
+:root[data-ui="v2"] .calendar-v2-chip.is-completed {
+  background: transparent;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .calendar-v2-chip.is-completed:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .calendar-v2-chip.is-overdue .calendar-v2-chip-name {
+  color: var(--danger);
+}
+
+:root[data-ui="v2"] .calendar-v2-chip-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  line-height: 22px;
+}
+
+:root[data-ui="v2"] .calendar-v2-chip-icon {
+  flex: none;
+  font-size: 12px;
+  color: var(--event-color);
+}
+
+/* Dots: solid for assessments, hollow ring for homework (chips, phone grid, agenda). */
+:root[data-ui="v2"] .calendar-v2-chip-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--event-color);
+}
+
+:root[data-ui="v2"] .calendar-v2-chip.is-homework .calendar-v2-chip-dot,
+:root[data-ui="v2"] .calendar-v2-chip-dot.is-homework {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--event-color);
+}
+
+:root[data-ui="v2"] .calendar-v2-chip-dot.is-completed {
+  opacity: 0.45;
+}
+
+:root[data-ui="v2"] .calendar-v2-more {
+  align-self: flex-start;
+  height: 20px;
+  margin: 0;
+  padding: 0 6px;
+  border: none;
+  border-radius: 5px;
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+:root[data-ui="v2"] .calendar-v2-more:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+:root[data-ui="v2"] .calendar-v2-dots {
+  display: none;
+}
+
+/* ── Agenda panel (selected day) ── */
+
+:root[data-ui="v2"] .calendar-agenda {
+  grid-area: agenda;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  background: var(--card-surface);
+}
+
+:root[data-ui="v2"] .calendar-v2-agenda-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+:root[data-ui="v2"] .calendar-v2-agenda-kicker {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .calendar-v2-agenda-kicker.is-today {
+  color: var(--accent);
+}
+
+:root[data-ui="v2"] .calendar-v2-agenda-title {
+  margin: 2px 0 0;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+:root[data-ui="v2"] .calendar-agenda .icon-button {
+  flex: none;
+  border-color: var(--card-border);
+  background: var(--bg-secondary);
+}
+
+:root[data-ui="v2"] .calendar-agenda .icon-button:hover {
+  background: var(--bg-hover);
+  border-color: var(--card-border);
+}
+
+:root[data-ui="v2"] .calendar-v2-agenda-list,
+:root[data-ui="v2"] .calendar-v2-next-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+:root[data-ui="v2"] .calendar-v2-agenda-item {
+  padding: 10px 12px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  transition: background 0.12s ease;
+}
+
+:root[data-ui="v2"] .calendar-v2-agenda-item:has(.calendar-v2-agenda-main:hover) {
+  background: var(--bg-hover);
+}
+
+:root[data-ui="v2"] .calendar-v2-agenda-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+:root[data-ui="v2"] .calendar-v2-agenda-mark {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: var(--event-color);
+}
+
+:root[data-ui="v2"] .calendar-v2-agenda-item.is-homework .calendar-v2-agenda-mark {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--event-color);
+}
+
+:root[data-ui="v2"] .calendar-v2-agenda-item.is-completed .calendar-v2-agenda-mark {
+  opacity: 0.45;
+}
+
+:root[data-ui="v2"] .calendar-v2-agenda-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+:root[data-ui="v2"] .calendar-v2-agenda-name {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+:root[data-ui="v2"] .calendar-v2-agenda-item.is-completed .calendar-v2-agenda-name {
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .calendar-v2-agenda-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .calendar-v2-agenda-subject {
+  color: var(--text-primary);
+}
+
+:root[data-ui="v2"] .calendar-v2-agenda-notes {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .calendar-v2-agenda-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  padding-left: 18px;
+}
+
+:root[data-ui="v2"] .calendar-v2-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 18px;
+  padding: 0 6px;
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+:root[data-ui="v2"] .calendar-v2-badge.is-done {
+  color: var(--grade-a);
+  border-color: color-mix(in srgb, var(--grade-a) 35%, var(--card-border));
+}
+
+:root[data-ui="v2"] .calendar-v2-badge.is-overdue {
+  color: var(--danger);
+  border-color: var(--danger-border);
+  background: var(--danger-soft);
+}
+
+:root[data-ui="v2"] .calendar-v2-agenda-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px;
+  border: 1px dashed var(--card-border);
+  border-radius: var(--radius);
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+/* Coming up */
+:root[data-ui="v2"] .calendar-v2-next {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--card-border);
+}
+
+:root[data-ui="v2"] .calendar-v2-next-title {
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .calendar-v2-next-list {
+  gap: 0;
+  margin: 0 -8px;
+}
+
+:root[data-ui="v2"] .calendar-v2-next-item {
+  display: grid;
+  grid-template-columns: 30px 8px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+:root[data-ui="v2"] .calendar-v2-next-item:hover {
+  background: var(--bg-hover);
+}
+
+:root[data-ui="v2"] .calendar-v2-next-date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.1;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .calendar-v2-next-date strong {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-ui="v2"] .calendar-v2-next-item .calendar-v2-chip-dot {
+  width: 8px;
+  height: 8px;
+}
+
+:root[data-ui="v2"] .calendar-v2-next-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+:root[data-ui="v2"] .calendar-v2-next-name,
+:root[data-ui="v2"] .calendar-v2-next-meta {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+:root[data-ui="v2"] .calendar-v2-next-name {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+:root[data-ui="v2"] .calendar-v2-next-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* ── Narrower screens: agenda moves below the grid ── */
+
+@media (max-width: 1000px) {
+  :root[data-ui="v2"] .calendar-card {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "header"
+      "weekdays"
+      "grid"
+      "agenda";
+    grid-template-rows: auto;
+  }
+
+  :root[data-ui="v2"] .calendar-agenda {
+    margin-top: 16px;
+  }
+
+  :root[data-ui="v2"] .calendar-grid {
+    grid-auto-rows: 104px;
+  }
+}
+
+/* ── Phones: dots per day instead of chips ── */
+
+@media (max-width: 700px) {
+  :root[data-ui="v2"] .calendar-header {
+    gap: 10px 8px;
+  }
+
+  /* Flatten the action group so Today / arrows / Add share the heading's row
+     and the filter takes a full row underneath. */
+  :root[data-ui="v2"] .calendar-header-actions {
+    display: contents;
+  }
+
+  :root[data-ui="v2"] .calendar-v2-heading {
+    flex: 1 1 0;
+  }
+
+  :root[data-ui="v2"] .calendar-v2-title {
+    font-size: 18px;
+  }
+
+  :root[data-ui="v2"] .calendar-v2-summary {
+    font-size: 12px;
+  }
+
+  :root[data-ui="v2"] .calendar-type-filter {
+    order: 10;
+    flex: 1 1 100%;
+  }
+
+  :root[data-ui="v2"] .calendar-type-filter-button {
+    flex: 1 1 0;
+    padding: 0 6px;
+  }
+
+  :root[data-ui="v2"] .calendar-v2-add {
+    width: 36px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  :root[data-ui="v2"] .calendar-v2-add-label {
+    display: none;
+  }
+
+  :root[data-ui="v2"] .calendar-weekdays span {
+    padding: 6px 0;
+    text-align: center;
+    font-size: 11px;
+  }
+
+  :root[data-ui="v2"] .calendar-grid {
+    grid-auto-rows: 54px;
+  }
+
+  :root[data-ui="v2"] .calendar-cell {
+    align-items: center;
+    gap: 4px;
+    padding: 5px 2px;
+  }
+
+  :root[data-ui="v2"] .calendar-v2-day {
+    align-self: center;
+    min-width: 28px;
+    height: 28px;
+    font-size: 13px;
+  }
+
+  :root[data-ui="v2"] .calendar-cell.is-selected {
+    background: var(--card-surface);
+    box-shadow: none;
+  }
+
+  :root[data-ui="v2"] .calendar-cell.is-selected:not(.is-today) .calendar-v2-day {
+    background: var(--bg-depth);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent);
+  }
+
+  :root[data-ui="v2"] .calendar-v2-events {
+    display: none;
+  }
+
+  :root[data-ui="v2"] .calendar-v2-dots {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    height: 8px;
+  }
+
+  :root[data-ui="v2"] .calendar-cell.is-muted .calendar-v2-dots {
+    opacity: 0.5;
+  }
+
+  :root[data-ui="v2"] .calendar-v2-dots .calendar-v2-chip-dot {
+    width: 6px;
+    height: 6px;
+  }
+
+  :root[data-ui="v2"] .calendar-v2-dots-more {
+    font-size: 9px;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--text-tertiary);
+  }
+
+  :root[data-ui="v2"] .calendar-agenda {
+    padding: 14px;
+  }
+}
+
+/* On wide screens the panel under the grid splits in two: the selected day on the
+   left, Coming up on the right. */
+@media (min-width: 1001px) {
+  :root[data-ui="v2"] .calendar-agenda {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "head next"
+      "body next";
+    grid-template-rows: auto 1fr;
+    column-gap: 32px;
+    align-items: start;
+  }
+
+  :root[data-ui="v2"] .calendar-v2-agenda-head {
+    grid-area: head;
+  }
+
+  :root[data-ui="v2"] .calendar-v2-agenda-list,
+  :root[data-ui="v2"] .calendar-v2-agenda-empty {
+    grid-area: body;
+  }
+
+  :root[data-ui="v2"] .calendar-v2-next {
+    grid-area: next;
+    margin-top: 0;
+    padding-top: 0;
+    padding-left: 32px;
+    border-top: none;
+    border-left: 1px solid var(--card-border);
+    align-self: stretch;
+  }
+}
