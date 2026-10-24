@@ -1083,7 +1083,9 @@
 /* The footer. */
 :root[data-ui="v2"] .modal-body > .form-actions {
   position: sticky;
-  bottom: 0;
+  /* Sticky insets stop at the scroll container's padding edge, so cancel the panel's
+     bottom padding or the bar floats --modal-padding above the bottom with a gap below. */
+  bottom: calc(-1 * var(--modal-padding));
   z-index: 4;
   justify-content: flex-end;
   margin: 4px calc(-1 * var(--modal-padding)) calc(-1 * var(--modal-padding)) !important;
@@ -1100,6 +1102,15 @@
 
 :root[data-ui="v2"] .modal-body > .form-actions > .form-message:empty {
   display: none;
+}
+
+/* Destructive action sits at the far left of the footer, away from Save. */
+:root[data-ui="v2"] .modal-body > .form-actions > .upcoming-delete-button {
+  order: -2;
+  margin-right: auto;
+  height: var(--control-height);
+  padding: 0 14px;
+  font-size: 14px;
 }
 
 :root[data-ui="v2"] .modal-body > .form-actions > .ghost-button {
@@ -3179,3 +3190,16 @@
 :root[data-ui="v2"] .ph-wave-sine::before { content: "\e038"; }
 :root[data-ui="v2"] .ph-wrench::before { content: "\e1b1"; }
 :root[data-ui="v2"] .ph-x::before { content: "\e1b2"; }
+
+.upcoming-delete-button[hidden] {
+  display: none !important;
+}
+
+.notify-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+  cursor: pointer;
+  color: var(--text-secondary);
+}

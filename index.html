@@ -1082,6 +1082,15 @@
             <input name="upcomingNotes" placeholder="e.g. Chapter 6 and 7" />
           </label>
           <div class="form-actions">
+            <button
+              class="danger-button with-icon upcoming-delete-button"
+              id="upcoming-delete"
+              type="button"
+              hidden
+            >
+              <i class="ph ph-trash button-icon" aria-hidden="true"></i>
+              Delete
+            </button>
             <button class="ghost-button v2-only" type="button" data-action="close-upcoming">
               Cancel
             </button>
@@ -1630,6 +1639,29 @@
                 <div class="timetable-meta" id="settings-timetable-source-meta">
                   No timetable imported yet.
                 </div>
+              </section>
+              <section class="settings-block" id="settings-notifications-block">
+                <div>
+                  <div class="section-eyebrow">Notifications</div>
+                  <div class="settings-title">Assessment &amp; homework reminders</div>
+                </div>
+                <label class="notify-toggle" for="notify-enabled">
+                  <span class="ui-switch">
+                    <input type="checkbox" id="notify-enabled" role="switch" />
+                    <span class="ui-switch-track" aria-hidden="true"></span>
+                  </span>
+                  <span>Remind me on this device</span>
+                </label>
+                <div class="checkbox-grid" id="notify-leads" role="group" aria-label="Remind me">
+                  <label class="checkbox-item"><input type="checkbox" data-notify-lead="7" /> <span>1 week before</span></label>
+                  <label class="checkbox-item"><input type="checkbox" data-notify-lead="3" /> <span>3 days before</span></label>
+                  <label class="checkbox-item"><input type="checkbox" data-notify-lead="1" /> <span>1 day before</span></label>
+                  <label class="checkbox-item"><input type="checkbox" data-notify-lead="0" /> <span>Morning of</span></label>
+                </div>
+                <div class="theme-control-meta">
+                  Reminders appear while Sapphire is open (or in a background tab), and catch up when you next open it. Saved per device.
+                </div>
+                <div class="form-message" id="notify-message" aria-live="polite"></div>
               </section>
               <section class="settings-block">
                 <div>
