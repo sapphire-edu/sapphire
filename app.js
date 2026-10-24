@@ -2620,6 +2620,39 @@ async function shareAssessmentToLeaderboard(subjectId, assessmentId) {
   const assessment = subject.assessments.find(a => a.id === assessmentId);
   if (!assessment) return;
 
+  // Averages-only: there is no per-mark entry, so sharing a mark just adds it to (or takes it
+  // out of) the subject average, which sync then uploads.
+  if (getLeaderboardPrivacy().averagesOnly) {
+    const alreadyShared = Boolean(assessment.leaderboardDocId);
+    const autoShareOn = Boolean(state.data.leaderboardAutoShare);
+    if (alreadyShared) {
+      const confirmed = await showConfirm({
+        title: 'Remove from your average?',
+        message: autoShareOn
+          ? `This mark will stop counting towards your ${subject.name} average on the leaderboard, and "Keep everything shared" will be turned off.`
+          : `This mark will stop counting towards your ${subject.name} average on the leaderboard.`,
+        confirmLabel: 'Remove',
+        danger: true,
+      });
+      if (!confirmed) return;
+      assessment.leaderboardDocId = null;
+      if (autoShareOn) {
+        state.data.leaderboardAutoShare = false;
+        renderLeaderboardControls();
+      }
+    } else {
+      assessment.leaderboardDocId = leaderboardDocIdFor(assessment);
+    }
+    saveData(state.data, { skipLeaderboardSync: true });
+    render();
+    if (activeSubjectId === subjectId && elements.subjectModal?.classList.contains('is-open')) {
+      openSubjectModal(subjectId);
+    }
+    await syncMyLeaderboardEntries();
+    fetchLeaderboard();
+    return;
+  }
+
   // If already shared, ask to remove
   if (assessment.leaderboardDocId) {
     const autoShare = Boolean(state.data.leaderboardAutoShare);
@@ -2707,8 +2740,10 @@ function leaderboardPayload(subject, assessment) {
   };
 }
 
-function leaderboardSummaryPayload(subject) {
-  const average = weightedAverage(subject.assessments);
+// Averages-only mode uploads one rounded average per subject, worked out from only the
+// marks you've shared (the ones carrying a leaderboardDocId marker).
+function leaderboardSummaryPayload(subject, sharedAssessments = subject.assessments) {
+  const average = weightedAverage(sharedAssessments);
   if (average === null) return null;
   const rounded = Math.round(average);
   return {
@@ -2732,11 +2767,11 @@ function isSubjectShareable(subjectId) {
   return subjectIds === null || subjectIds.includes(subjectId);
 }
 
-// Whether per-assessment Share buttons apply to this subject.
+// Whether the per-assessment Share buttons apply to this subject (they also work in
+// averages-only mode, where a shared mark counts towards the subject's uploaded average).
 function canShareSubjectMarks(subjectId) {
   return Boolean(
     appwriteState.user?.labels?.includes('friends') &&
-      !getLeaderboardPrivacy().averagesOnly &&
       isSubjectShareable(subjectId)
   );
 }
@@ -2749,9 +2784,8 @@ function buildDesiredLeaderboardEntries() {
   for (const subject of state.data.subjects) {
     if (!isSubjectShareable(subject.id)) continue;
     if (privacy.averagesOnly) {
-      // "Keep everything shared" decides whether the averages are on the leaderboard at all.
-      if (!autoShare) continue;
-      const payload = leaderboardSummaryPayload(subject);
+      const shared = subject.assessments.filter((a) => a.leaderboardDocId && Number(a.total) > 0);
+      const payload = leaderboardSummaryPayload(subject, shared);
       if (payload) entries.push({ docId: leaderboardSummaryDocIdFor(subject), subject, payload });
       continue;
     }
@@ -2775,8 +2809,14 @@ function buildDesiredLeaderboardEntries() {
 function isLeaderboardDocBlockedByPrivacy(doc) {
   const privacy = getLeaderboardPrivacy();
   if (isLeaderboardSummaryDoc(doc) !== privacy.averagesOnly) return true;
-  // Averages-only has no manual sharing, so with "Keep everything shared" off nothing should stay up.
-  if (privacy.averagesOnly && !state.data.leaderboardAutoShare) return true;
+  // A subject average nothing is sharing into any more (its last shared mark was removed).
+  if (
+    privacy.averagesOnly &&
+    isLeaderboardSummaryDoc(doc) &&
+    state.data.subjects.some((subject) => leaderboardSummaryDocIdFor(subject) === doc.$id)
+  ) {
+    return true;
+  }
   const localMatches = state.data.subjects.filter(
     (subject) => normalizeSubjectNameForLeaderboard(subject.name) === doc.subjectName
   );
@@ -2833,12 +2873,21 @@ async function syncMyLeaderboardEntries({ removeOrphans = false } = {}) {
     const privacy = getLeaderboardPrivacy();
 
     for (const subject of state.data.subjects) {
-      const individual = !privacy.averagesOnly && isSubjectShareable(subject.id);
+      const shareable = isSubjectShareable(subject.id);
       for (const assessment of subject.assessments) {
-        if (!individual) {
+        if (!shareable) {
           // Hidden by privacy settings: its doc (if any) is removed below.
           if (assessment.leaderboardDocId) {
             assessment.leaderboardDocId = null;
+            localChanged = true;
+          }
+          continue;
+        }
+        if (privacy.averagesOnly) {
+          // No per-mark docs here: the marker just records that the mark counts towards the
+          // subject average. "Keep everything shared" adds new marks to it automatically.
+          if (autoShare && !assessment.leaderboardDocId && Number(assessment.total) > 0) {
+            assessment.leaderboardDocId = leaderboardDocIdFor(assessment);
             localChanged = true;
           }
           continue;
@@ -2853,7 +2902,7 @@ async function syncMyLeaderboardEntries({ removeOrphans = false } = {}) {
     }
 
     for (const entry of buildDesiredLeaderboardEntries()) {
-      const { docId, payload, assessment } = entry;
+      const { docId, payload, assessment, subject } = entry;
       try {
         if (remote.has(docId)) {
           referenced.add(docId);
@@ -2870,7 +2919,14 @@ async function syncMyLeaderboardEntries({ removeOrphans = false } = {}) {
             referenced.add(docId);
           } catch (err) {
             if (err?.code !== 404) throw err;
-            assessment.leaderboardDocId = null;
+            if (remote.has(leaderboardSummaryDocIdFor(subject))) {
+              // Just switched away from averages-only: the marks were shared, so publish them.
+              await createLeaderboardEntry(subject, assessment);
+              referenced.add(assessment.leaderboardDocId);
+              result.created += 1;
+            } else {
+              assessment.leaderboardDocId = null;
+            }
             localChanged = true;
           }
           continue;
@@ -2958,7 +3014,7 @@ function renderLeaderboardControls() {
     const toggleLabel = elements.leaderboardAutoShare.closest('.lb-toggle');
     if (toggleLabel) {
       toggleLabel.title = privacy.averagesOnly
-        ? 'Keep your subject averages on the leaderboard'
+        ? 'Automatically count new marks towards your subject averages'
         : 'Automatically share new and edited marks';
     }
   }
@@ -3033,7 +3089,6 @@ async function unshareEverythingFromLeaderboard() {
   // Turn sharing off first so a queued sync can't put anything back.
   clearTimeout(leaderboardSyncTimer);
   state.data.leaderboardAutoShare = false;
-  state.data.leaderboardPrivacy = { ...getLeaderboardPrivacy(), averagesOnly: false };
   state.data.subjects.forEach((subject) => {
     subject.assessments.forEach((assessment) => {
       assessment.leaderboardDocId = null;
@@ -3096,8 +3151,6 @@ if (elements.leaderboardPrivacyModal) {
     if (input === elements.leaderboardPrivacyHideRaw) {
       updateLeaderboardPrivacy({ hideRawMarks: input.checked });
     } else if (input === elements.leaderboardPrivacyAverages) {
-      // Turning averages-only on starts sharing the averages; "Keep everything shared" can pause it.
-      if (input.checked) state.data.leaderboardAutoShare = true;
       updateLeaderboardPrivacy({ averagesOnly: input.checked });
     } else if (input.dataset.privacySubjectId) {
       const checked = Array.from(
@@ -3146,6 +3199,26 @@ async function shareAllAssessmentsToLeaderboard() {
       subject.assessments.filter((a) => !a.leaderboardDocId).map((assessment) => ({ subject, assessment }))
     );
   if (pending.length === 0) return;
+
+  if (getLeaderboardPrivacy().averagesOnly) {
+    const confirmedAverages = await showConfirm({
+      title: 'Share everything?',
+      message: `This will count ${pending.length} mark${pending.length !== 1 ? 's' : ''} towards your subject averages on the leaderboard.`,
+      confirmLabel: 'Share all',
+    });
+    if (!confirmedAverages) return;
+    pending.forEach(({ assessment }) => {
+      assessment.leaderboardDocId = leaderboardDocIdFor(assessment);
+    });
+    saveData(state.data, { skipLeaderboardSync: true });
+    render();
+    if (elements.subjectModal?.classList.contains('is-open') && activeSubjectId) {
+      openSubjectModal(activeSubjectId);
+    }
+    await syncMyLeaderboardEntries();
+    fetchLeaderboard();
+    return;
+  }
 
   const confirmed = await showConfirm({
     title: 'Share everything?',
