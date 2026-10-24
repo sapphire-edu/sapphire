@@ -2920,21 +2920,26 @@ function leaderboardPayload(subject, assessment) {
   };
 }
 
-// Averages-only mode uploads one rounded average per subject, worked out from only the
-// marks you've shared (the ones carrying a leaderboardDocId marker).
+// Averages-only mode uploads one exact average per subject, worked out from only the
+// marks you've shared (the ones carrying a leaderboardDocId marker). The doc carries the
+// combined weight of those marks, so averaging the subject docs gives the same overall
+// average as the dashboard instead of counting every subject equally.
 function leaderboardSummaryPayload(subject, sharedAssessments = subject.assessments) {
   const average = weightedAverage(sharedAssessments);
   if (average === null) return null;
-  const rounded = Math.round(average);
+  const weight = sharedAssessments.reduce(
+    (sum, a) => (Number(a.total) > 0 ? sum + (a.weight == null ? 1 : Number(a.weight)) : sum),
+    0
+  );
   return {
     userId: appwriteState.user.$id,
     userName: appwriteState.user.name || 'Anonymous',
     subjectName: normalizeSubjectNameForLeaderboard(subject.name),
     assessmentName: LEADERBOARD_SUMMARY_NAME,
-    score: rounded,
+    score: average,
     total: 100,
-    percent: rounded,
-    weight: null,
+    percent: average,
+    weight,
   };
 }
 
@@ -3719,12 +3724,13 @@ function openLeaderboardPopup(userData) {
     const subAvg = leaderboardAverage(assessments);
     // Averages-only entries have no per-assessment rows; hidden raw marks show just the %.
     const rows = assessments.filter((a) => !isLeaderboardSummaryDoc(a)).map(a => {
-      const rawHidden = a.total === 100 && a.score === Math.round(a.percent) && Number.isInteger(a.percent);
+      const isSummary = a.assessmentName === LEADERBOARD_SUMMARY_NAME;
+      const rawHidden = isSummary || (a.total === 100 && a.score === Math.round(a.percent) && Number.isInteger(a.percent));
       return `
       <div class="lb-detail-row">
         <span class="lb-detail-name">${escapeHtml(a.assessmentName || 'Assessment')}</span>
         <span class="lb-detail-score">${rawHidden ? '' : `${a.score} / ${a.total}`}</span>
-        <span class="lb-detail-percent">${rawHidden ? a.percent : a.percent.toFixed(1)}%</span>
+        <span class="lb-detail-percent">${rawHidden && !isSummary ? a.percent : a.percent.toFixed(1)}%</span>
       </div>
     `;
     }).join('');
@@ -3781,12 +3787,13 @@ function openLeaderboardPopup(userData) {
       // Same rules as V1: averages-only entries have no rows; hidden raw marks show just the %.
       const items = assessments.filter((a) => !isLeaderboardSummaryDoc(a));
       const rows = items.map((a) => {
-        const rawHidden = a.total === 100 && a.score === Math.round(a.percent) && Number.isInteger(a.percent);
+        const isSummary = a.assessmentName === LEADERBOARD_SUMMARY_NAME;
+        const rawHidden = isSummary || (a.total === 100 && a.score === Math.round(a.percent) && Number.isInteger(a.percent));
         return `
           <div class="lb-pop-row">
             <span class="lb-pop-row-name">${escapeHtml(a.assessmentName || 'Assessment')}</span>
             <span class="lb-pop-row-raw">${rawHidden ? '' : `${a.score} / ${a.total}`}</span>
-            <span class="lb-pop-row-pct">${rawHidden ? a.percent : a.percent.toFixed(1)}%</span>
+            <span class="lb-pop-row-pct">${rawHidden && !isSummary ? a.percent : a.percent.toFixed(1)}%</span>
           </div>
         `;
       }).join('');
