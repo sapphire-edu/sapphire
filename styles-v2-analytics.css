@@ -365,7 +365,7 @@
 }
 
 :root[data-ui="v2"] .v2-an-target-text.is-below {
-  color: var(--grade-c);
+  color: var(--primary);
 }
 
 :root[data-ui="v2"] .v2-an-average {

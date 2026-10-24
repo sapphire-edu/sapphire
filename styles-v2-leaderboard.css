@@ -779,16 +779,31 @@
   color: var(--text-tertiary);
 }
 
-/* Danger zone. */
-:root[data-ui="v2"] #leaderboard-privacy-modal .form-actions {
+/* Remove-my-marks row: a hairline above, then text on the left and the button on the right.
+   It sits in a wrapper so the shared popup footer rules (which bleed to the edges) don't catch it. */
+:root[data-ui="v2"] .lb-danger-wrap {
+  padding-top: 16px;
+  border-top: 1px solid var(--card-border);
+}
+
+:root[data-ui="v2"] #leaderboard-privacy-modal .lb-danger-wrap .form-actions {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px 16px;
-  margin-top: 0;
-  padding: 14px;
-  border: 1px solid var(--danger-border);
-  border-radius: var(--radius-lg);
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+}
+
+:root[data-ui="v2"] #leaderboard-privacy-modal .lb-danger-wrap .form-message {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+:root[data-ui="v2"] #leaderboard-privacy-modal .lb-danger-wrap .form-message:empty {
+  display: none;
 }
 
 :root[data-ui="v2"] .lb-danger-text {
@@ -934,7 +949,7 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  :root[data-ui="v2"] #leaderboard-privacy-modal .form-actions {
+  :root[data-ui="v2"] #leaderboard-privacy-modal .lb-danger-wrap .form-actions {
     grid-template-columns: minmax(0, 1fr);
   }
 

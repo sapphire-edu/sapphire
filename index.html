@@ -1705,16 +1705,18 @@
             Friends can only see what's uploaded. Rounding makes exact marks hard to work out, but if a friend
             knows your old average and you add one new mark, they can still roughly estimate it.
           </p>
-          <div class="form-actions">
-            <div class="lb-danger-text v2-only">
-              <strong>Unshare everything</strong>
-              <span>Removes all your entries from the leaderboard and turns off auto-sharing. Your marks stay saved in Sapphire.</span>
+          <div class="lb-danger-wrap">
+            <div class="form-actions">
+              <div class="lb-danger-text v2-only">
+                <strong>Remove my marks</strong>
+                <span>Deletes everything you've shared and turns sharing off. Your marks stay saved in Sapphire.</span>
+              </div>
+              <button class="delete-button with-icon" type="button" data-action="leaderboard-unshare-all">
+                <i class="ph ph-eye-slash button-icon" aria-hidden="true"></i>
+                Unshare everything
+              </button>
+              <span class="form-message" id="leaderboard-privacy-message" aria-live="polite"></span>
             </div>
-            <button class="delete-button with-icon" type="button" data-action="leaderboard-unshare-all">
-              <i class="ph ph-eye-slash button-icon" aria-hidden="true"></i>
-              Unshare everything
-            </button>
-            <span class="form-message" id="leaderboard-privacy-message" aria-live="polite"></span>
           </div>
         </div>
       </div>

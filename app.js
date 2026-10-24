@@ -2749,6 +2749,8 @@ function buildDesiredLeaderboardEntries() {
   for (const subject of state.data.subjects) {
     if (!isSubjectShareable(subject.id)) continue;
     if (privacy.averagesOnly) {
+      // "Keep everything shared" decides whether the averages are on the leaderboard at all.
+      if (!autoShare) continue;
       const payload = leaderboardSummaryPayload(subject);
       if (payload) entries.push({ docId: leaderboardSummaryDocIdFor(subject), subject, payload });
       continue;
@@ -2773,6 +2775,8 @@ function buildDesiredLeaderboardEntries() {
 function isLeaderboardDocBlockedByPrivacy(doc) {
   const privacy = getLeaderboardPrivacy();
   if (isLeaderboardSummaryDoc(doc) !== privacy.averagesOnly) return true;
+  // Averages-only has no manual sharing, so with "Keep everything shared" off nothing should stay up.
+  if (privacy.averagesOnly && !state.data.leaderboardAutoShare) return true;
   const localMatches = state.data.subjects.filter(
     (subject) => normalizeSubjectNameForLeaderboard(subject.name) === doc.subjectName
   );
@@ -2951,9 +2955,12 @@ function renderLeaderboardControls() {
   const privacy = getLeaderboardPrivacy();
   if (elements.leaderboardAutoShare) {
     elements.leaderboardAutoShare.checked = Boolean(state.data.leaderboardAutoShare);
-    // Averages-only shares every ticked subject, so auto-share doesn't apply.
-    elements.leaderboardAutoShare.disabled = privacy.averagesOnly;
-    elements.leaderboardAutoShare.closest('.lb-toggle')?.classList.toggle('is-disabled', privacy.averagesOnly);
+    const toggleLabel = elements.leaderboardAutoShare.closest('.lb-toggle');
+    if (toggleLabel) {
+      toggleLabel.title = privacy.averagesOnly
+        ? 'Keep your subject averages on the leaderboard'
+        : 'Automatically share new and edited marks';
+    }
   }
   if (elements.leaderboardPrivacyModal?.classList.contains('is-open')) {
     renderLeaderboardPrivacyModal();
@@ -3089,6 +3096,8 @@ if (elements.leaderboardPrivacyModal) {
     if (input === elements.leaderboardPrivacyHideRaw) {
       updateLeaderboardPrivacy({ hideRawMarks: input.checked });
     } else if (input === elements.leaderboardPrivacyAverages) {
+      // Turning averages-only on starts sharing the averages; "Keep everything shared" can pause it.
+      if (input.checked) state.data.leaderboardAutoShare = true;
       updateLeaderboardPrivacy({ averagesOnly: input.checked });
     } else if (input.dataset.privacySubjectId) {
       const checked = Array.from(
