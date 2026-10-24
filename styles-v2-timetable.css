@@ -300,10 +300,32 @@
   margin-left: auto;
 }
 
+/* V2's switch is just A / B, with the current week marked on its own button. */
+:root[data-ui="v2"] .timetable-week-switch [data-timetable-week="current"] {
+  display: none;
+}
+
+:root[data-ui="v2"] .tt-week-current {
+  margin-left: 2px;
+  font-weight: 400;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .chip.is-active .tt-week-current {
+  color: var(--text-secondary);
+}
+
+/* Icon-only, the same height as the week switch next to it. */
 :root[data-ui="v2"] .tt-swap-button {
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 500;
+  justify-content: center;
+  width: var(--control-height);
+  height: var(--control-height);
+  padding: 0;
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .tt-swap-button:hover:not(:disabled) {
+  color: var(--text-primary);
 }
 
 /* ── Day tabs (phones only) ── */
@@ -390,6 +412,25 @@
 
 :root[data-ui="v2"] .timetable-day-list {
   gap: 6px;
+}
+
+/* A gap between lessons (recess, lunch): a hairline with its length. */
+:root[data-ui="v2"] .tt-break {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 4px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+:root[data-ui="v2"] .tt-break::before,
+:root[data-ui="v2"] .tt-break::after {
+  content: "";
+  flex: 1;
+  border-top: 1px dashed var(--card-border);
 }
 
 :root[data-ui="v2"] .tt-day-empty,

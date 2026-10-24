@@ -32,7 +32,7 @@
   --bg-glow-2: transparent;
   --text-primary: #171717;
   --text-secondary: #5e5e5e;
-  --text-tertiary: #8f8f8f;
+  --text-tertiary: #6b6b6b; /* ≥4.5:1 on every light surface down to --bg-depth */
   --card-border: #e6e6e6;
   --card-surface: #ffffff;
   --card-surface-strong: #ffffff;
@@ -107,7 +107,7 @@
   --track: #262626;
   --text-primary: #ededed;
   --text-secondary: #a1a1a1;
-  --text-tertiary: #737373;
+  --text-tertiary: #8a8a8a; /* ≥4.5:1 on every dark surface up to --bg-depth */
   --card-border: #222222;
   --card-surface: #0a0a0a;
   --card-surface-strong: #0a0a0a;
@@ -180,6 +180,23 @@
 :root[data-ui="v2"] :focus-visible {
   outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
   outline-offset: 2px;
+}
+
+/* Menu rows share their hover tint with focus, which is too faint on its own to see,
+   so they keep the ring too, drawn inside so the menu doesn't clip it. */
+:root[data-ui="v2"] :is(.profile-menu-action, .quick-add-item, .more-menu-list button):focus-visible {
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-ui="v2"] *,
+  :root[data-ui="v2"] *::before,
+  :root[data-ui="v2"] *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ── Header: brand + actions, then a tab row ── */
@@ -398,7 +415,6 @@
   transform: none;
   box-shadow: none;
   background: var(--bg-hover);
-  outline: none;
 }
 
 /* ── Page ── */
@@ -2350,7 +2366,6 @@
 :root[data-ui="v2"] .quick-add-item:hover,
 :root[data-ui="v2"] .quick-add-item:focus-visible {
   background: var(--bg-hover);
-  outline: none;
 }
 
 :root[data-ui="v2"] .quick-add-icon {
@@ -2419,7 +2434,6 @@
 :root[data-ui="v2"] .more-menu-list button:hover,
 :root[data-ui="v2"] .more-menu-list button:focus-visible {
   background: var(--bg-hover);
-  outline: none;
 }
 
 /* The destructive item sits under a divider. */

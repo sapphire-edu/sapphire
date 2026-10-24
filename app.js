@@ -1868,8 +1868,13 @@ if (elements.timetableWeekSwitch) {
   elements.timetableWeekSwitch.addEventListener('click', (event) => {
     const button = event.target.closest('[data-timetable-week]');
     if (!button) return;
-    const week = button.dataset.timetableWeek;
+    let week = button.dataset.timetableWeek;
     if (!week || !['current', 'A', 'B'].includes(week)) return;
+    // V2 has no separate "Current" button: picking this week's letter means "current",
+    // so the view keeps following the current week as the weeks roll over.
+    if (isUiV2() && week === getCurrentTimetableWeekType(state.data.timetable)) {
+      week = 'current';
+    }
     state.timetableView.selectedWeek = week;
     renderTimetable();
   });
@@ -7722,7 +7727,9 @@ function buildCalendarAgendaV2(selected, eventsByDate, filterEvents) {
   const heading = date.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
   const items = filterEvents(eventsByDate[selected] || []);
   const isToday = selected === today;
-  const countLabel = items.length ? `${items.length} item${items.length === 1 ? '' : 's'}` : 'Nothing scheduled';
+  const kicker = items.length
+    ? `${calendarRelativeDayLabel(selected)} · ${items.length} item${items.length === 1 ? '' : 's'}`
+    : calendarRelativeDayLabel(selected);
 
   const nextUp = [];
   Object.keys(eventsByDate)
@@ -7739,7 +7746,7 @@ function buildCalendarAgendaV2(selected, eventsByDate, filterEvents) {
     ? `<ul class="calendar-v2-agenda-list">${items.map((event) => buildCalendarAgendaItemV2(event, selected)).join('')}</ul>`
     : `
       <div class="calendar-v2-agenda-empty">
-        <span>Nothing due on this day.</span>
+        <span>Nothing due.</span>
         <button class="ghost-button ghost-button--small with-icon" type="button" data-action="calendar-add-on-day" data-calendar-date="${selected}">${iconHtml('plus')}Add item</button>
       </div>
     `;
@@ -7775,10 +7782,10 @@ function buildCalendarAgendaV2(selected, eventsByDate, filterEvents) {
   return `
     <div class="calendar-v2-agenda-head">
       <div>
-        <div class="calendar-v2-agenda-kicker${isToday ? ' is-today' : ''}">${calendarRelativeDayLabel(selected)} · ${countLabel}</div>
+        <div class="calendar-v2-agenda-kicker${isToday ? ' is-today' : ''}">${kicker}</div>
         <h3 class="calendar-v2-agenda-title">${heading}</h3>
       </div>
-      <button class="icon-button" type="button" data-action="calendar-add-on-day" data-calendar-date="${selected}" aria-label="Add item on ${heading}" title="Add item">${iconHtml('plus')}</button>
+      ${items.length ? `<button class="icon-button" type="button" data-action="calendar-add-on-day" data-calendar-date="${selected}" aria-label="Add item on ${heading}" title="Add item">${iconHtml('plus')}</button>` : ''}
     </div>
     ${listHtml}
     ${nextHtml}
@@ -8412,6 +8419,10 @@ function renderTimetable() {
   if (elements.timetableWeekSwitch) {
     elements.timetableWeekSwitch.querySelectorAll('[data-timetable-week]').forEach((button) => {
       button.classList.toggle('is-active', button.dataset.timetableWeek === selectedWeekControl);
+      // Undo V2's "(current)" label if the beta was switched off.
+      if (!useV2 && button.dataset.timetableWeek !== 'current') {
+        button.textContent = `Week ${button.dataset.timetableWeek}`;
+      }
     });
   }
 
@@ -8443,6 +8454,7 @@ function renderTimetable() {
   if (useV2) {
     renderTimetableV2WeekHeader({
       hasLessons,
+      currentWeekType,
       selectedWeekType,
       selectedWeekDates,
       selectedWeekMonday,
@@ -8527,11 +8539,21 @@ function renderTimetableV2ImportCard(hasLessons, sourceMeta) {
 
 function renderTimetableV2WeekHeader({
   hasLessons,
+  currentWeekType,
   selectedWeekType,
   selectedWeekDates,
   selectedWeekMonday,
   currentWeekMonday,
 }) {
+  // Two-way A/B switch; this week's letter is marked "(current)".
+  elements.timetableWeekSwitch?.querySelectorAll('[data-timetable-week="A"], [data-timetable-week="B"]')
+    .forEach((button) => {
+      const week = button.dataset.timetableWeek;
+      const isCurrent = hasLessons && week === currentWeekType;
+      button.innerHTML = `Week ${week}${isCurrent ? ' <span class="tt-week-current">(current)</span>' : ''}`;
+      button.classList.toggle('is-active', week === selectedWeekType);
+      button.setAttribute('aria-pressed', week === selectedWeekType ? 'true' : 'false');
+    });
   if (elements.timetableWeekTitle) {
     elements.timetableWeekTitle.textContent = `Week ${selectedWeekType}`;
   }
@@ -8570,16 +8592,28 @@ function renderTimetableV2Grid({ timetable, weekLessons, selectedWeekDates, isTh
       .slice()
       .sort((a, b) => a.startMinutes - b.startMinutes || a.endMinutes - b.endMinutes);
     const currentLesson = isToday ? findCurrentLesson(dayLessons, nowMinutes) : null;
+    let breakCount = 0;
     const listHtml = dayLessons.length
-      ? dayLessons.map((lesson) => buildLessonCardHtml(lesson, timetable, {
-        status: !isToday
-          ? ''
-          : lesson === currentLesson
-          ? 'current'
-          : lesson.endMinutes <= nowMinutes
-          ? 'past'
-          : '',
-      })).join('')
+      ? dayLessons.map((lesson, lessonIndex) => {
+        // Gaps between lessons: the first is recess, the second lunch.
+        const previous = dayLessons[lessonIndex - 1];
+        const gap = previous ? lesson.startMinutes - previous.endMinutes : 0;
+        let breakHtml = '';
+        if (gap >= 15) {
+          const breakName = ['Recess', 'Lunch'][breakCount] || 'Break';
+          breakCount += 1;
+          breakHtml = `<div class="tt-break" title="${gap} min"><span>${breakName}</span></div>`;
+        }
+        return breakHtml + buildLessonCardHtml(lesson, timetable, {
+          status: !isToday
+            ? ''
+            : lesson === currentLesson
+            ? 'current'
+            : lesson.endMinutes <= nowMinutes
+            ? 'past'
+            : '',
+        });
+      }).join('')
       : '<div class="tt-day-empty">No classes</div>';
     const columnClass = [
       'timetable-day-column',
@@ -8711,6 +8745,11 @@ function buildLessonCardHtml(lesson, timetable = state.data.timetable, options =
     // V2: same content, plus the raw subject colour and the current/past state for the weekly grid.
     const status = options.status === 'current' || options.status === 'past' ? options.status : '';
     const color = normalizeColorValue(presentation.color) || 'var(--accent)';
+    // Room and teacher first: when the line truncates, it's the class code that's cut.
+    const v2MetaParts = [lesson.room, lesson.teacher, lesson.classCode].filter(Boolean).map(escapeHtml);
+    const v2MetaText = v2MetaParts.length
+      ? `<div class="lesson-meta" title="${v2MetaParts.join(' · ')}">${v2MetaParts.join(' · ')}</div>`
+      : '';
     return `
       <article class="lesson-card${status ? ` is-${status}` : ''}" style="--lesson-bg:${tone.background}; --lesson-border:${tone.border}; --lesson-color:${color}">
         <div class="lesson-top">
@@ -8722,7 +8761,7 @@ function buildLessonCardHtml(lesson, timetable = state.data.timetable, options =
           <span class="lesson-icon-wrap">${subjectIcon}</span>
           <span class="lesson-subject">${subject}</span>
         </div>
-        ${metaText}
+        ${v2MetaText}
       </article>
     `;
   }
