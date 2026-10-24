@@ -6,6 +6,7 @@ const GRAPH_SMOOTHNESS_KEY = 'sapphire-graph-smoothness';
 const USER_NAME_KEY = 'sapphire-user-name';
 const APPWRITE_SYNC_KEY = 'sapphire-last-sync';
 const LEADERBOARD_RANKS_KEY = 'sapphire-leaderboard-ranks';
+const UI_VERSION_KEY = 'sapphire-ui-version';
 
 const APPWRITE_ENDPOINT = 'https://auth.sapphire.neonxsl.dev/v1';
 const APPWRITE_PROJECT_ID = 'sapphire';
@@ -331,6 +332,12 @@ const elements = {
   exportOpen: document.getElementById('export-open'),
   exportModal: document.getElementById('export-modal'),
   settingsOpen: document.getElementById('settings-open'),
+  uiV2Toggle: document.getElementById('ui-v2-toggle'),
+  uiBetaChip: document.getElementById('ui-beta-chip'),
+  quickAdd: document.getElementById('quick-add'),
+  quickAddButton: document.getElementById('quick-add-button'),
+  quickAddMenu: document.getElementById('quick-add-menu'),
+  quickAddList: document.getElementById('quick-add-list'),
   settingsModal: document.getElementById('settings-modal'),
   exportPreset: document.getElementById('export-preset'),
   exportUpcomingType: document.getElementById('export-upcoming-type'),
@@ -595,6 +602,103 @@ if (elements.exportOpen) {
 if (elements.settingsOpen) {
   elements.settingsOpen.addEventListener('click', () => openModal(elements.settingsModal));
 }
+
+// The beta UI is a styling layer (styles-v2.css) switched on by <html data-ui="v2">.
+// index.html sets the attribute before first paint so there is no flash of V1.
+function isUiV2() {
+  return document.documentElement.dataset.ui === 'v2';
+}
+
+function setUiVersion(version) {
+  const useV2 = version === 'v2';
+  if (useV2) {
+    document.documentElement.dataset.ui = 'v2';
+  } else {
+    delete document.documentElement.dataset.ui;
+  }
+  safeSetItem(UI_VERSION_KEY, useV2 ? 'v2' : 'v1');
+  if (elements.uiV2Toggle) {
+    elements.uiV2Toggle.checked = useV2;
+  }
+  closeQuickAddMenu();
+  render();
+  if (elements.subjectModal?.classList.contains('is-open') && activeSubjectId) {
+    openSubjectModal(activeSubjectId);
+  }
+}
+
+if (elements.uiV2Toggle) {
+  elements.uiV2Toggle.checked = isUiV2();
+  elements.uiV2Toggle.addEventListener('change', (event) => {
+    setUiVersion(event.target.checked ? 'v2' : 'v1');
+  });
+}
+
+if (elements.uiBetaChip) {
+  elements.uiBetaChip.addEventListener('click', () => openModal(elements.settingsModal));
+}
+
+function renderQuickAddMenu() {
+  if (!elements.quickAddList) return;
+  elements.quickAddList.innerHTML = state.data.subjects
+    .map(
+      (subject) => `
+        <button class="quick-add-item" type="button" role="menuitem" data-quick-add-subject="${escapeHtml(subject.id)}">
+          <span class="quick-add-icon" style="background:${subject.color}">${subjectIconHtml(resolveSubjectIcon(subject.icon, subject.name))}</span>
+          <span>${escapeHtml(subject.name)}</span>
+        </button>
+      `
+    )
+    .join('');
+}
+
+function openQuickAddMenu() {
+  if (!elements.quickAddMenu) return;
+  renderQuickAddMenu();
+  elements.quickAddMenu.hidden = false;
+  elements.quickAddButton?.setAttribute('aria-expanded', 'true');
+  elements.quickAddMenu.querySelector('button')?.focus();
+}
+
+function closeQuickAddMenu() {
+  if (!elements.quickAddMenu || elements.quickAddMenu.hidden) return;
+  elements.quickAddMenu.hidden = true;
+  elements.quickAddButton?.setAttribute('aria-expanded', 'false');
+}
+
+if (elements.quickAddButton) {
+  elements.quickAddButton.addEventListener('click', () => {
+    const subjects = state.data.subjects;
+    if (subjects.length === 0) {
+      openAddSubjectPopup();
+    } else if (subjects.length === 1) {
+      openAssessmentModal(subjects[0].id);
+    } else if (elements.quickAddMenu?.hidden) {
+      openQuickAddMenu();
+    } else {
+      closeQuickAddMenu();
+    }
+  });
+}
+
+if (elements.quickAddList) {
+  elements.quickAddList.addEventListener('click', (event) => {
+    const subjectId = event.target.closest('[data-quick-add-subject]')?.dataset.quickAddSubject;
+    if (!subjectId) return;
+    closeQuickAddMenu();
+    openAssessmentModal(subjectId);
+  });
+}
+
+document.addEventListener('click', (event) => {
+  if (!elements.quickAdd?.contains(event.target)) closeQuickAddMenu();
+  if (!event.target.closest('.more-menu')) {
+    document.querySelectorAll('.more-menu-list:not([hidden])').forEach((menu) => {
+      menu.hidden = true;
+      menu.previousElementSibling?.setAttribute('aria-expanded', 'false');
+    });
+  }
+});
 
 if (elements.authButton) {
   elements.authButton.addEventListener('click', () => {
@@ -996,7 +1100,16 @@ if (elements.settingsForm) {
     }
     setUserName(name);
     updateGreeting();
-    setSettingsMessage('Name updated.');
+    setSettingsMessage(isUiV2() ? 'Saved ✓' : 'Name updated.');
+  });
+}
+
+// V2 has no Save button: the name saves when the field loses focus.
+if (elements.settingsName && elements.settingsForm) {
+  elements.settingsName.addEventListener('change', () => {
+    if (!isUiV2()) return;
+    if (String(elements.settingsName.value || '').trim() === loadUserName()) return;
+    elements.settingsForm.requestSubmit();
   });
 }
 
@@ -1321,6 +1434,21 @@ if (elements.subjectModal) {
 
     if (action === 'close-subject') {
       closeSubjectModal();
+      return;
+    }
+
+    const openMenu = actionTarget.closest('.more-menu-list');
+    if (openMenu) {
+      openMenu.hidden = true;
+      openMenu.previousElementSibling?.setAttribute('aria-expanded', 'false');
+    }
+
+    if (action === 'toggle-more-menu') {
+      const menu = actionTarget.nextElementSibling;
+      if (!menu) return;
+      menu.hidden = !menu.hidden;
+      actionTarget.setAttribute('aria-expanded', String(!menu.hidden));
+      if (!menu.hidden) menu.querySelector('button')?.focus();
       return;
     }
 
@@ -1976,6 +2104,11 @@ if (elements.upcomingTypeSelect) {
 
 document.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape') return;
+  if (elements.quickAddMenu && !elements.quickAddMenu.hidden) {
+    closeQuickAddMenu();
+    elements.quickAddButton?.focus();
+    return;
+  }
   if (elements.confirmModal?.classList.contains('is-open')) {
     dismissConfirm(false);
     return;
@@ -2172,6 +2305,7 @@ function clearAllStoredData() {
     USER_NAME_KEY,
     APPWRITE_SYNC_KEY,
     LEADERBOARD_RANKS_KEY,
+    UI_VERSION_KEY,
   ].forEach((key) => safeRemoveItem(key));
 }
 
@@ -4228,7 +4362,24 @@ function openSubjectModal(subjectId) {
       <div class="modal-chart">
         <canvas id="subject-modal-chart"></canvas>
       </div>
+      ${isUiV2() ? `
       <div class="modal-actions">
+        <button class="primary-button with-icon" type="button" data-action="open-assessment">
+          ${iconHtml('plus-circle')}
+          Add mark
+        </button>
+        <div class="more-menu">
+          <button class="ghost-button with-icon" type="button" data-action="toggle-more-menu" aria-haspopup="menu" aria-expanded="false">
+            ${iconHtml('dots-three')}
+            More
+          </button>
+          <div class="more-menu-list" role="menu" hidden>
+            <button type="button" role="menuitem" data-action="open-edit-subject">${iconHtml('pencil-simple')}Edit subject</button>
+            <button type="button" role="menuitem" data-action="open-upcoming">${iconHtml('calendar')}Add upcoming</button>
+            <button type="button" role="menuitem" class="is-danger" data-action="delete-subject">${iconHtml('trash')}Delete subject</button>
+          </div>
+        </div>
+      </div>` : `<div class="modal-actions">
         <button class="primary-button with-icon" type="button" data-action="open-assessment">
           ${iconHtml('plus-circle')}
           Add Assessment
@@ -4245,7 +4396,7 @@ function openSubjectModal(subjectId) {
           ${iconHtml('trash')}
           Delete Subject
         </button>
-      </div>
+      </div>`}
       ${buildTargetStripHtml(subject)}
       <details class="what-if" id="what-if-panel"${whatIfState.open ? ' open' : ''}>
         <summary class="what-if-summary">
@@ -6143,6 +6294,47 @@ function renderOverview() {
     elements.latestScore.textContent = '--';
     elements.latestMeta.textContent = 'Once you add an assessment, it will appear here.';
   }
+
+  renderV2Stats({ overallAverage, overallGrade, assessmentCount, topSubject, latest });
+}
+
+// V2's stat row. The V1 hero above stays in the DOM (hidden in V2) so both UIs share renderOverview.
+function renderV2Stats({ overallAverage, overallGrade, assessmentCount, topSubject, latest }) {
+  const container = document.getElementById('v2-stats');
+  if (!container) return;
+  const topStats = topSubject ? subjectStats(topSubject) : null;
+  const latestPercent = latest && latest.total > 0 ? (latest.score / latest.total) * 100 : null;
+  const tile = (label, value, sub, extraClass = '') => `
+    <div class="v2-stat${extraClass}">
+      <div class="v2-stat-label">${label}</div>
+      <div class="v2-stat-value">${value}</div>
+      <div class="v2-stat-sub">${sub}</div>
+    </div>
+  `;
+  container.innerHTML = [
+    tile(
+      'Average',
+      overallAverage === null ? '—' : `${overallAverage.toFixed(1)}<span class="v2-stat-unit">%</span>`,
+      overallAverage === null ? 'Add your first mark to begin' : `Across ${assessmentCount} assessment${assessmentCount === 1 ? '' : 's'}`
+    ),
+    tile(
+      'Grade',
+      overallGrade ? `<span class="v2-grade" data-grade="${overallGrade[0]}">${overallGrade}</span>` : '—',
+      'Overall letter grade'
+    ),
+    tile(
+      'Top subject',
+      topSubject ? escapeHtml(topSubject.name) : '—',
+      topStats ? `${topStats.average.toFixed(1)}% · ${topStats.grade}` : 'No marks yet',
+      ' v2-stat--text'
+    ),
+    tile(
+      'Latest mark',
+      latest ? escapeHtml(latest.name) : '—',
+      latest ? `${latestPercent.toFixed(1)}% · ${escapeHtml(latest.subjectName)} · ${formatDate(latest.date)}` : 'Nothing logged yet',
+      ' v2-stat--text'
+    ),
+  ].join('');
 }
 
 function renderInsights() {
@@ -6194,6 +6386,11 @@ function renderSubjects() {
   if (!elements.subjectGrid) return;
   if (state.data.subjects.length === 0) {
     elements.subjectGrid.innerHTML = '<div class="empty-state">No subjects yet. Add a subject to start tracking results.</div>';
+    return;
+  }
+
+  if (isUiV2()) {
+    elements.subjectGrid.innerHTML = `<div class="v2-subject-list">${state.data.subjects.map(buildV2SubjectRow).join('')}</div>`;
     return;
   }
 
@@ -6255,6 +6452,40 @@ function renderSubjects() {
       `;
     })
     .join('');
+}
+
+function buildV2SubjectRow(subject) {
+  const stats = subjectStats(subject);
+  const average = stats.average === null ? 0 : clamp(stats.average, 0, 100);
+  const hasTarget = Number.isFinite(subject.target);
+  const targetMet = hasTarget && stats.average !== null && stats.average >= subject.target;
+  const count = subject.assessments.length;
+  const metaParts = [`${count} assessment${count === 1 ? '' : 's'}`];
+  if (hasTarget) {
+    metaParts.push(
+      stats.average === null
+        ? `Target ${formatPercentValue(subject.target)}%`
+        : targetMet
+        ? `<span class="v2-target is-met">On target</span>`
+        : `<span class="v2-target">${(subject.target - stats.average).toFixed(1)}% to target</span>`
+    );
+  }
+  return `
+    <button class="v2-subject-row" type="button" data-action="open-subject" data-id="${subject.id}" style="--subject-color:${subject.color}">
+      <span class="v2-subject-icon">${subjectIconHtml(resolveSubjectIcon(subject.icon, subject.name))}</span>
+      <span class="v2-subject-main">
+        <span class="v2-subject-name">${escapeHtml(subject.name)}</span>
+        <span class="v2-subject-meta">${metaParts.join(' · ')}</span>
+      </span>
+      <span class="v2-subject-progress" aria-hidden="true">
+        <span class="v2-subject-fill" style="width:${average}%"></span>
+        ${hasTarget ? `<span class="v2-subject-marker" style="left:${clamp(subject.target, 0, 100)}%"></span>` : ''}
+      </span>
+      <span class="v2-subject-average">${stats.average === null ? '—' : `${stats.average.toFixed(1)}%`}</span>
+      <span class="v2-grade" data-grade="${(stats.grade || '-')[0]}">${stats.grade ?? '—'}</span>
+      ${iconHtml('caret-right', 'v2-subject-chevron')}
+    </button>
+  `;
 }
 
 function normalizeAssessmentSortDirection(direction) {
@@ -7998,7 +8229,7 @@ function drawEmptyChartState(ctx, width, height, options = {}) {
   if (showAxis) {
     const ticks = [0, 25, 50, 75, 100];
     ctx.fillStyle = axisColor;
-    ctx.font = '12px "Red Hat Display", sans-serif';
+    ctx.font = chartFont(12);
     ctx.textBaseline = 'middle';
     ticks.forEach((tick) => {
       const y =
@@ -8059,6 +8290,10 @@ function buildDateAxisLabels(minDateValue, maxDateValue, minX, maxX) {
       text: formatDate(new Date(dateValue)),
     };
   });
+}
+
+function chartFont(size) {
+  return `${size}px ${isUiV2() ? '"Geist", sans-serif' : '"Red Hat Display", sans-serif'}`;
 }
 
 function drawLineChart(canvas, points, options = {}) {
@@ -8132,7 +8367,7 @@ function drawLineChart(canvas, points, options = {}) {
 
   if (showAxis) {
     ctx.fillStyle = axisColor;
-    ctx.font = '12px "Red Hat Display", sans-serif';
+    ctx.font = chartFont(12);
     ctx.textBaseline = 'middle';
     ticks.forEach((tick) => {
       const y =
@@ -8148,7 +8383,7 @@ function drawLineChart(canvas, points, options = {}) {
     if (hasAxisLabels) {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
-      ctx.font = '10px "Red Hat Display", sans-serif';
+      ctx.font = chartFont(10);
       if (canScaleByDate) {
         const axisLabelPoints = buildDateAxisLabels(
           minDateValue,
@@ -8166,7 +8401,7 @@ function drawLineChart(canvas, points, options = {}) {
           ctx.fillText(point.axisLabel, x, height - 5);
         });
       }
-      ctx.font = '12px "Red Hat Display", sans-serif';
+      ctx.font = chartFont(12);
       ctx.textBaseline = 'middle';
     }
   }
@@ -8309,7 +8544,7 @@ function drawMultiLineChart(canvas, series) {
   const axisColor = getComputedStyle(document.documentElement).getPropertyValue('--text-tertiary').trim() || '#7a8292';
 
   ctx.fillStyle = axisColor;
-  ctx.font = '12px "Red Hat Display", sans-serif';
+  ctx.font = chartFont(12);
   ctx.textBaseline = 'middle';
   ticks.forEach((tick) => {
     const y =
@@ -8664,7 +8899,7 @@ function buildUpcomingList(items, options = {}) {
         ? `<button class="ghost-button ghost-button--small" type="button" data-action="complete-upcoming" data-subject-id="${item.subjectId}" data-upcoming-id="${item.id}">Add marks</button>`
         : '';
       const removeHtml = options.allowRemove
-        ? `<button class="delete-button" data-action="delete-upcoming" data-subject-id="${item.subjectId}" data-upcoming-id="${item.id}">Remove</button>`
+        ? `<button class="delete-button upcoming-remove" data-action="delete-upcoming" data-subject-id="${item.subjectId}" data-upcoming-id="${item.id}" aria-label="Remove ${escapeHtml(item.name)}"><i class="ph ph-x v2-only" aria-hidden="true"></i><span class="upcoming-remove-label">Remove</span></button>`
         : '';
       const dotHtml = item.subjectColor
         ? `<span class="upcoming-dot" style="--swatch:${item.subjectColor}"></span>`

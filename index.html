@@ -14,7 +14,16 @@
       href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css"
     />
     <title>Sapphire</title>
+    <script>
+      // Apply the beta UI before first paint (see setUiVersion in app.js).
+      try {
+        if (localStorage.getItem('sapphire-ui-version') === 'v2') {
+          document.documentElement.dataset.ui = 'v2';
+        }
+      } catch (error) {}
+    </script>
     <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles-v2.css" />
   </head>
   <body>
     <div class="layout">
@@ -53,6 +62,9 @@
           </button>
         </nav>
         <div class="app-actions">
+          <button id="ui-beta-chip" class="beta-chip v2-only" type="button" title="You're using the new UI. Click to switch back in Settings.">
+            Beta
+          </button>
           <button id="export-open" class="ghost-button with-icon" type="button">
             <i class="ph ph-share-network button-icon" aria-hidden="true"></i>
             Share
@@ -119,12 +131,25 @@
             <div class="section-eyebrow">Welcome back</div>
             <div class="page-title" id="page-greeting">Sapphire Gradebook</div>
           </div>
-          <div class="topbar-meta" id="sync-status">
-            Private • Stored on this device
+          <div class="page-header-side">
+            <div class="topbar-meta" id="sync-status">
+              Private • Stored on this device
+            </div>
+            <div class="quick-add v2-only" id="quick-add">
+              <button class="primary-button with-icon" id="quick-add-button" type="button" aria-haspopup="menu" aria-expanded="false">
+                <i class="ph ph-plus button-icon" aria-hidden="true"></i>
+                Add mark
+              </button>
+              <div class="quick-add-menu" id="quick-add-menu" role="menu" aria-label="Add a mark to" hidden>
+                <div class="quick-add-title">Add a mark to…</div>
+                <div class="quick-add-list" id="quick-add-list"></div>
+              </div>
+            </div>
           </div>
         </header>
 
         <section class="view is-active" data-view="dashboard">
+          <section class="v2-stats v2-only" id="v2-stats" aria-label="Overview"></section>
           <div class="dashboard-stack">
             <section class="hero-grid">
               <div class="card overall-card glow-soft">
@@ -626,6 +651,7 @@
           </section>
         </section>
       </main>
+
     </div>
 
     <datalist id="subject-list"> </datalist>
@@ -1276,6 +1302,27 @@
         <div class="modal-body">
           <div class="card settings-card glow-soft">
             <div class="settings-grid">
+              <section class="settings-block settings-block--interface">
+                <label class="ui-beta-card" for="ui-v2-toggle">
+                  <span class="ui-beta-preview" aria-hidden="true">
+                    <span class="ui-beta-preview-bar"></span>
+                    <span class="ui-beta-preview-stats"><span></span><span></span><span></span></span>
+                    <span class="ui-beta-preview-row"><span></span><span></span></span>
+                    <span class="ui-beta-preview-row"><span></span><span></span></span>
+                  </span>
+                  <span class="ui-beta-copy">
+                    <span class="ui-beta-title">
+                      New look
+                      <span class="beta-tag">Beta</span>
+                    </span>
+                    <span class="ui-beta-text">A cleaner, flatter redesign with a simpler layout. Switch back any time.</span>
+                  </span>
+                  <span class="ui-switch">
+                    <input type="checkbox" id="ui-v2-toggle" role="switch" />
+                    <span class="ui-switch-track" aria-hidden="true"></span>
+                  </span>
+                </label>
+              </section>
               <section class="settings-block">
                 <div>
                   <div class="section-eyebrow">Profile</div>
