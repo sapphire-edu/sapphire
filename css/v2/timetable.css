@@ -355,9 +355,8 @@
 }
 
 :root[data-ui="v2"] .timetable-day-column.is-today {
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--card-border));
-  background: color-mix(in srgb, var(--accent) 10%, var(--card-surface));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--card-border));
+  background: color-mix(in srgb, var(--accent) 3%, var(--card-surface));
 }
 
 :root[data-ui="v2"] .timetable-grid-head {
@@ -385,7 +384,7 @@
 }
 
 :root[data-ui="v2"] .is-today > .timetable-grid-head {
-  border-bottom-color: color-mix(in srgb, var(--accent) 55%, var(--card-border));
+  border-bottom-color: color-mix(in srgb, var(--accent) 22%, var(--card-border));
 }
 
 :root[data-ui="v2"] .is-today .tt-day-name {
@@ -407,10 +406,8 @@
 :root[data-ui="v2"] .tt-today-tag {
   margin-left: auto;
   align-self: center;
-  padding: 0 7px;
-  vertical-align: baseline;
-  background: var(--accent);
-  color: #fff;
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 :root[data-ui="v2"] .timetable-day-list {
