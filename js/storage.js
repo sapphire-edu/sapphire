@@ -155,6 +155,7 @@ function normalizeData(parsed) {
           notes: item.notes || '',
           createdAt,
           ...(item.importKey ? { importKey: String(item.importKey) } : {}),
+          ...(item.importedDate ? { importedDate: String(item.importedDate) } : {}),
         };
       }),
     };

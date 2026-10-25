@@ -459,6 +459,7 @@ function applyScheduleImport() {
     const existing = row.existingId ? subject.upcoming.find((u) => u.id === row.existingId) : null;
     if (existing) {
       existing.date = row.date;
+      existing.importedDate = row.date;
       if (!Number.isFinite(existing.weight) && Number.isFinite(row.weight)) existing.weight = row.weight;
       updated += 1;
       return;
@@ -472,6 +473,7 @@ function applyScheduleImport() {
       notes: row.notes,
       createdAt: Date.now(),
       importKey: row.key,
+      importedDate: row.date,
     });
     added += 1;
   });
@@ -489,6 +491,53 @@ function applyScheduleImport() {
   if (added) parts.push(`added ${added}`);
   if (updated) parts.push(`moved ${updated}`);
   setScheduleImportMessage(parts.length ? `Done: ${parts.join(', ')}.` : 'Nothing was imported.');
+}
+
+let importedScheduleUpdateDone = false;
+
+// Quietly moves exams you imported earlier when their date changes in the schedule. Only dates
+// change: nothing is added or removed, and an exam whose date you edited yourself is left alone
+// (importedDate remembers the date the import set). Runs once per load, after the cloud copy
+// has been pulled.
+async function autoUpdateImportedSchedules() {
+  if (importedScheduleUpdateDone || !isScheduleFriend()) return;
+  const hasImported = state.data.subjects.some(
+    (subject) => Array.isArray(subject.upcoming) && subject.upcoming.some((item) => item.importKey)
+  );
+  if (!hasImported) return;
+  importedScheduleUpdateDone = true;
+  try {
+    const { Query } = Appwrite;
+    const res = await appwriteDatabases.listDocuments(APPWRITE_DATABASE_ID, SCHEDULES_COLLECTION_ID, [
+      Query.orderDesc('$createdAt'),
+      Query.limit(50),
+    ]);
+    const moved = new Set();
+    res.documents.forEach((doc) => {
+      let data;
+      try {
+        data = JSON.parse(doc.data);
+      } catch (_) {
+        return;
+      }
+      // Newest schedule first; an exam already moved by a newer one isn't moved again.
+      buildScheduleImportPlan(data).rows.filter((row) => row.status === 'update').forEach((row) => {
+        const subject = state.data.subjects.find((s) => s.id === row.subjectId);
+        const item = subject?.upcoming?.find((u) => u.id === row.existingId);
+        if (!item || moved.has(item.id)) return;
+        if (item.importedDate && item.importedDate !== item.date) return;
+        item.date = row.date;
+        item.importedDate = row.date;
+        moved.add(item.id);
+      });
+    });
+    if (moved.size) {
+      saveData(state.data);
+      render();
+    }
+  } catch (error) {
+    console.error('Could not check imported schedules for changes:', error);
+  }
 }
 
 function initScheduleImport() {

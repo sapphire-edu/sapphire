@@ -60,6 +60,7 @@ async function checkAppwriteSession() {
     // Only sync leaderboard entries once local data reflects the cloud copy.
     appwriteState.cloudReady = true;
     queueLeaderboardSync();
+    autoUpdateImportedSchedules();
   } catch (error) {
     appwriteState.user = null;
     appwriteState.ready = true;
