@@ -1,0 +1,103 @@
+/* Tablet and phone layouts. */
+
+@media (max-width: 1100px) {
+  .app-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 20px 24px;
+  }
+
+  .app-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .assessment-tools {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 960px) {
+  .hero-grid,
+  .analytics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .onboarding-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .overall-body {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .form-grid,
+  .subject-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .custom-elective-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .overall-footer {
+    grid-template-columns: 1fr;
+  }
+
+  .calendar-cell {
+    min-height: 90px;
+  }
+
+  .calendar-month {
+    min-width: 120px;
+  }
+
+  .main {
+    padding: 24px;
+  }
+
+  .timetable-week-grid {
+    grid-template-columns: repeat(5, minmax(180px, 1fr));
+  }
+
+  .timetable-dashboard-list {
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .custom-elective-row {
+    grid-template-columns: 1fr;
+  }
+
+  .custom-elective-toolbar {
+    align-items: stretch;
+  }
+
+  .subject-color-header {
+    flex-wrap: wrap;
+  }
+
+  .custom-elective-color {
+    width: 100%;
+  }
+
+  .custom-elective-row .icon-button--small {
+    justify-self: stretch;
+    width: 100%;
+  }
+
+  .timetable-import-actions {
+    width: 100%;
+  }
+
+  .timetable-import-actions .ghost-button {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .timetable-map-list {
+    grid-auto-columns: minmax(84vw, 320px);
+  }
+}

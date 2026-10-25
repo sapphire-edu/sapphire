@@ -1,0 +1,121 @@
+/* V2 page, type, surfaces and corner radii. */
+
+/* ── Page ── */
+
+:root[data-ui="v2"] .main {
+  max-width: 1200px;
+  padding: 32px 24px 80px;
+}
+
+:root[data-ui="v2"] .page-header {
+  margin-bottom: 24px;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+:root[data-ui="v2"] .page-header .section-eyebrow {
+  display: none;
+}
+
+:root[data-ui="v2"] .page-title {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+:root[data-ui="v2"] .page-header-side {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+:root[data-ui="v2"] .topbar-meta {
+  color: var(--text-tertiary);
+}
+
+/* ── Type ── */
+
+:root[data-ui="v2"] .section-eyebrow {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .section-title {
+  margin-top: 2px;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+:root[data-ui="v2"] .modal-meta,
+:root[data-ui="v2"] .muted {
+  color: var(--text-secondary);
+}
+
+/* ── Surfaces ── */
+
+:root[data-ui="v2"] .card {
+  background: var(--card-surface);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: none;
+}
+
+:root[data-ui="v2"] .subject-button:hover .card {
+  transform: none;
+  box-shadow: none;
+}
+
+:root[data-ui="v2"] .empty-state {
+  color: var(--text-tertiary);
+  font-size: 14px;
+}
+
+/* ── Corners: V1 uses 14–36px radii; V2 caps them (generated from the V1 styles in css/). ── */
+
+:root[data-ui="v2"] .danger-button,
+:root[data-ui="v2"] .field input,
+:root[data-ui="v2"] .field select,
+:root[data-ui="v2"] .field textarea,
+:root[data-ui="v2"] .ghost-button,
+:root[data-ui="v2"] .history-item,
+:root[data-ui="v2"] .icon-button,
+:root[data-ui="v2"] .leaderboard-entry,
+:root[data-ui="v2"] .lesson-card,
+:root[data-ui="v2"] .logo,
+:root[data-ui="v2"] .nav-item,
+:root[data-ui="v2"] .order-item,
+:root[data-ui="v2"] .primary-button,
+:root[data-ui="v2"] .profile-dropdown,
+:root[data-ui="v2"] .stat-box,
+:root[data-ui="v2"] .subject-chart,
+:root[data-ui="v2"] .theme-button,
+:root[data-ui="v2"] .theme-controls,
+:root[data-ui="v2"] .timetable-grid-head,
+:root[data-ui="v2"] .timetable-map-class-card,
+:root[data-ui="v2"] .timetable-map-row,
+:root[data-ui="v2"] .today-lesson-card,
+:root[data-ui="v2"] .upcoming-item {
+  border-radius: var(--radius);
+}
+
+:root[data-ui="v2"] .brand-mark,
+:root[data-ui="v2"] .calendar-cell,
+:root[data-ui="v2"] .card,
+:root[data-ui="v2"] .export-panel,
+:root[data-ui="v2"] .grade-square,
+:root[data-ui="v2"] .icon-picker-preview,
+:root[data-ui="v2"] .insight-item,
+:root[data-ui="v2"] .mini-stat,
+:root[data-ui="v2"] .modal-chart,
+:root[data-ui="v2"] .modal-panel,
+:root[data-ui="v2"] .subject-color-panel,
+:root[data-ui="v2"] .subject-icon,
+:root[data-ui="v2"] .target-strip,
+:root[data-ui="v2"] .what-if {
+  border-radius: var(--radius-lg);
+}

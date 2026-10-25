@@ -1,0 +1,14 @@
+/* Rules for both UIs: hidden upcoming delete button and the reminder toggle. */
+
+.upcoming-delete-button[hidden] {
+  display: none !important;
+}
+
+.notify-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+  cursor: pointer;
+  color: var(--text-secondary);
+}

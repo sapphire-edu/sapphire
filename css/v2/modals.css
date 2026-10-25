@@ -1,0 +1,403 @@
+/* V2 modals: layout, footer, sections, nested panels and lists. */
+
+/* ── Modals ──
+   Every popup has the same anatomy:
+     .modal-header  small label (.section-eyebrow), title, description (.modal-meta), close
+                    button top-right. Sticks to the top while the body scrolls.
+     .modal-body    fields / sections / nested panels, 16px apart.
+     footer         the .form-actions that is a direct child of .modal-body: a full-width
+                    bar under a hairline, message on the left, Cancel then the primary
+                    action on the right. Sticks to the bottom.
+   Elevation: the panel is a base surface (same background as the page) with a hairline
+   border and a shadow. Nested panels (.export-panel, .target-strip, .what-if, lists…) are
+   base surfaces too, separated by hairlines, 12px radius, --panel-padding. Only controls
+   are lighter (--bg-secondary → --bg-hover), and menus (--popover-surface) above those.
+   Widths: --modal-width (default), --modal-width-small, --modal-width-large; set the
+   variable on a modal to resize it without fighting the phone sheet rules. */
+
+:root[data-ui="v2"] .modal-backdrop {
+  background: color-mix(in srgb, #000000 40%, transparent);
+  backdrop-filter: none;
+}
+
+:root[data-ui="v2"][data-theme="dark"] .modal-backdrop {
+  background: color-mix(in srgb, #000000 70%, transparent);
+}
+
+:root[data-ui="v2"] .modal-panel {
+  width: min(var(--modal-width), calc(100vw - 32px));
+  max-width: none;
+  max-height: 88vh;
+  background: var(--modal-surface);
+  border: 1px solid var(--modal-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-strong);
+  padding: 0 var(--modal-padding) var(--modal-padding);
+  overscroll-behavior: contain;
+}
+
+:root[data-ui="v2"] .modal-panel--small {
+  width: min(var(--modal-width-small), calc(100vw - 32px));
+}
+
+:root[data-ui="v2"] .modal-panel--large {
+  width: min(var(--modal-width-large), calc(100vw - 32px));
+}
+
+/* Single-column forms read better narrow, even where V1 made them large. */
+:root[data-ui="v2"] :is(#add-subject-modal, #edit-subject-modal, #settings-modal, #onboarding-modal) {
+  --modal-width-large: 640px;
+}
+
+:root[data-ui="v2"] #assessment-modal {
+  --modal-width: 560px;
+}
+
+:root[data-ui="v2"] #confirm-modal,
+:root[data-ui="v2"] #icon-picker-modal {
+  --modal-width-small: 440px;
+}
+
+/* Cards inside a popup are part of the popup, not a second layer. */
+:root[data-ui="v2"] .modal-panel .card,
+:root[data-ui="v2"] .modal-panel .settings-card {
+  background: transparent;
+  border: none;
+  padding: 0;
+  box-shadow: none;
+}
+
+:root[data-ui="v2"] .modal-header {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 calc(-1 * var(--modal-padding));
+  padding: 20px var(--modal-padding) 16px;
+  background: var(--modal-surface);
+  border-bottom: 1px solid var(--card-border);
+}
+
+:root[data-ui="v2"] .modal-header > div:first-child {
+  min-width: 0;
+}
+
+:root[data-ui="v2"] .modal-header .section-eyebrow {
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .modal-header .section-title {
+  margin-top: 2px;
+  font-size: 18px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+:root[data-ui="v2"] .modal-meta {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .modal-meta:empty {
+  display: none;
+}
+
+:root[data-ui="v2"] .modal-meta code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid var(--card-border);
+  background: var(--bg-secondary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+:root[data-ui="v2"] .modal-header .icon-button {
+  flex: none;
+  margin: -4px -8px 0 auto;
+}
+
+:root[data-ui="v2"] .modal-body {
+  margin-top: 20px;
+  gap: 16px;
+  align-content: start;
+}
+
+/* Inline action rows inside a popup body (export, onboarding sign-in, etc.). */
+:root[data-ui="v2"] .modal-panel .form-actions,
+:root[data-ui="v2"] .modal-panel .modal-actions {
+  margin-top: 0;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* The footer. */
+:root[data-ui="v2"] .modal-body > .form-actions {
+  position: sticky;
+  /* Sticky insets stop at the scroll container's padding edge, so cancel the panel's
+     bottom padding or the bar floats --modal-padding above the bottom with a gap below. */
+  bottom: calc(-1 * var(--modal-padding));
+  z-index: 4;
+  justify-content: flex-end;
+  margin: 4px calc(-1 * var(--modal-padding)) calc(-1 * var(--modal-padding)) !important;
+  padding: 16px var(--modal-padding) calc(16px + env(safe-area-inset-bottom, 0px));
+  background: var(--modal-surface);
+  border-top: 1px solid var(--card-border);
+}
+
+:root[data-ui="v2"] .modal-body > .form-actions > .form-message {
+  order: -1;
+  margin-right: auto;
+  min-width: 0;
+}
+
+:root[data-ui="v2"] .modal-body > .form-actions > .form-message:empty {
+  display: none;
+}
+
+/* Destructive action sits at the far left of the footer, away from Save. */
+:root[data-ui="v2"] .modal-body > .form-actions > .upcoming-delete-button {
+  order: -2;
+  margin-right: auto;
+  height: var(--control-height);
+  padding: 0 14px;
+  font-size: 14px;
+}
+
+:root[data-ui="v2"] .modal-body > .form-actions > .ghost-button {
+  order: 1;
+  height: var(--control-height);
+  padding: 0 14px;
+  font-size: 14px;
+}
+
+:root[data-ui="v2"] .modal-body > .form-actions > .primary-button {
+  order: 2;
+}
+
+/* Onboarding: Next is the step's main action. */
+:root[data-ui="v2"] #onboarding-next {
+  order: 2;
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--text-on-accent);
+}
+
+:root[data-ui="v2"] #onboarding-next:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 88%, var(--text-primary));
+}
+
+:root[data-ui="v2"] .form-message {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* Section headings inside a popup body follow the header: small label, title, text. */
+:root[data-ui="v2"] .modal-body .section-title,
+:root[data-ui="v2"] .modal-body .settings-title {
+  margin-top: 2px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+:root[data-ui="v2"] .modal-body .section-title + .muted,
+:root[data-ui="v2"] .modal-body .section-title + p {
+  margin-top: 4px;
+  font-size: 14px;
+}
+
+:root[data-ui="v2"] .modal-body .form-note {
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+/* Labels inside panels ("Subject icon", "Components") read like field labels. */
+:root[data-ui="v2"] .subject-color-header .section-eyebrow,
+:root[data-ui="v2"] .assessment-components-panel > .section-eyebrow,
+:root[data-ui="v2"] .theme-controls .section-eyebrow,
+:root[data-ui="v2"] .history-title,
+:root[data-ui="v2"] .custom-elective-toolbar {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .subject-color-meta,
+:root[data-ui="v2"] .theme-control-meta {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* Nested panels: base surface, hairline border, 12px radius, same padding. */
+:root[data-ui="v2"] .subject-color-panel,
+:root[data-ui="v2"] .export-panel,
+:root[data-ui="v2"] .theme-controls,
+:root[data-ui="v2"] .modal-panel .theme-controls,
+:root[data-ui="v2"] .target-strip,
+:root[data-ui="v2"] .what-if,
+:root[data-ui="v2"] .modal-chart,
+:root[data-ui="v2"] .custom-elective-row {
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  background: var(--modal-inner-surface);
+  box-shadow: none;
+}
+
+:root[data-ui="v2"] .subject-color-panel,
+:root[data-ui="v2"] .export-panel,
+:root[data-ui="v2"] .theme-controls,
+:root[data-ui="v2"] .target-strip {
+  padding: var(--panel-padding);
+  gap: 16px;
+}
+
+:root[data-ui="v2"] .theme-controls {
+  margin-top: 0;
+  gap: 12px;
+}
+
+/* Empty lists in popups: one dashed placeholder style everywhere. */
+:root[data-ui="v2"] :is(.history-list, .order-list, .import-map-list) > .empty-state,
+:root[data-ui="v2"] .modal-body .upcoming-list > .empty-state,
+:root[data-ui="v2"] .assessment-components-list > .muted {
+  display: block;
+  padding: 16px;
+  border: 1px dashed var(--card-border);
+  border-radius: var(--radius-lg);
+  background: none;
+  text-align: center;
+  font-size: 13px !important;
+  color: var(--text-tertiary);
+}
+
+/* Lists in popups (marks, upcoming, subject order, import mapping): one bordered list
+   with hairline dividers, like the dashboard's subject list. */
+:root[data-ui="v2"] :is(.history-list, .order-list, .import-map-list),
+:root[data-ui="v2"] .modal-body .upcoming-list {
+  display: grid;
+  gap: 0;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  background: var(--modal-inner-surface);
+  overflow-x: hidden;
+}
+
+:root[data-ui="v2"] :is(.history-list, .order-list, .import-map-list):has(> .empty-state),
+:root[data-ui="v2"] .modal-body .upcoming-list:has(> .empty-state) {
+  border: none;
+  background: none;
+}
+
+:root[data-ui="v2"] .history-list {
+  max-height: 360px;
+}
+
+:root[data-ui="v2"] .history-item,
+:root[data-ui="v2"] .order-item,
+:root[data-ui="v2"] .import-map-item,
+:root[data-ui="v2"] .modal-body .upcoming-item {
+  margin: 0;
+  padding: 10px 14px;
+  border: none;
+  border-top: 1px solid var(--card-border);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+:root[data-ui="v2"] :is(.history-item, .order-item, .import-map-item, .modal-body .upcoming-item):first-child {
+  border-top: none;
+}
+
+:root[data-ui="v2"] .modal-body .upcoming-item {
+  transition: background 0.15s ease;
+}
+
+:root[data-ui="v2"] .modal-body .upcoming-item:hover,
+:root[data-ui="v2"] .order-item:hover {
+  background: var(--bg-hover);
+}
+
+:root[data-ui="v2"] .modal-body .upcoming-item:hover .upcoming-name {
+  color: var(--text-primary);
+}
+
+:root[data-ui="v2"] .history-item {
+  gap: 12px;
+}
+
+:root[data-ui="v2"] .history-item > div:first-child {
+  min-width: 0;
+}
+
+:root[data-ui="v2"] .history-name {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+:root[data-ui="v2"] .history-meta {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-ui="v2"] .history-right {
+  gap: 6px;
+  flex: none;
+}
+
+:root[data-ui="v2"] .history-date {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* Subject order: rows with the dashboard's tinted subject icon and a drag handle. */
+:root[data-ui="v2"] .order-item {
+  padding: 8px 14px;
+  cursor: grab;
+  transition: background 0.15s ease;
+}
+
+:root[data-ui="v2"] .order-item.is-dragging {
+  opacity: 0.5;
+  transform: none;
+}
+
+:root[data-ui="v2"] .order-item.is-drop-target {
+  background: var(--accent-control);
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+
+:root[data-ui="v2"] .order-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+  color: var(--swatch);
+  background: color-mix(in srgb, var(--swatch) 14%, transparent);
+}
+
+:root[data-ui="v2"] .order-icon .ph {
+  font-size: 16px;
+}
+
+:root[data-ui="v2"] .order-name {
+  font-weight: 500;
+}
+
+:root[data-ui="v2"] .order-handle {
+  font-size: 16px;
+  color: var(--text-tertiary);
+}
+
+/* Import mapping: each unmatched subject is a row with its select. */
+:root[data-ui="v2"] .import-map-item {
+  padding: 12px 14px;
+}

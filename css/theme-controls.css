@@ -1,0 +1,109 @@
+/* Theme and graph-smoothing controls (onboarding and settings). */
+
+.theme-control-meta {
+  color: var(--text-secondary);
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+.theme-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.theme-slider {
+  width: 100%;
+  accent-color: var(--accent);
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  height: 20px;
+  --slider-fill: 50%;
+}
+
+.theme-slider::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--accent) 0%,
+    var(--accent) var(--slider-fill),
+    var(--bg-depth) var(--slider-fill),
+    var(--bg-depth) 100%
+  );
+  border: 1px solid var(--card-border);
+}
+
+.theme-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg-secondary);
+  margin-top: -7px;
+  box-shadow: var(--shadow-soft);
+}
+
+.theme-slider::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg-depth);
+  border: 1px solid var(--card-border);
+}
+
+.theme-slider::-moz-range-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.theme-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg-secondary);
+  box-shadow: var(--shadow-soft);
+}
+
+.theme-slider-value {
+  min-width: 46px;
+  text-align: right;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.theme-button {
+  border: 1px solid var(--card-border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  padding: 10px 12px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.theme-button:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-soft);
+}
+
+.theme-button.is-active {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+}
+
+.theme-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--swatch);
+  box-shadow: inset 0 0 0 2px var(--bg-secondary);
+}

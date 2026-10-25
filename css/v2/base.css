@@ -1,0 +1,47 @@
+/* V2 base styles and menu-row hover/focus. */
+
+/* ── Base ── */
+
+:root[data-ui="v2"] body,
+:root[data-ui="v2"] button,
+:root[data-ui="v2"] input,
+:root[data-ui="v2"] select,
+:root[data-ui="v2"] textarea {
+  font-family: var(--font-sans);
+}
+
+:root[data-ui="v2"] body {
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+:root[data-ui="v2"] body::before {
+  display: none;
+}
+
+:root[data-ui="v2"] ::selection {
+  background: var(--accent-soft-strong);
+}
+
+:root[data-ui="v2"] :focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  outline-offset: 2px;
+}
+
+/* Menu rows share their hover tint with focus, which is too faint on its own to see,
+   so they keep the ring too, drawn inside so the menu doesn't clip it. */
+:root[data-ui="v2"] :is(.profile-menu-action, .quick-add-item, .more-menu-list button):focus-visible {
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-ui="v2"] *,
+  :root[data-ui="v2"] *::before,
+  :root[data-ui="v2"] *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}

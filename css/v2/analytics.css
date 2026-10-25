@@ -1,6 +1,6 @@
 /*
  * Sapphire V2 (beta): Analytics page.
- * Loaded after styles-v2.css; every rule is scoped to :root[data-ui="v2"] and uses its tokens.
+ * Loaded after the core css/v2 files; every rule is scoped to :root[data-ui="v2"] and uses its tokens.
  *
  * Page order: stat strip → overall trend + recent marks → by subject → subjects over time →
  * all assessments. Cards are base surfaces (--card-surface) separated by hairlines; only

@@ -1,0 +1,150 @@
+/* V2 subject details popup: target strip and what-if. */
+
+/* ── Subject details popup ── */
+
+:root[data-ui="v2"] .modal-chart {
+  height: 240px;
+  padding: 12px;
+}
+
+:root[data-ui="v2"] .subject-upcoming-grid,
+:root[data-ui="v2"] .subject-upcoming,
+:root[data-ui="v2"] .subject-history {
+  margin-top: 0;
+}
+
+:root[data-ui="v2"] .subject-upcoming-grid {
+  gap: 16px;
+}
+
+:root[data-ui="v2"] .subject-upcoming,
+:root[data-ui="v2"] .subject-history {
+  gap: 8px;
+}
+
+:root[data-ui="v2"] .subject-upcoming .upcoming-list {
+  max-height: 240px;
+}
+
+/* Target strip */
+:root[data-ui="v2"] .target-strip {
+  gap: 10px;
+}
+
+:root[data-ui="v2"] .target-strip--empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  font-size: 14px;
+}
+
+:root[data-ui="v2"] .target-strip-head {
+  font-size: 14px;
+}
+
+:root[data-ui="v2"] .target-strip-head strong {
+  font-weight: 600;
+}
+
+:root[data-ui="v2"] .target-strip-status {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+:root[data-ui="v2"] .target-bar {
+  height: 6px;
+  background: var(--track);
+}
+
+:root[data-ui="v2"] .target-bar-marker {
+  opacity: 1;
+}
+
+:root[data-ui="v2"] .target-needed {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* What-if: a disclosure panel; opening it adds a divider under the summary. */
+:root[data-ui="v2"] .what-if-summary {
+  gap: 8px;
+  padding: 12px var(--panel-padding);
+  border-radius: calc(var(--radius-lg) - 1px);
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.15s ease;
+}
+
+:root[data-ui="v2"] .what-if-summary:hover {
+  background: var(--bg-hover);
+}
+
+:root[data-ui="v2"] .what-if-summary:focus-visible {
+  outline-offset: -2px;
+}
+
+:root[data-ui="v2"] .what-if-summary > .ph {
+  font-size: 15px;
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .what-if-summary::after {
+  content: "\e071"; /* Lucide chevron-down */
+  margin-left: auto;
+  font-family: "lucide";
+  font-size: 16px;
+  line-height: 1;
+  color: var(--text-tertiary);
+  transition: transform 0.15s ease;
+}
+
+:root[data-ui="v2"] .what-if[open] > .what-if-summary {
+  border-bottom: 1px solid var(--card-border);
+  border-radius: calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px) 0 0;
+}
+
+:root[data-ui="v2"] .what-if[open] > .what-if-summary::after {
+  transform: rotate(180deg);
+}
+
+:root[data-ui="v2"] .what-if-hint {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .what-if-body {
+  gap: 12px;
+  padding: var(--panel-padding);
+}
+
+:root[data-ui="v2"] .what-if-rows {
+  gap: 8px;
+}
+
+:root[data-ui="v2"] .what-if-row {
+  grid-template-columns: minmax(0, 1fr) 72px auto 72px 80px var(--control-height);
+  gap: 6px;
+}
+
+:root[data-ui="v2"] .what-if-row .delete-button {
+  display: grid;
+  place-items: center;
+  width: var(--control-height);
+  height: var(--control-height);
+  padding: 0;
+  border-radius: var(--radius);
+}
+
+:root[data-ui="v2"] .what-if-result {
+  width: 100%;
+  padding-top: 12px;
+  border-top: 1px solid var(--card-border);
+  font-size: 14px;
+}
+
+:root[data-ui="v2"] .what-if-delta,
+:root[data-ui="v2"] .what-if-target {
+  font-weight: 500;
+}

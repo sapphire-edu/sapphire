@@ -1,0 +1,74 @@
+/* Reset and page shell. */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Red Hat Display", sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 14% -10%, var(--bg-glow-1), transparent 70%),
+    radial-gradient(circle at 86% 0%, var(--bg-glow-2), transparent 70%);
+  filter: saturate(3);
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: "Red Hat Display", sans-serif;
+}
+
+body.modal-open {
+  overflow: hidden;
+}
+
+.layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+
+.main {
+  padding: 24px 40px 80px;
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 28px;
+}
+
+.app-bar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px 40px;
+  border-bottom: 1px solid var(--card-border);
+  background: color-mix(in srgb, var(--bg-secondary) 50%, transparent);
+  backdrop-filter: blur(30px);
+}

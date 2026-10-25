@@ -1,0 +1,62 @@
+/* Leaderboard privacy popup. */
+
+/* Leaderboard privacy */
+.privacy-body {
+  display: grid;
+  gap: 16px;
+}
+
+.privacy-section {
+  display: grid;
+  gap: 10px;
+}
+
+.privacy-subjects {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+.privacy-subject {
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--surface-soft);
+  border: 1px solid var(--card-border);
+  color: var(--text-primary);
+}
+
+.privacy-subject-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.privacy-option {
+  align-items: flex-start;
+}
+
+.privacy-option > span {
+  display: grid;
+  gap: 2px;
+}
+
+.privacy-option strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.privacy-option .muted,
+.privacy-note {
+  font-size: 13px;
+  margin: 0;
+}
+
+.lb-toggle.is-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

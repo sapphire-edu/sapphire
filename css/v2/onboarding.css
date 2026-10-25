@@ -1,0 +1,53 @@
+/* V2 onboarding. */
+
+/* ── Onboarding ── */
+
+/* The progress bar is a hairline under the header that fills in. */
+:root[data-ui="v2"] .modal-header:has(+ .onboarding-progress) {
+  border-bottom: none;
+}
+
+:root[data-ui="v2"] .onboarding-progress {
+  height: 2px;
+  margin: 0 calc(-1 * var(--modal-padding));
+  width: auto;
+  border: none;
+  border-radius: 0;
+  background: var(--card-border);
+}
+
+:root[data-ui="v2"] .onboarding-progress-bar {
+  border-radius: 0;
+}
+
+:root[data-ui="v2"] .onboarding-grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+:root[data-ui="v2"] .onboarding-section {
+  gap: 16px;
+}
+
+:root[data-ui="v2"] .elective-grid {
+  max-height: 300px;
+  padding-right: 0;
+}
+
+:root[data-ui="v2"] .mini-button:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+:root[data-ui="v2"] .custom-elective-panel {
+  gap: 8px;
+}
+
+:root[data-ui="v2"] .custom-elective-list {
+  gap: 8px;
+}
+
+:root[data-ui="v2"] .custom-elective-row {
+  padding: 12px;
+  gap: 8px;
+}

@@ -1,0 +1,156 @@
+/* V2 fonts, V2-only elements, tokens, popup borders and menu layering. */
+
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap");
+
+/*
+ * Sapphire V2 (beta) design.
+ * Flat, neutral surfaces with one accent colour (from the chosen theme), Space Grotesk type and
+ * Lucide icons. Every rule is scoped to :root[data-ui="v2"], so V1 is untouched unless
+ * the beta is switched on in Settings (see setUiVersion in js/theme.js). V2 reuses V1's
+ * markup and design tokens, overriding the tokens first and components after.
+ */
+
+@font-face {
+  font-family: "lucide";
+  src: url("https://unpkg.com/lucide-static@0.460.0/font/lucide.woff2") format("woff2"),
+    url("https://unpkg.com/lucide-static@0.460.0/font/lucide.woff") format("woff");
+  font-display: block;
+}
+
+/* Elements that only exist in V2. */
+:root:not([data-ui="v2"]) .v2-only {
+  display: none !important;
+}
+
+/* ── Tokens ── */
+
+:root[data-ui="v2"] {
+  --bg-primary: #fafafa;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f5f5f5;
+  --bg-depth: #f0f0f0;
+  --bg-hover: #f2f2f2;
+  --bg-glow-1: transparent;
+  --bg-glow-2: transparent;
+  --text-primary: #171717;
+  --text-secondary: #5e5e5e;
+  --text-tertiary: #6b6b6b; /* ≥4.5:1 on every light surface down to --bg-depth */
+  --card-border: #e6e6e6;
+  --card-surface: #ffffff;
+  --card-surface-strong: #ffffff;
+  --card-sheen-1: #ffffff;
+  --card-sheen-2: #ffffff;
+  --surface-soft: #fafafa;
+  --surface-elevated: #ffffff;
+  --accent-soft: color-mix(in srgb, var(--accent) 10%, #ffffff);
+  --accent-soft-strong: color-mix(in srgb, var(--accent) 16%, #ffffff);
+  --accent-border: color-mix(in srgb, var(--accent) 40%, #e6e6e6);
+  --shadow-strong: 0 12px 32px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.02);
+  --shadow-soft: none;
+  --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.1);
+  --grade-a: #16a34a;
+  --grade-b: #2563eb;
+  --grade-c: #d97706;
+  --grade-d: #dc2626;
+  --danger: #dc2626;
+  --danger-soft: #fef2f2;
+  --danger-border: #fecaca;
+  --danger-solid: #dc2626; /* filled destructive buttons (white text) */
+  --logo-gradient-1: var(--accent);
+  --logo-gradient-2: var(--accent);
+  --input-bg: #ffffff;
+  --input-border: #e0e0e0;
+  --input-focus: color-mix(in srgb, var(--accent) 22%, transparent);
+  --input-placeholder: #a3a3a3;
+  --modal-backdrop: #000000;
+  --modal-surface: #ffffff;
+  --modal-surface-strong: #ffffff;
+  --modal-inner-surface: #ffffff;
+  --modal-border: #e6e6e6;
+  --modal-gradient-top: #ffffff;
+  --modal-border-start: #e6e6e6;
+  --modal-border-accent: #e6e6e6;
+  --popup-gradient-top: #ffffff;
+  --popup-border: #e6e6e6;
+  --popup-border-start: #e6e6e6;
+  --font-sans: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  /* Space Grotesk everywhere, including the places that used a monospace (class codes etc.). */
+  --font-mono: var(--font-sans);
+  --radius: 8px;
+  --radius-lg: 12px;
+  --popover-surface: #ffffff;
+  --popover-border: #e6e6e6;
+  /* A selected control (chosen theme, ticked elective, active icon): the accent tint is
+     mixed into the control colour, so it never ends up darker than an unselected one. */
+  --accent-control: color-mix(in srgb, var(--accent) 12%, var(--bg-secondary));
+  /* Progress / slider tracks. */
+  --track: #ebebeb;
+  /* Shared sizes: control height, nested-panel padding, popup padding, popup widths. */
+  --control-height: 36px;
+  --panel-padding: 16px;
+  --modal-padding: 24px;
+  --modal-width: 600px;
+  --modal-width-small: 480px;
+  --modal-width-large: 880px;
+  color-scheme: light;
+}
+
+:root[data-ui="v2"][data-theme="dark"] {
+  /* Surfaces (page, cards, popups) all share the app's dark background and are
+     separated by borders. Only things raised above a surface get lighter:
+     controls #141414 → hover #1a1a1a → menus #1c1c1c. */
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #141414;
+  --bg-tertiary: #171717;
+  --bg-depth: #1f1f1f;
+  --bg-hover: #1a1a1a;
+  --popover-surface: #1c1c1c;
+  --popover-border: #2e2e2e;
+  --track: #262626;
+  --text-primary: #ededed;
+  --text-secondary: #a1a1a1;
+  --text-tertiary: #8a8a8a; /* ≥4.5:1 on every dark surface up to --bg-depth */
+  --card-border: #222222;
+  --card-surface: #0a0a0a;
+  --card-surface-strong: #0a0a0a;
+  --card-sheen-1: #0a0a0a;
+  --card-sheen-2: #0a0a0a;
+  --surface-soft: #0a0a0a;
+  --surface-elevated: #0a0a0a;
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, #0a0a0a);
+  --accent-soft-strong: color-mix(in srgb, var(--accent) 22%, #0a0a0a);
+  --accent-border: color-mix(in srgb, var(--accent) 45%, #232323);
+  --shadow-strong: 0 16px 40px rgba(0, 0, 0, 0.6);
+  --shadow-popover: 0 8px 28px rgba(0, 0, 0, 0.55);
+  --grade-a: #4ade80;
+  --grade-b: #60a5fa;
+  --grade-c: #fbbf24;
+  --grade-d: #f87171;
+  --danger: #f87171;
+  --danger-soft: #2a1212;
+  --danger-border: #4c1d1d;
+  --input-bg: #141414; /* inputs are controls: same as --bg-secondary */
+  --input-border: #2a2a2a;
+  --input-placeholder: #5c5c5c;
+  --modal-surface: #0a0a0a;
+  --modal-surface-strong: #0a0a0a;
+  --modal-inner-surface: #0a0a0a;
+  --modal-border: #2a2a2a;
+  --modal-gradient-top: #0a0a0a;
+  --modal-border-start: #2a2a2a;
+  --modal-border-accent: #2a2a2a;
+  --popup-gradient-top: #0a0a0a;
+  --popup-border: #2a2a2a;
+  --popup-border-start: #2a2a2a;
+  color-scheme: dark;
+}
+
+/* Popups share the page background, so give them a slightly brighter border to stand out. */
+:root[data-ui="v2"][data-theme="dark"] .modal-panel {
+  --modal-border: #2e2e2e;
+}
+
+/* Menus sit above whatever they open from. */
+:root[data-ui="v2"][data-theme="dark"] :is(.more-menu-list, .quick-add-menu, .profile-dropdown, .chart-tooltip) {
+  --bg-hover: color-mix(in srgb, #ffffff 7%, var(--popover-surface));
+}

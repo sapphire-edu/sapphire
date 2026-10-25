@@ -1,0 +1,213 @@
+/* Calendar tab. */
+
+.calendar-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.calendar-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.calendar-type-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-soft);
+}
+
+.calendar-type-filter-button {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 12px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.calendar-type-filter-button:hover {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.calendar-type-filter-button.is-active {
+  color: var(--text-on-accent);
+  background: var(--accent);
+}
+
+.calendar-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-soft);
+}
+
+.calendar-nav {
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.calendar-nav:hover {
+  background: var(--accent-soft);
+}
+
+.calendar-month {
+  font-weight: 600;
+  font-size: 14px;
+  min-width: 150px;
+  text-align: center;
+}
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  padding: 0 4px;
+}
+
+.calendar-weekdays span {
+  text-align: center;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.calendar-cell {
+  background: var(--surface-soft);
+  border-radius: 18px;
+  padding: 10px;
+  min-height: 110px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--card-border);
+}
+
+.calendar-cell.is-muted {
+  opacity: 0.45;
+}
+
+.calendar-cell.is-today {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.calendar-day {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-weight: 600;
+}
+
+.calendar-events {
+  display: grid;
+  gap: 6px;
+}
+
+.calendar-event {
+  border-radius: 12px;
+  padding: 6px 8px;
+  background: color-mix(in srgb, var(--event-color) 18%, var(--bg-secondary));
+  border: 1px solid
+    color-mix(in srgb, var(--event-color) 60%, var(--bg-secondary));
+  font-size: 11px;
+  color: var(--text-primary);
+  text-align: left;
+  font-family: inherit;
+  width: 100%;
+}
+
+button.calendar-event {
+  cursor: pointer;
+}
+
+button.calendar-event:hover {
+  border-color: color-mix(in srgb, var(--event-color) 78%, var(--bg-secondary));
+}
+
+button.calendar-event:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.calendar-event.is-completed {
+  opacity: 0.65;
+}
+
+.calendar-event.is-assessment {
+  border-left: 3px solid
+    color-mix(in srgb, var(--event-color) 80%, var(--accent));
+}
+
+.calendar-event.is-homework {
+  border-left: 3px solid
+    color-mix(in srgb, var(--event-color) 45%, var(--text-secondary));
+  background: color-mix(in srgb, var(--event-color) 11%, var(--bg-secondary));
+}
+
+.calendar-event-title {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.calendar-event-type-icon {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.calendar-event-tag {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  padding: 2px 7px;
+  margin-top: 4px;
+  color: var(--text-secondary);
+  border: 1px solid
+    color-mix(in srgb, var(--event-color) 30%, var(--card-border));
+  background: color-mix(in srgb, var(--event-color) 14%, var(--bg-secondary));
+}
+
+.calendar-event-sub {
+  color: var(--text-secondary);
+}
+
+.calendar-more {
+  font-size: 11px;
+  color: var(--text-secondary);
+}

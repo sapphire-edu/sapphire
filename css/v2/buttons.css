@@ -1,0 +1,148 @@
+/* V2 buttons, including destructive and confirm buttons. */
+
+/* ── Buttons ── */
+
+:root[data-ui="v2"] .primary-button,
+:root[data-ui="v2"] .ghost-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: var(--control-height);
+  padding: 0 14px;
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: none;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}
+
+:root[data-ui="v2"] .primary-button {
+  background: var(--accent);
+  color: var(--text-on-accent);
+  border: 1px solid transparent;
+}
+
+:root[data-ui="v2"] .primary-button:hover:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+  filter: none;
+  background: color-mix(in srgb, var(--accent) 88%, var(--text-primary));
+}
+
+:root[data-ui="v2"] .ghost-button {
+  background: var(--bg-secondary);
+  border: 1px solid var(--card-border);
+  color: var(--text-primary);
+}
+
+:root[data-ui="v2"] .ghost-button:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--card-border);
+}
+
+:root[data-ui="v2"] .ghost-button--small {
+  height: 30px;
+  padding: 0 10px;
+  font-size: 13px;
+  border-radius: var(--radius);
+}
+
+/* A mark that's on the leaderboard: same control, accent text. */
+:root[data-ui="v2"] .ghost-button.is-shared {
+  border-color: var(--accent-border);
+  background: var(--bg-secondary);
+  color: var(--accent);
+}
+
+:root[data-ui="v2"] .ghost-button.is-shared:hover:not(:disabled) {
+  background: var(--accent-control);
+  border-color: var(--accent-border);
+}
+
+/* Icons in buttons are sized by the button, not by inline V1 margins. */
+:root[data-ui="v2"] :is(.ghost-button, .primary-button) .ph {
+  margin-right: 0 !important;
+}
+
+:root[data-ui="v2"] .with-icon {
+  gap: 6px;
+}
+
+:root[data-ui="v2"] .button-icon {
+  font-size: 15px;
+}
+
+:root[data-ui="v2"] .icon-button,
+:root[data-ui="v2"] .modal-panel .icon-button {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+  background: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .icon-button:hover,
+:root[data-ui="v2"] .modal-panel .icon-button:hover {
+  transform: none;
+  background: var(--bg-hover);
+  border-color: transparent;
+  color: var(--text-primary);
+  box-shadow: none;
+}
+
+:root[data-ui="v2"] .delete-button {
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 13px;
+}
+
+:root[data-ui="v2"] .delete-button:hover {
+  transform: none;
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+/* Destructive actions: an outlined control that fills red on hover (Settings → Reset). */
+:root[data-ui="v2"] .danger-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: start;
+  gap: 6px;
+  height: var(--control-height);
+  padding: 0 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--danger-border);
+  background: var(--bg-secondary);
+  color: var(--danger);
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+:root[data-ui="v2"] .danger-button:hover {
+  transform: none;
+  box-shadow: none;
+  background: var(--danger-soft);
+  border-color: var(--danger);
+}
+
+/* The confirm popup's accept button turns red for destructive confirms. */
+:root[data-ui="v2"] .primary-button.confirm-danger {
+  background: var(--danger-solid) !important;
+  color: #ffffff;
+}
+
+:root[data-ui="v2"] .primary-button.confirm-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger-solid) 86%, #000000) !important;
+  filter: none;
+}
+
+:root[data-ui="v2"] .primary-button:disabled,
+:root[data-ui="v2"] .ghost-button:disabled {
+  opacity: 0.5;
+}

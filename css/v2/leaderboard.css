@@ -1,6 +1,6 @@
 /*
  * Sapphire V2 (beta): Leaderboard page and its popups.
- * Loaded after styles-v2.css; every rule is scoped to :root[data-ui="v2"] and uses its tokens.
+ * Loaded after the core css/v2 files; every rule is scoped to :root[data-ui="v2"] and uses its tokens.
  * V2-only markup (avatars, medals, the summary strip, column heads) is added by
  * renderLeaderboardView / openLeaderboardPopup with the .v2-only class.
  */
@@ -19,7 +19,7 @@
   --lb-bronze: #dd9a66;
 }
 
-/* Icons this page needs that styles-v2.css doesn't map. */
+/* Icons this page needs that css/v2/icons.css doesn't map. */
 :root[data-ui="v2"] .ph-lock::before {
   font-family: "lucide" !important;
   font-weight: normal !important;

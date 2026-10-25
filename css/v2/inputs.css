@@ -1,0 +1,206 @@
+/* V2 inputs, share-string fields, colour pickers, swatches and range slider. */
+
+/* ── Inputs ── */
+/* Inputs are controls: --input-bg (= --bg-secondary in dark), hairline border, 8px radius,
+   one height everywhere (fields, what-if rows, custom electives). */
+
+:root[data-ui="v2"] .field {
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .field small {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .field input,
+:root[data-ui="v2"] .field textarea,
+:root[data-ui="v2"] .field select,
+:root[data-ui="v2"] .modal-panel .field input,
+:root[data-ui="v2"] .modal-panel .field textarea,
+:root[data-ui="v2"] .modal-panel .field select,
+:root[data-ui="v2"] .modal-panel .export-textarea,
+:root[data-ui="v2"] .what-if-row input,
+:root[data-ui="v2"] .custom-elective-name,
+:root[data-ui="v2"] .custom-elective-color {
+  border-radius: var(--radius);
+  border: 1px solid var(--input-border);
+  background-color: var(--input-bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 400;
+  font-family: var(--font-sans);
+  box-shadow: none;
+}
+
+:root[data-ui="v2"] .field input,
+:root[data-ui="v2"] .field select,
+:root[data-ui="v2"] .what-if-row input,
+:root[data-ui="v2"] .custom-elective-name {
+  height: var(--control-height);
+  min-height: 0;
+  padding: 0 12px;
+}
+
+:root[data-ui="v2"] .field select {
+  padding-right: 34px;
+  background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%;
+  background-size: 5px 5px, 5px 5px;
+}
+
+:root[data-ui="v2"] .field textarea,
+:root[data-ui="v2"] .modal-panel .export-textarea {
+  padding: 8px 12px;
+  line-height: 1.5;
+}
+
+/* Share strings are code, not prose. */
+:root[data-ui="v2"] .modal-panel .export-textarea {
+  min-height: 96px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  word-break: break-all;
+}
+
+:root[data-ui="v2"] .field input::placeholder,
+:root[data-ui="v2"] .field textarea::placeholder,
+:root[data-ui="v2"] .what-if-row input::placeholder,
+:root[data-ui="v2"] .custom-elective-name::placeholder {
+  color: var(--input-placeholder);
+}
+
+:root[data-ui="v2"] .field input:hover:not(:focus):not(:disabled),
+:root[data-ui="v2"] .field select:hover:not(:focus):not(:disabled),
+:root[data-ui="v2"] .field textarea:hover:not(:focus):not(:disabled) {
+  border-color: color-mix(in srgb, var(--input-border) 60%, var(--text-tertiary));
+}
+
+:root[data-ui="v2"] .field input:focus,
+:root[data-ui="v2"] .field select:focus,
+:root[data-ui="v2"] .field textarea:focus,
+:root[data-ui="v2"] .modal-panel .field input:focus,
+:root[data-ui="v2"] .modal-panel .field select:focus,
+:root[data-ui="v2"] .modal-panel .field textarea:focus,
+:root[data-ui="v2"] .what-if-row input:focus,
+:root[data-ui="v2"] .custom-elective-name:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--input-focus);
+}
+
+:root[data-ui="v2"] .field input:disabled,
+:root[data-ui="v2"] .field select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Colour pickers: a control-height swatch with the same frame as an input. */
+:root[data-ui="v2"] .color-input {
+  width: var(--control-height);
+  height: var(--control-height);
+}
+
+:root[data-ui="v2"] .color-input::-webkit-color-swatch {
+  border-radius: var(--radius);
+  border: 1px solid var(--input-border);
+}
+
+:root[data-ui="v2"] .color-input::-moz-color-swatch {
+  border-radius: var(--radius);
+  border: 1px solid var(--input-border);
+}
+
+:root[data-ui="v2"] .custom-elective-color {
+  height: var(--control-height);
+  min-height: 0;
+  padding: 3px;
+}
+
+:root[data-ui="v2"] .custom-elective-color::-webkit-color-swatch {
+  border-radius: 5px;
+}
+
+:root[data-ui="v2"] .custom-elective-color::-moz-color-swatch {
+  border-radius: 5px;
+}
+
+:root[data-ui="v2"] .color-value {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+/* Preset colours: round swatches; the chosen one gets a ring in the text colour. */
+:root[data-ui="v2"] .color-swatches {
+  gap: 6px;
+}
+
+:root[data-ui="v2"] .color-swatch {
+  width: 24px;
+  height: 24px;
+  border: none;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #000000 12%, transparent);
+  transition: box-shadow 0.15s ease;
+}
+
+:root[data-ui="v2"] .color-swatch:hover {
+  box-shadow: 0 0 0 2px var(--modal-surface), 0 0 0 3px var(--card-border);
+}
+
+:root[data-ui="v2"] .color-swatch.is-active {
+  border: none;
+  box-shadow: 0 0 0 2px var(--modal-surface), 0 0 0 4px var(--text-primary);
+}
+
+/* Range slider (graph smoothing): thin track, accent fill, round thumb. */
+:root[data-ui="v2"] .theme-slider {
+  height: 16px;
+}
+
+:root[data-ui="v2"] .theme-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border: none;
+  background: linear-gradient(
+    to right,
+    var(--accent) 0%,
+    var(--accent) var(--slider-fill),
+    var(--track) var(--slider-fill),
+    var(--track) 100%
+  );
+}
+
+:root[data-ui="v2"] .theme-slider::-webkit-slider-thumb {
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  border: 2px solid var(--modal-surface);
+  box-shadow: 0 0 0 1px var(--card-border);
+}
+
+:root[data-ui="v2"] .theme-slider::-moz-range-track {
+  height: 4px;
+  border: none;
+  background: var(--track);
+}
+
+:root[data-ui="v2"] .theme-slider::-moz-range-progress {
+  height: 4px;
+}
+
+:root[data-ui="v2"] .theme-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--modal-surface);
+  box-shadow: 0 0 0 1px var(--card-border);
+}
+
+:root[data-ui="v2"] .theme-slider-value {
+  min-width: 40px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}

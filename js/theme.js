@@ -1,6 +1,6 @@
 // Theme, graph smoothing and V1/V2 UI version.
 
-// The beta UI is a styling layer (styles-v2.css) switched on by <html data-ui="v2">.
+// The beta UI is a styling layer (css/v2/) switched on by <html data-ui="v2">.
 // index.html sets the attribute before first paint so there is no flash of V1.
 function isUiV2() {
   return document.documentElement.dataset.ui === 'v2';

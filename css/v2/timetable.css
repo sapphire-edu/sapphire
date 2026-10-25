@@ -1,8 +1,8 @@
 /*
  * Sapphire V2 (beta): Timetable page.
- * Loaded after styles-v2.css; every rule is scoped to :root[data-ui="v2"] and uses its tokens.
+ * Loaded after the core css/v2 files; every rule is scoped to :root[data-ui="v2"] and uses its tokens.
  *
- * Page anatomy (V2 markup from renderTimetable / renderTimetableV2* in app.js):
+ * Page anatomy (V2 markup from renderTimetable / renderTimetableV2* in js/timetable.js):
  *   .timetable-week-card   header (Week X, badge, range | Current/A/B + Swap), day tabs (phones),
  *                          5-column week grid of subject-tinted .lesson-card
  *   .timetable-map-card    "Classes · n of m linked", grid of tinted class cards
@@ -10,7 +10,7 @@
  *                          file row (at the bottom of the page) once one is imported
  */
 
-/* Icons used here that styles-v2.css doesn't map yet. */
+/* Icons used here that css/v2/icons.css doesn't map yet. */
 :root[data-ui="v2"] .view[data-view="timetable"] .ph-calendar-dots::before,
 :root[data-ui="v2"] .view[data-view="timetable"] .ph-arrows-left-right::before {
   font-family: "lucide" !important;

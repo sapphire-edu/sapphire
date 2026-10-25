@@ -1,0 +1,57 @@
+/* V2 pills, badges and grade letters. */
+
+/* ── Pills and badges ── */
+
+:root[data-ui="v2"] .badge,
+:root[data-ui="v2"] .upcoming-tag,
+:root[data-ui="v2"] .status-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Grade letters coloured by band. */
+:root[data-ui="v2"] .v2-grade {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+}
+
+:root[data-ui="v2"] .v2-grade[data-grade="A"] {
+  color: var(--grade-a);
+  background: color-mix(in srgb, var(--grade-a) 12%, transparent);
+}
+
+:root[data-ui="v2"] .v2-grade[data-grade="B"] {
+  color: var(--grade-b);
+  background: color-mix(in srgb, var(--grade-b) 12%, transparent);
+}
+
+:root[data-ui="v2"] .v2-grade[data-grade="C"] {
+  color: var(--grade-c);
+  background: color-mix(in srgb, var(--grade-c) 14%, transparent);
+}
+
+:root[data-ui="v2"] .v2-grade[data-grade="D"],
+:root[data-ui="v2"] .v2-grade[data-grade="E"],
+:root[data-ui="v2"] .v2-grade[data-grade="F"] {
+  color: var(--grade-d);
+  background: color-mix(in srgb, var(--grade-d) 12%, transparent);
+}

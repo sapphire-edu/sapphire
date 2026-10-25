@@ -1,0 +1,87 @@
+/* V2 toggle groups and switches. */
+
+/* ── Toggle groups: calendar filter, timetable week switch ── */
+
+:root[data-ui="v2"] .calendar-type-filter,
+:root[data-ui="v2"] .timetable-week-switch {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+}
+
+:root[data-ui="v2"] .calendar-type-filter-button,
+:root[data-ui="v2"] .chip {
+  height: 28px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+:root[data-ui="v2"] .calendar-type-filter-button:hover,
+:root[data-ui="v2"] .chip:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+:root[data-ui="v2"] .calendar-type-filter-button.is-active,
+:root[data-ui="v2"] .chip.is-active {
+  background: var(--bg-depth);
+  color: var(--text-primary);
+  box-shadow: inset 0 0 0 1px var(--card-border);
+}
+
+/* Chips that aren't in a group (e.g. analytics subject keys) keep a light outline. */
+:root[data-ui="v2"] :not(.timetable-week-switch) > .chip {
+  border: 1px solid var(--card-border);
+}
+
+/* ── Switches: on/off checkboxes in the leaderboard and its privacy popup ── */
+
+:root[data-ui="v2"] .lb-toggle {
+  gap: 10px;
+  font-size: 13px;
+}
+
+:root[data-ui="v2"] .lb-toggle input[type="checkbox"] {
+  appearance: none;
+  flex: none;
+  position: relative;
+  width: 32px;
+  height: 18px;
+  margin: 1px 0 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-primary) 20%, transparent);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+:root[data-ui="v2"] .lb-toggle input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #ffffff;
+  transition: transform 0.15s ease;
+}
+
+:root[data-ui="v2"] .lb-toggle input[type="checkbox"]:checked {
+  background: var(--accent);
+}
+
+:root[data-ui="v2"] .lb-toggle input[type="checkbox"]:checked::after {
+  transform: translateX(14px);
+}
+
+:root[data-ui="v2"] .lb-toggle input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+}
