@@ -458,10 +458,6 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lesson-border) 75%, var(--card-surface));
 }
 
-:root[data-ui="v2"] .lesson-card.is-past {
-  opacity: 0.55;
-}
-
 :root[data-ui="v2"] .lesson-card .lesson-top {
   justify-content: flex-start;
   gap: 6px;
