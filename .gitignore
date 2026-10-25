@@ -1,0 +1,4 @@
+# Never commit local tooling or Appwrite project files.
+.*/
+appwrite*
+.DS_Store
