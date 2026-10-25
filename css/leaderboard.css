@@ -236,3 +236,20 @@
   text-align: right;
   color: var(--text-primary);
 }
+
+/* Presence: online dot beside the name, "Online · " / "Seen 2h ago · " in the meta line. */
+.lb-presence-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #4ade80;
+}
+
+.lb-presence-dot[hidden] {
+  display: none;
+}
+
+.lb-presence.is-online {
+  color: #4ade80;
+}

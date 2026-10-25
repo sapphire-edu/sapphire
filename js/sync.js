@@ -77,12 +77,14 @@ function handleAuthAction() {
         appwriteState.error = null;
         appwriteState.cloudReady = false;
         stopLeaderboardLive();
+        stopPresence();
         updateAuthUI();
       })
       .catch(() => {
         appwriteState.user = null;
         appwriteState.cloudReady = false;
         stopLeaderboardLive();
+        stopPresence();
         updateAuthUI();
       });
     return;

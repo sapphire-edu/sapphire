@@ -30,9 +30,11 @@ async function checkFriendStatusAndRenderLeaderboard() {
 
   if (isFriend) {
     startLeaderboardLive();
+    startPresence();
     await fetchLeaderboard();
   } else {
     stopLeaderboardLive();
+    stopPresence();
   }
 }
 
@@ -687,6 +689,15 @@ function updateLeaderboardRanks(filter, users) {
   safeSetItem(LEADERBOARD_RANKS_KEY, JSON.stringify(stored));
 }
 
+// Placeholders that paintPresence() fills in, so the 30s repaint doesn't rebuild the list.
+function presenceDotHtml(userId) {
+  return `<span class="lb-presence-dot" data-presence-for="${escapeHtml(userId)}" hidden></span>`;
+}
+
+function presenceTextHtml(userId) {
+  return `<span class="lb-presence" data-presence-for="${escapeHtml(userId)}"></span>`;
+}
+
 function leaderboardMovementHtml(movement) {
   if (movement === 'new') return '<span class="lb-move lb-move--new">New</span>';
   // V2 keeps the column lined up with a dash; V1 shows nothing.
@@ -869,10 +880,10 @@ function renderLeaderboardView(docs) {
       <div class="leaderboard-entry${highlight}" data-user-id="${escapeHtml(user.userId)}" data-action="open-lb-popup">
         <div class="leaderboard-entry-summary" style="cursor: pointer;">
           <div class="lb-rank">${rankIcon}${v2RankHtml(rank)}</div>
-          <span class="lb-avatar v2-only" aria-hidden="true">${avatarInitials(user.userName)}</span>
+          <span class="lb-avatar v2-only" aria-hidden="true">${avatarInitials(user.userName)}${presenceDotHtml(user.userId)}</span>
           <div class="lb-info">
-            <div class="lb-name">${escapeHtml(user.userName)}${isCurrentUser(user.userId) ? ' <span class="badge" style="font-size: 0.7rem;">You</span>' : ''}</div>
-            <div class="lb-meta muted">${metaText}</div>
+            <div class="lb-name">${presenceDotHtml(user.userId)}${escapeHtml(user.userName)}${isCurrentUser(user.userId) ? ' <span class="badge" style="font-size: 0.7rem;">You</span>' : ''}</div>
+            <div class="lb-meta muted">${presenceTextHtml(user.userId)}${metaText}</div>
           </div>
           <span class="lb-grade v2-only">${grade ? `<span class="v2-grade" data-grade="${grade[0]}">${grade}</span>` : '—'}</span>
           <div class="lb-score">
@@ -887,6 +898,7 @@ function renderLeaderboardView(docs) {
 
   // Store user data for popup
   elements.leaderboardList._userData = users;
+  paintPresence();
 }
 
 function openLeaderboardPopup(userData) {
@@ -990,10 +1002,10 @@ function openLeaderboardPopup(userData) {
 
     header.innerHTML = `
       <div class="lb-pop-id">
-        <span class="lb-avatar lb-avatar--lg${isYou ? ' is-you' : ''}" aria-hidden="true">${name ? escapeHtml(initials(name)) : '?'}</span>
+        <span class="lb-avatar lb-avatar--lg${isYou ? ' is-you' : ''}" aria-hidden="true">${name ? escapeHtml(initials(name)) : '?'}${presenceDotHtml(userData.userId)}</span>
         <div>
           <h2 class="section-title">${escapeHtml(userData.userName)}${isYou ? ' <span class="badge lb-you-badge">You</span>' : ''}</h2>
-          <div class="modal-meta">${subjectCount} subject${subjectCount !== 1 ? 's' : ''}${countText}</div>
+          <div class="modal-meta">${presenceTextHtml(userData.userId)}${subjectCount} subject${subjectCount !== 1 ? 's' : ''}${countText}</div>
         </div>
       </div>
       <button class="icon-button" type="button" data-action="close-lb-popup" aria-label="Close">
@@ -1019,6 +1031,7 @@ function openLeaderboardPopup(userData) {
       <div class="lb-pop-subjects">${subjectsHtml}</div>
     `;
 
+    paintPresence();
     openModal(popup);
     return;
   }
@@ -1027,7 +1040,7 @@ function openLeaderboardPopup(userData) {
     <div>
       <div class="section-eyebrow">Leaderboard</div>
       <h2 class="section-title">${escapeHtml(userData.userName)}</h2>
-      <div class="modal-meta">${subjectCount} subject${subjectCount !== 1 ? 's' : ''}${countText} · ${userData.average.toFixed(1)}% average</div>
+      <div class="modal-meta">${presenceTextHtml(userData.userId)}${subjectCount} subject${subjectCount !== 1 ? 's' : ''}${countText} · ${userData.average.toFixed(1)}% average</div>
     </div>
     <button class="icon-button" type="button" data-action="close-lb-popup">
       <i class="ph ph-x" aria-hidden="true"></i>
@@ -1040,6 +1053,7 @@ function openLeaderboardPopup(userData) {
     </div>
   `;
 
+  paintPresence();
   openModal(popup);
 }
 

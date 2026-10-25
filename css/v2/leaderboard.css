@@ -957,3 +957,31 @@
     justify-self: start;
   }
 }
+
+/* Presence: the online dot sits on the avatar, not beside the name. */
+:root[data-ui="v2"] .lb-avatar {
+  position: relative;
+}
+
+:root[data-ui="v2"] .lb-name .lb-presence-dot {
+  display: none;
+}
+
+:root[data-ui="v2"] .lb-avatar .lb-presence-dot:not([hidden]) {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 9px;
+  height: 9px;
+  background: var(--grade-a);
+  box-shadow: 0 0 0 2px var(--bg-secondary, var(--card-bg));
+}
+
+:root[data-ui="v2"] .lb-avatar--lg .lb-presence-dot:not([hidden]) {
+  width: 11px;
+  height: 11px;
+}
+
+:root[data-ui="v2"] .lb-presence.is-online {
+  color: var(--grade-a);
+}
