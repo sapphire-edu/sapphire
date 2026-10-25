@@ -108,15 +108,15 @@
   height: 72px;
   padding: 8px;
   border-radius: 8px;
-  border: 1px solid #262626;
-  background: #0a0a0a;
+  border: 1px solid #e4e4e7;
+  background: #ffffff;
 }
 
 .ui-beta-preview-bar {
   height: 5px;
   width: 45%;
   border-radius: 3px;
-  background: #3a3a3a;
+  background: #d4d4d8;
 }
 
 .ui-beta-preview-stats {
@@ -128,7 +128,7 @@
 .ui-beta-preview-stats span {
   height: 14px;
   border-radius: 3px;
-  border: 1px solid #262626;
+  border: 1px solid #e4e4e7;
 }
 
 .ui-beta-preview-row {
@@ -148,6 +148,24 @@
   flex: 1;
   height: 4px;
   border-radius: 2px;
+  background: #e4e4e7;
+}
+
+/* The wireframe follows the theme, so it isn't a dark box on a light page. */
+:root[data-theme="dark"] .ui-beta-preview {
+  border-color: #262626;
+  background: #0a0a0a;
+}
+
+:root[data-theme="dark"] .ui-beta-preview-bar {
+  background: #3a3a3a;
+}
+
+:root[data-theme="dark"] .ui-beta-preview-stats span {
+  border-color: #262626;
+}
+
+:root[data-theme="dark"] .ui-beta-preview-row span:last-child {
   background: #262626;
 }
 
