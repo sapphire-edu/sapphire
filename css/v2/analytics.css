@@ -718,10 +718,9 @@
   }
 }
 
-/* ── Spread by subject (box plot) ──
-   Row: subject | plot on a shared 0–100 scale | IQR and SD. In the plot, the thin line is
-   min–max, the tinted box Q1–Q3 with the median as a solid bar, and the line below it the
-   mean ± one SD with the mean as a ringed dot. */
+/* ── Spread charts (box plots) ──
+   Marks: a hairline whisker for min–max, a tinted box for Q1–Q3 with a solid median bar,
+   and (overall card only) mean ± SD as a capped line with a ringed dot. */
 
 :root[data-ui="v2"] .an-spread-toggle {
   display: inline-flex;
@@ -736,7 +735,6 @@
 
 :root[data-ui="v2"] .an-spread-key {
   display: flex;
-  margin-top: 12px;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px 16px;
@@ -767,17 +765,9 @@
   background: var(--text-tertiary);
 }
 
-:root[data-ui="v2"] .an-spread-key-sd {
-  height: 7px;
-}
-
-:root[data-ui="v2"] .an-spread-key-sd::before {
-  top: 3px;
-}
-
 :root[data-ui="v2"] .an-spread-key-sd > span {
   position: absolute;
-  top: 0;
+  top: 1px;
   left: 50%;
   width: 7px;
   height: 7px;
@@ -805,8 +795,215 @@
   background: var(--text-secondary);
 }
 
+/* Shared marks. Each plot sets --box-h (box height) and --mid (y of the box centre). */
+:root[data-ui="v2"] .an-spread-plot,
+:root[data-ui="v2"] .an-overall-plot {
+  position: relative;
+}
+
+:root[data-ui="v2"] .an-spread-plot > span,
+:root[data-ui="v2"] .an-overall-plot > span {
+  position: absolute;
+}
+
+:root[data-ui="v2"] .an-spread-grid {
+  inset: 0;
+}
+
+:root[data-ui="v2"] .an-spread-grid > span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: color-mix(in srgb, var(--card-border) 70%, transparent);
+}
+
+:root[data-ui="v2"] .an-spread-whisker {
+  top: calc(var(--mid) - var(--box-h) / 4);
+  height: calc(var(--box-h) / 2);
+  border-inline: 1px solid var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .an-spread-whisker::before {
+  content: "";
+  position: absolute;
+  inset: calc(var(--box-h) / 4 - 0.5px) 0 auto;
+  height: 1px;
+  background: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .an-spread-box {
+  top: calc(var(--mid) - var(--box-h) / 2);
+  height: var(--box-h);
+  min-width: 3px;
+  border: 1.5px solid var(--subject-color);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--subject-color) 22%, var(--card-surface));
+}
+
+:root[data-ui="v2"] .an-spread-median {
+  top: calc(var(--mid) - var(--box-h) / 2);
+  width: 2.5px;
+  height: var(--box-h);
+  margin-left: -1.25px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--subject-color) 70%, var(--text-primary));
+}
+
+:root[data-ui="v2"] .an-spread-dot,
+:root[data-ui="v2"] .an-spread-mean {
+  width: 9px;
+  height: 9px;
+  margin-left: -4.5px;
+  border-radius: 50%;
+  background: var(--subject-color);
+  box-shadow: 0 0 0 2px var(--card-surface);
+}
+
+:root[data-ui="v2"] .an-spread-dot {
+  top: calc(var(--mid) - 4.5px);
+}
+
+:root[data-ui="v2"] .an-spread-scale {
+  position: relative;
+  height: 16px;
+}
+
+:root[data-ui="v2"] .an-spread-scale > span {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The end labels sit inside the plot instead of hanging past its edges. */
+:root[data-ui="v2"] .an-spread-scale > span:first-child {
+  transform: none;
+}
+
+:root[data-ui="v2"] .an-spread-scale > span:last-child {
+  transform: translateX(-100%);
+}
+
+/* The shared chart tooltip holds the five-number summary on separate lines here. */
+:root[data-ui="v2"] .chart-tooltip {
+  white-space: pre-line;
+}
+
+/* ── Overall spread: one large plot, then every number labelled ── */
+
+:root[data-ui="v2"] .an-overall-card.is-collapsed .an-card-desc {
+  margin-bottom: 0;
+}
+
+:root[data-ui="v2"] .an-overall {
+  margin-top: 20px;
+}
+
+:root[data-ui="v2"] .an-overall > .empty-state {
+  padding: 8px 0 4px;
+  text-align: left;
+}
+
+:root[data-ui="v2"] .an-overall-chart {
+  --subject-color: var(--accent);
+}
+
+:root[data-ui="v2"] .an-overall-plot {
+  --box-h: 44px;
+  --mid: 30px;
+  height: 84px;
+}
+
+:root[data-ui="v2"] .an-overall-plot .an-spread-median {
+  width: 3px;
+  margin-left: -1.5px;
+}
+
+:root[data-ui="v2"] .an-overall-plot .an-spread-sd {
+  top: 64px;
+  height: 11px;
+  min-width: 1px;
+  border-inline: 1px solid var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .an-overall-plot .an-spread-sd::before {
+  content: "";
+  position: absolute;
+  inset: 5px 0 auto;
+  height: 1px;
+  background: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .an-overall-plot .an-spread-mean {
+  top: 64.5px;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+}
+
+:root[data-ui="v2"] .an-overall-chart .an-spread-scale {
+  margin-top: 6px;
+}
+
+:root[data-ui="v2"] .an-overall-stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) 1px repeat(3, minmax(0, 1fr));
+  gap: 0 16px;
+  margin: 20px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--card-border);
+}
+
+/* A hairline between the five-number summary and the measures of spread. */
+:root[data-ui="v2"] .an-overall-stats::before {
+  content: "";
+  grid-column: 6;
+  grid-row: 1;
+  background: var(--card-border);
+}
+
+:root[data-ui="v2"] .an-overall-stat:nth-child(n + 6) {
+  grid-row: 1;
+}
+
+:root[data-ui="v2"] .an-overall-stat:nth-child(6) { grid-column: 7; }
+:root[data-ui="v2"] .an-overall-stat:nth-child(7) { grid-column: 8; }
+:root[data-ui="v2"] .an-overall-stat:nth-child(8) { grid-column: 9; }
+
+:root[data-ui="v2"] .an-overall-stat dt {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .an-overall-stat dd {
+  margin: 2px 0 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+:root[data-ui="v2"] .an-overall-stat.is-key dd {
+  color: var(--accent);
+}
+
+:root[data-ui="v2"] .an-overall-key {
+  margin-top: 16px;
+}
+
+/* ── Spread by subject: a compact table, one line per subject ── */
+
+:root[data-ui="v2"] .an-spread-card .an-card-head {
+  flex-wrap: wrap;
+}
+
 :root[data-ui="v2"] .an-spread {
-  margin: 12px -20px -20px;
+  margin: 16px -20px -20px;
   border-top: 1px solid var(--card-border);
 }
 
@@ -815,18 +1012,34 @@
   text-align: left;
 }
 
-:root[data-ui="v2"] .an-spread-row,
-:root[data-ui="v2"] .an-spread-axis {
+:root[data-ui="v2"] .an-spread-head,
+:root[data-ui="v2"] .an-spread-row {
   display: grid;
-  grid-template-columns: minmax(140px, 0.9fr) minmax(0, 3fr) 112px;
+  grid-template-columns: minmax(150px, 1fr) minmax(0, 3fr) 48px 48px 48px;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
   width: 100%;
   padding: 0 20px;
 }
 
+:root[data-ui="v2"] .an-spread-head {
+  height: 36px;
+  border-bottom: 1px solid var(--card-border);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .an-spread-head .an-spread-scale {
+  top: 1px;
+}
+
+:root[data-ui="v2"] .an-spread-head .an-spread-num {
+  font-size: 12px;
+}
+
 :root[data-ui="v2"] .an-spread-row {
-  min-height: 56px;
+  min-height: 48px;
   border: none;
   border-bottom: 1px solid var(--card-border);
   background: none;
@@ -835,6 +1048,10 @@
   text-align: left;
   cursor: pointer;
   transition: background 0.15s ease;
+}
+
+:root[data-ui="v2"] .an-spread-row:last-child {
+  border-bottom: none;
 }
 
 @media (hover: hover) {
@@ -847,26 +1064,12 @@
   outline-offset: -2px;
 }
 
-/* The pooled row: a quiet tint and a slightly heavier name set it apart from the subjects. */
-:root[data-ui="v2"] .an-spread-row.is-all {
-  background: var(--bg-tertiary);
-  cursor: default;
-}
-
-:root[data-ui="v2"] .an-spread-row.is-all .an-spread-name {
-  font-weight: 600;
-}
-
-:root[data-ui="v2"] .an-spread-row.is-all .an-spread-mean,
-:root[data-ui="v2"] .an-spread-row.is-all .an-spread-dot {
-  box-shadow: 0 0 0 2px var(--bg-tertiary);
-}
-
 :root[data-ui="v2"] .an-spread-name {
   display: flex;
   align-items: center;
   gap: 10px;
   min-width: 0;
+  font-size: 14px;
   font-weight: 500;
 }
 
@@ -877,136 +1080,44 @@
 }
 
 :root[data-ui="v2"] .an-spread-plot {
-  position: relative;
-  height: 40px;
+  --box-h: 16px;
+  --mid: 16px;
+  height: 32px;
 }
 
-:root[data-ui="v2"] .an-spread-grid > span {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: var(--card-border);
-}
-
-:root[data-ui="v2"] .an-spread-plot > span:not(.an-spread-grid) {
-  position: absolute;
-}
-
-/* Box and whiskers sit on the upper line (y 14px); mean ± SD on the lower (y 31px). */
-:root[data-ui="v2"] .an-spread-whisker {
-  top: 7px;
-  height: 14px;
-  border-inline: 1px solid var(--text-tertiary);
-}
-
-:root[data-ui="v2"] .an-spread-whisker::before {
-  content: "";
-  position: absolute;
-  inset: 6.5px 0 auto;
-  height: 1px;
-  background: var(--text-tertiary);
-}
-
-:root[data-ui="v2"] .an-spread-box {
-  top: 5px;
-  height: 18px;
-  min-width: 3px;
-  border: 1.5px solid var(--subject-color);
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--subject-color) 22%, var(--card-surface));
-}
-
-:root[data-ui="v2"] .an-spread-median {
-  top: 5px;
-  width: 2.5px;
-  height: 18px;
-  margin-left: -1.25px;
-  border-radius: 1px;
-  background: color-mix(in srgb, var(--subject-color) 70%, var(--text-primary));
-}
-
-:root[data-ui="v2"] .an-spread-sd {
-  top: 28px;
-  height: 7px;
-  min-width: 1px;
-  border-inline: 1px solid var(--text-tertiary);
-}
-
-:root[data-ui="v2"] .an-spread-sd::before {
-  content: "";
-  position: absolute;
-  inset: 3px 0 auto;
-  height: 1px;
-  background: var(--text-tertiary);
-}
-
-:root[data-ui="v2"] .an-spread-mean,
-:root[data-ui="v2"] .an-spread-dot {
-  width: 9px;
-  height: 9px;
-  margin-left: -4.5px;
-  border-radius: 50%;
-  background: var(--subject-color);
-  box-shadow: 0 0 0 2px var(--card-surface);
-}
-
-:root[data-ui="v2"] .an-spread-mean {
-  top: 27px;
-}
-
-:root[data-ui="v2"] .an-spread-dot {
-  top: 9.5px;
-}
-
-:root[data-ui="v2"] .an-spread-stats {
-  display: grid;
-  justify-items: end;
-  gap: 1px;
+:root[data-ui="v2"] .an-spread-num {
   text-align: right;
-}
-
-:root[data-ui="v2"] .an-spread-stat-main {
   font-size: 14px;
-  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
-:root[data-ui="v2"] .an-spread-stat-sub {
-  font-size: 12px;
+:root[data-ui="v2"] .an-spread-row .an-spread-num.is-count {
   color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
-}
-
-:root[data-ui="v2"] .an-spread-axis {
-  height: 30px;
-}
-
-:root[data-ui="v2"] .an-spread-axis-scale {
-  position: relative;
-  align-self: stretch;
-}
-
-:root[data-ui="v2"] .an-spread-axis-scale > span {
-  position: absolute;
-  top: 8px;
-  transform: translateX(-50%);
-  font-size: 11px;
-  color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
-}
-
-/* The shared chart tooltip holds the five-number summary on separate lines here. */
-:root[data-ui="v2"] .chart-tooltip {
-  white-space: pre-line;
 }
 
 @media (max-width: 960px) {
-  :root[data-ui="v2"] .an-spread-row,
-  :root[data-ui="v2"] .an-spread-axis {
-    grid-template-columns: minmax(120px, 0.8fr) minmax(0, 2.4fr) 96px;
+  :root[data-ui="v2"] .an-spread-head,
+  :root[data-ui="v2"] .an-spread-row {
+    grid-template-columns: minmax(120px, 0.9fr) minmax(0, 2.4fr) 44px 44px 44px;
+    gap: 12px;
+  }
+
+  :root[data-ui="v2"] .an-overall-stats {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 16px;
   }
+
+  :root[data-ui="v2"] .an-overall-stats::before {
+    display: none;
+  }
+
+  :root[data-ui="v2"] .an-overall-stat:nth-child(n + 6) {
+    grid-row: 2;
+  }
+
+  :root[data-ui="v2"] .an-overall-stat:nth-child(6) { grid-column: 1; }
+  :root[data-ui="v2"] .an-overall-stat:nth-child(7) { grid-column: 2; }
+  :root[data-ui="v2"] .an-overall-stat:nth-child(8) { grid-column: 3; }
 }
 
 /* ── Phones ── */
@@ -1020,36 +1131,56 @@
     margin: 16px -16px -16px;
   }
 
-  :root[data-ui="v2"] .an-spread-row,
-  :root[data-ui="v2"] .an-spread-axis {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 6px 12px;
-    padding: 12px 16px;
+  /* Phones: name and numbers on the first line, the plot full width beneath. */
+  :root[data-ui="v2"] .an-spread-head,
+  :root[data-ui="v2"] .an-spread-row {
+    grid-template-columns: minmax(0, 1fr) 40px 40px 40px;
+    gap: 4px 10px;
+    padding: 10px 16px;
+  }
+
+  :root[data-ui="v2"] .an-spread-head {
+    height: auto;
+    padding-block: 8px 6px;
   }
 
   :root[data-ui="v2"] .an-spread-plot,
-  :root[data-ui="v2"] .an-spread-axis-scale {
+  :root[data-ui="v2"] .an-spread-head .an-spread-scale {
     grid-column: 1 / -1;
     grid-row: 2;
   }
 
-  :root[data-ui="v2"] .an-spread-axis {
-    height: auto;
-    padding-block: 0 8px;
+  :root[data-ui="v2"] .an-spread-plot {
+    height: 28px;
+    --mid: 14px;
   }
 
-  :root[data-ui="v2"] .an-spread-axis-scale {
-    height: 22px;
+  :root[data-ui="v2"] .an-overall-plot {
+    --box-h: 36px;
+    --mid: 24px;
+    height: 72px;
   }
 
-  :root[data-ui="v2"] .an-spread-axis > span:not(.an-spread-axis-scale) {
-    display: none;
+  :root[data-ui="v2"] .an-overall-plot .an-spread-sd {
+    top: 52px;
   }
 
-  :root[data-ui="v2"] .an-spread-stats {
-    grid-template-columns: auto auto;
-    align-items: baseline;
-    gap: 8px;
+  :root[data-ui="v2"] .an-overall-plot .an-spread-mean {
+    top: 52.5px;
+  }
+
+  :root[data-ui="v2"] .an-overall-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px 12px;
+  }
+
+  :root[data-ui="v2"] .an-overall-stat:nth-child(n) {
+    grid-row: auto;
+    grid-column: auto;
+  }
+
+  :root[data-ui="v2"] .an-overall-stat dd {
+    font-size: 16px;
   }
 
   :root[data-ui="v2"] .an-card-head {
