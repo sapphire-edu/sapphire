@@ -581,9 +581,9 @@
 
 :root[data-ui="v2"] .calendar-v2-next-item {
   display: grid;
-  grid-template-columns: 30px 8px minmax(0, 1fr);
+  grid-template-columns: 30px 18px minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
   margin: 0;
   padding: 6px 8px;
@@ -617,6 +617,7 @@
 }
 
 :root[data-ui="v2"] .calendar-v2-next-icon {
+  justify-self: center;
   font-size: 15px;
 }
 
