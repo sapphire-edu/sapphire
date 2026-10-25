@@ -14,8 +14,9 @@
   font-size: 15px;
 }
 
-:root[data-ui="v2"] .export-panel .form-message:empty {
-  display: none;
+/* The intro's last line keeps V1's bottom margin, which doubled the gap to the first field. */
+:root[data-ui="v2"] .export-panel > div:first-child > :last-child {
+  margin-bottom: 0;
 }
 
 /* ── Selectable tiles: electives, export subjects, themes ──
@@ -48,6 +49,19 @@
   border-color: var(--accent-border);
   background: var(--accent-control);
   color: var(--text-primary);
+}
+
+:root[data-ui="v2"] .checkbox-item:has(input:disabled) {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+:root[data-ui="v2"] .checkbox-item:has(input:disabled):hover {
+  background: var(--bg-secondary);
+}
+
+:root[data-ui="v2"] .checkbox-item:has(input:checked:disabled):hover {
+  background: var(--accent-control);
 }
 
 :root[data-ui="v2"] .checkbox-item:has(input:focus-visible) {

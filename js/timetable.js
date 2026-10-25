@@ -1080,7 +1080,7 @@ function buildLessonCardHtml(lesson, timetable = state.data.timetable, options =
   const subject = escapeHtml(presentation.displayName);
   const subjectIcon = subjectIconHtml(presentation.icon, 'lesson-subject-icon');
   const period = escapeHtml(lesson.period || lesson.classCode || '');
-  const timeLabel = `${formatMinutesLabel(lesson.startMinutes)} - ${formatMinutesLabel(lesson.endMinutes)}`;
+  const timeLabel = `${formatMinutesLabel(lesson.startMinutes)} – ${formatMinutesLabel(lesson.endMinutes)}`;
   const classCode = lesson.classCode ? escapeHtml(lesson.classCode) : '';
   const metaParts = [];
   if (classCode) metaParts.push(classCode);
@@ -1235,7 +1235,7 @@ function buildDashboardTodayLessonHtml(lesson, timetable = state.data.timetable,
   const subject = escapeHtml(presentation.displayName);
   const subjectIcon = subjectIconHtml(presentation.icon, 'lesson-subject-icon');
   const period = escapeHtml(lesson.period || lesson.classCode || '');
-  const timeLabel = `${formatMinutesLabel(lesson.startMinutes)} - ${formatMinutesLabel(lesson.endMinutes)}`;
+  const timeLabel = `${formatMinutesLabel(lesson.startMinutes)} – ${formatMinutesLabel(lesson.endMinutes)}`;
   const metaParts = [];
   if (lesson.classCode) metaParts.push(escapeHtml(lesson.classCode));
   if (lesson.room) metaParts.push(escapeHtml(lesson.room));

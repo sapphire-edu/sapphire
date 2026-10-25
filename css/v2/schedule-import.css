@@ -138,3 +138,85 @@
 .calendar-import-button[hidden] {
   display: none !important;
 }
+
+/* ── V2 refinements (the rules above are shared with V1 and stay as they are) ── */
+
+:root[data-ui="v2"] .import-row,
+:root[data-ui="v2"] .import-source {
+  border-color: var(--card-border);
+  border-radius: var(--radius);
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+:root[data-ui="v2"] .import-row:hover,
+:root[data-ui="v2"] .import-source:not([aria-pressed="true"]):hover {
+  background: var(--bg-hover);
+}
+
+:root[data-ui="v2"] .import-source {
+  background: var(--bg-secondary);
+}
+
+/* Schedules are selectable tiles, as in share.css: selected = accent border on --accent-control. */
+:root[data-ui="v2"] .import-source[aria-pressed="true"] {
+  border-color: var(--accent-border);
+  background: var(--accent-control);
+}
+
+:root[data-ui="v2"] .import-row input {
+  accent-color: var(--accent);
+}
+
+:root[data-ui="v2"] .import-badge {
+  border-color: var(--card-border);
+  line-height: 1.4;
+}
+
+:root[data-ui="v2"] .import-badge[data-tone="good"] {
+  border-color: var(--accent-border);
+}
+
+/* The V1 amber is too pale to read on V2's white; pull it toward the text colour so it
+   holds contrast in both themes. */
+:root[data-ui="v2"] .import-badge[data-tone="warn"] {
+  color: color-mix(in srgb, var(--grade-c) 72%, var(--text-primary));
+  border-color: color-mix(in srgb, var(--grade-c) 45%, var(--card-border));
+}
+
+:root[data-ui="v2"] .import-paste summary {
+  width: fit-content;
+  border-radius: 4px;
+}
+
+:root[data-ui="v2"] .import-paste summary:hover {
+  color: var(--text-primary);
+}
+
+/* Phones: checkbox in its own column, date / name / badge stacked beside it. */
+@media (max-width: 520px) {
+  :root[data-ui="v2"] .import-row {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 4px 12px;
+    align-items: start;
+  }
+
+  :root[data-ui="v2"] .import-row input {
+    grid-row: 1 / span 3;
+    margin-top: 2px;
+  }
+
+  :root[data-ui="v2"] .import-row-date,
+  :root[data-ui="v2"] .import-row-main,
+  :root[data-ui="v2"] .import-badge {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  :root[data-ui="v2"] .import-row-date {
+    font-size: 12px;
+  }
+
+  :root[data-ui="v2"] .import-badge {
+    margin-top: 4px;
+  }
+}

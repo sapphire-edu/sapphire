@@ -40,8 +40,23 @@
   color: var(--text-tertiary);
 }
 
-:root[data-ui="v2"] #settings-modal .form-message:empty {
-  display: none;
+/* Switches: the input is invisible, so draw its focus and disabled states on the track.
+   The New look card already rings the whole card. */
+:root[data-ui="v2"] .ui-switch input:focus-visible + .ui-switch-track {
+  outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  outline-offset: 2px;
+}
+
+:root[data-ui="v2"] .ui-beta-card .ui-switch input:focus-visible + .ui-switch-track {
+  outline: none;
+}
+
+:root[data-ui="v2"] .ui-switch input:disabled {
+  cursor: not-allowed;
+}
+
+:root[data-ui="v2"] .ui-switch input:disabled + .ui-switch-track {
+  opacity: 0.5;
 }
 
 /* The "New look" card at the top of Settings: a flat nested panel in V2. */

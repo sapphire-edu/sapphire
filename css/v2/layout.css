@@ -21,6 +21,13 @@
   font-size: 26px;
   font-weight: 600;
   letter-spacing: -0.025em;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A long name in the greeting wraps instead of squeezing the button onto two lines. */
+:root[data-ui="v2"] #quick-add-button {
+  white-space: nowrap;
 }
 
 :root[data-ui="v2"] .page-header-side {

@@ -155,10 +155,6 @@
   min-width: 0;
 }
 
-:root[data-ui="v2"] .modal-body > .form-actions > .form-message:empty {
-  display: none;
-}
-
 /* Destructive action sits at the far left of the footer, away from Save. */
 :root[data-ui="v2"] .modal-body > .form-actions > .upcoming-delete-button {
   order: -2;
@@ -194,6 +190,12 @@
 :root[data-ui="v2"] .form-message {
   font-size: 13px;
   color: var(--text-secondary);
+}
+
+/* An empty message takes no room (it would otherwise hold a flex/grid gap open);
+   it shows as soon as JS fills it. */
+:root[data-ui="v2"] .form-message:empty {
+  display: none;
 }
 
 /* Section headings inside a popup body follow the header: small label, title, text. */

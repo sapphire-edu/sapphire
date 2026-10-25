@@ -51,3 +51,29 @@
   padding: 12px;
   gap: 8px;
 }
+
+/* The smoothing preview is a hint, not a chart: keep it short (.chart-wrap's 220px wins otherwise). */
+:root[data-ui="v2"] .chart-wrap--compact {
+  height: 140px;
+}
+
+/* "Enter share code" stays the quiet option but lines up with the buttons beside it. */
+:root[data-ui="v2"] .onboarding-step .form-actions > .mini-button {
+  height: var(--control-height);
+}
+
+/* Custom elective: colour swatch and remove stay on one line on phones too. */
+@media (max-width: 620px) {
+  :root[data-ui="v2"] .custom-elective-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  :root[data-ui="v2"] .custom-elective-color {
+    width: 64px;
+  }
+
+  :root[data-ui="v2"] .custom-elective-row .icon-button--small {
+    justify-self: end;
+    width: auto;
+  }
+}

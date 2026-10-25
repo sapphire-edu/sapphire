@@ -48,6 +48,11 @@
     display: none;
   }
 
+  /* Header controls: 32px squares beside the 32px avatar. */
+  :root[data-ui="v2"] .app-actions {
+    gap: 6px;
+  }
+
   /* Icon-only Share and Settings. */
   :root[data-ui="v2"] #export-open,
   :root[data-ui="v2"] #settings-open {
@@ -220,5 +225,22 @@
   /* Menus inside a sheet stay on screen. */
   :root[data-ui="v2"] .more-menu-list {
     min-width: min(240px, calc(100vw - 32px));
+  }
+}
+
+/* ── Small phones: text-only tabs so the four core tabs fit without scrolling. ── */
+
+@media (max-width: 480px) {
+  :root[data-ui="v2"] .app-nav {
+    margin: 0 -8px;
+  }
+
+  :root[data-ui="v2"] .nav-item {
+    --nav-pad: 8px;
+    gap: 0;
+  }
+
+  :root[data-ui="v2"] .nav-item .button-icon {
+    display: none;
   }
 }

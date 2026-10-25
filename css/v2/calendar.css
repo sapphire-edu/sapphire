@@ -118,6 +118,23 @@
   color: var(--text-primary);
 }
 
+:root[data-ui="v2"] .calendar-nav:active {
+  background: var(--bg-depth);
+}
+
+/* The joined pair clips its overflow, so draw the ring inside each half. */
+:root[data-ui="v2"] .calendar-nav:focus-visible {
+  outline-offset: -2px;
+}
+
+:root[data-ui="v2"] .calendar-nav:first-child {
+  border-radius: calc(var(--radius) - 1px) 0 0 calc(var(--radius) - 1px);
+}
+
+:root[data-ui="v2"] .calendar-nav:last-child {
+  border-radius: 0 calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0;
+}
+
 :root[data-ui="v2"] .calendar-v2-add {
   height: 36px;
   padding: 0 12px;
@@ -523,7 +540,8 @@
   display: flex;
   gap: 6px;
   margin-top: 10px;
-  padding-left: 18px;
+  /* Line the buttons up with the item's text: 15px mark + 10px gap. */
+  padding-left: 25px;
 }
 
 :root[data-ui="v2"] .calendar-v2-badge {

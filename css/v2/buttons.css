@@ -143,6 +143,8 @@
 }
 
 :root[data-ui="v2"] .primary-button:disabled,
-:root[data-ui="v2"] .ghost-button:disabled {
+:root[data-ui="v2"] .ghost-button:disabled,
+:root[data-ui="v2"] .danger-button:disabled {
   opacity: 0.5;
+  cursor: not-allowed;
 }

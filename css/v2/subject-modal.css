@@ -148,3 +148,24 @@
 :root[data-ui="v2"] .what-if-target {
   font-weight: 500;
 }
+
+/* Assessment history: date sits beside the row's actions rather than floating above them. */
+:root[data-ui="v2"] .subject-history .history-right {
+  grid-auto-flow: column;
+  align-items: center;
+  gap: 12px;
+}
+
+:root[data-ui="v2"] .subject-history .history-date {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Light theme: the amber/green grade colours are too pale for 13px text on white (about 3:1).
+   Darken the status text only; the bar keeps the true grade colour. */
+:root[data-ui="v2"]:not([data-theme="dark"]) .target-strip-status {
+  color: color-mix(in srgb, var(--grade-c) 72%, #000000);
+}
+
+:root[data-ui="v2"]:not([data-theme="dark"]) .target-strip.is-met .target-strip-status {
+  color: color-mix(in srgb, var(--grade-a) 72%, #000000);
+}

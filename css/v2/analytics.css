@@ -169,6 +169,16 @@
   height: 280px;
 }
 
+/* Side by side with Recent marks, the trend chart takes up the card's spare height
+   instead of leaving a gap under the legend. */
+@media (min-width: 961px) {
+  :root[data-ui="v2"] .analytics-grid .progress-card .chart-wrap {
+    flex: 1 0 240px;
+    height: auto;
+    min-height: 240px;
+  }
+}
+
 :root[data-ui="v2"] .view[data-view="analytics"] .progress-legend {
   font-size: 12px;
   color: var(--text-tertiary);
@@ -612,6 +622,10 @@
   color: var(--text-tertiary);
 }
 
+:root[data-ui="v2"] .assessment-card table:has(td.empty-state) thead {
+  display: none;
+}
+
 :root[data-ui="v2"] .assessment-card tbody tr:has(> td.empty-state):hover {
   background: none;
 }
@@ -633,6 +647,14 @@
 :root[data-ui="v2"] .v2-an-cell-name {
   font-weight: 500;
   color: var(--text-primary);
+}
+
+/* Long names wrap to at most two lines rather than stacking one word per line. */
+@media (min-width: 701px) {
+  :root[data-ui="v2"] .assessment-card td.v2-an-cell-name {
+    min-width: 200px;
+    line-height: 1.35;
+  }
 }
 
 :root[data-ui="v2"] .v2-an-num {
@@ -746,6 +768,10 @@
   :root[data-ui="v2"] .an-subjects,
   :root[data-ui="v2"] .assessment-card .table-wrap {
     margin: 0 -16px -16px;
+  }
+
+  :root[data-ui="v2"] .an-subjects > .empty-state {
+    padding: 24px 16px;
   }
 
   :root[data-ui="v2"] .assessment-search {
@@ -877,10 +903,15 @@
   height: 168px;
 }
 
+:root[data-ui="v2"] .an-grades:has(> .empty-state) {
+  height: auto;
+}
+
 :root[data-ui="v2"] .an-grades > .empty-state {
   flex: 1;
   align-self: center;
-  text-align: center;
+  padding: 8px 0;
+  text-align: left;
 }
 
 :root[data-ui="v2"] .an-grade-col {

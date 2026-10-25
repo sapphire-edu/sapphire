@@ -168,12 +168,16 @@
   background: var(--bg-hover);
 }
 
-:root[data-ui="v2"] .timetable-file-trigger:focus-visible {
+:root[data-ui="v2"] .timetable-file-trigger:focus-visible,
+:root[data-ui="v2"] .timetable-file-control:has(.timetable-file-input:focus-visible) .timetable-file-trigger {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
+/* The zeroed text node is still a flex item, so the gap would count twice: space the
+   V2 label with a margin instead. */
 :root[data-ui="v2"] .timetable-card .timetable-file-trigger {
+  gap: 0;
   font-size: 0;
 }
 
@@ -182,6 +186,7 @@
 }
 
 :root[data-ui="v2"] .timetable-card .tt-upload-label {
+  margin-left: 8px;
   font-size: 14px;
 }
 
@@ -193,6 +198,12 @@
 
 :root[data-ui="v2"] .timetable-card .timetable-import-actions {
   flex-wrap: nowrap;
+}
+
+/* Clear sits next to the upload button, so it takes the same height. */
+:root[data-ui="v2"] .timetable-card #timetable-clear {
+  height: var(--control-height);
+  padding: 0 12px;
 }
 
 :root[data-ui="v2"] .view[data-view="timetable"][data-tt-empty] .timetable-import-actions {
@@ -248,6 +259,21 @@
 
 :root[data-ui="v2"] .view[data-view="timetable"][data-tt-empty] .timetable-card .form-message {
   text-align: center;
+}
+
+/* ── Daily view: on this page it sits with the week and class cards, so it takes their
+   padding and title size (the dashboard keeps its own, smaller card). ── */
+
+:root[data-ui="v2"] .view[data-view="timetable"] .timetable-tab-today {
+  padding: 20px;
+}
+
+:root[data-ui="v2"] .view[data-view="timetable"] .timetable-tab-today > .section-eyebrow {
+  font-size: 18px;
+}
+
+:root[data-ui="v2"] .view[data-view="timetable"] .timetable-tab-today > .section-title {
+  margin-top: -4px;
 }
 
 /* ── Week header ── */
@@ -363,6 +389,7 @@
   display: flex;
   align-items: baseline;
   gap: 6px;
+  white-space: nowrap;
   min-height: 28px;
   padding: 2px 4px 6px;
   border: none;
@@ -459,6 +486,8 @@
 }
 
 :root[data-ui="v2"] .lesson-card .lesson-top {
+  flex-wrap: wrap;
+  row-gap: 2px;
   justify-content: flex-start;
   gap: 6px;
   min-width: 0;
@@ -559,24 +588,20 @@
   color: var(--text-tertiary);
 }
 
-/* Two rows of compact tinted cards that scroll sideways. */
+/* A wrapping grid of compact tinted cards (phones: two rows that scroll sideways). */
 :root[data-ui="v2"] .timetable-map-list {
   display: grid;
-  grid-template-rows: repeat(2, auto);
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(250px, 270px);
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-auto-flow: row;
   gap: 8px;
-  padding: 0 0 8px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scroll-snap-type: x proximity;
-  scrollbar-width: thin;
-  scrollbar-color: var(--card-border) transparent;
+  padding: 0;
+  overflow: visible;
   border: none;
   border-radius: 0;
 }
 
 :root[data-ui="v2"] .timetable-map-list > .empty-state {
+  grid-column: 1 / -1;
   grid-row: 1 / -1;
   padding: 24px;
   text-align: center;
@@ -727,6 +752,15 @@
   :root[data-ui="v2"] .timetable-week-grid {
     min-width: 760px;
   }
+
+  :root[data-ui="v2"] .timetable-week-grid-wrap {
+    scroll-snap-type: x proximity;
+    scroll-padding-inline: 6px;
+  }
+
+  :root[data-ui="v2"] .timetable-day-column {
+    scroll-snap-align: start;
+  }
 }
 
 /* ── Phones: one day at a time, picked with the day tabs ── */
@@ -737,7 +771,8 @@
   }
 
   :root[data-ui="v2"] .timetable-week-card,
-  :root[data-ui="v2"] .timetable-map-card {
+  :root[data-ui="v2"] .timetable-map-card,
+  :root[data-ui="v2"] .view[data-view="timetable"] .timetable-tab-today {
     padding: 16px;
   }
 
@@ -812,7 +847,8 @@
     min-width: 0;
   }
 
-  :root[data-ui="v2"] .timetable-day-column {
+  :root[data-ui="v2"] .timetable-day-column,
+  :root[data-ui="v2"] .timetable-day-column.is-today {
     display: none;
     padding: 0;
     border: none;
@@ -833,7 +869,16 @@
   }
 
   :root[data-ui="v2"] .timetable-map-list {
+    grid-template-columns: none;
+    grid-template-rows: repeat(2, auto);
+    grid-auto-flow: column;
     grid-auto-columns: minmax(230px, 78vw);
+    padding-bottom: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x proximity;
+    scrollbar-width: thin;
+    scrollbar-color: var(--card-border) transparent;
   }
 
   :root[data-ui="v2"] .timetable-card {

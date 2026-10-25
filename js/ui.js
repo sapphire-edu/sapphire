@@ -44,9 +44,26 @@ function initTabs() {
   });
 }
 
+// Scroll a tab that sits past the edge of a narrow, scrolling tab bar into view (sideways only).
+function revealNavItem(button) {
+  const bar = button.parentElement;
+  if (!bar || bar.scrollWidth <= bar.clientWidth) return;
+  const left = button.offsetLeft - bar.offsetLeft;
+  const right = left + button.offsetWidth;
+  if (left < bar.scrollLeft) bar.scrollLeft = left;
+  else if (right > bar.scrollLeft + bar.clientWidth) bar.scrollLeft = right - bar.clientWidth;
+}
+
 function setActiveTab(tab) {
   elements.navItems.forEach((button) => {
-    button.classList.toggle('is-active', button.dataset.tab === tab);
+    const isActive = button.dataset.tab === tab;
+    button.classList.toggle('is-active', isActive);
+    if (isActive) {
+      button.setAttribute('aria-current', 'page');
+      revealNavItem(button);
+    } else {
+      button.removeAttribute('aria-current');
+    }
   });
   elements.views.forEach((view) => {
     view.classList.toggle('is-active', view.dataset.view === tab);

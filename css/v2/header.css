@@ -68,10 +68,65 @@
   display: none;
 }
 
+/* When the tabs overflow (phones, or friends with Leaderboard), fade the edge that has
+   more tabs past it, so it reads as scrollable rather than cut off. Driven by the nav's
+   own scroll position; with no overflow the timeline is inactive and nothing fades. */
+@property --v2-nav-fade-start {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --v2-nav-fade-end {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@keyframes v2-nav-fade {
+  0% {
+    --v2-nav-fade-start: 0px;
+    --v2-nav-fade-end: 32px;
+  }
+  12% {
+    --v2-nav-fade-start: 32px;
+  }
+  88% {
+    --v2-nav-fade-end: 32px;
+  }
+  100% {
+    --v2-nav-fade-start: 32px;
+    --v2-nav-fade-end: 0px;
+  }
+}
+
+@supports (animation-timeline: scroll()) {
+  :root[data-ui="v2"] .app-nav {
+    animation: v2-nav-fade linear both;
+    animation-duration: auto !important; /* a scroll position, not motion: exempt from reduced-motion */
+    animation-timeline: scroll(self inline);
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000000 var(--v2-nav-fade-start),
+      #000000 calc(100% - var(--v2-nav-fade-end)),
+      transparent
+    );
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000000 var(--v2-nav-fade-start),
+      #000000 calc(100% - var(--v2-nav-fade-end)),
+      transparent
+    );
+  }
+}
+
 :root[data-ui="v2"] .nav-item {
+  --nav-pad: 10px;
   position: relative;
   flex-shrink: 0;
-  padding: 0 10px;
+  padding: 0 var(--nav-pad);
   height: 44px;
   border: none;
   border-radius: 0;
@@ -95,8 +150,22 @@
   color: var(--text-primary);
 }
 
-:root[data-ui="v2"] .nav-item:hover::before {
-  background: var(--bg-hover);
+/* Touch screens would keep the tint on the last tab tapped, so hover tint is pointer-only. */
+@media (hover: hover) {
+  :root[data-ui="v2"] .nav-item:hover::before {
+    background: var(--bg-hover);
+  }
+}
+
+/* The nav scrolls, so a ring on the 44px button is clipped top and bottom.
+   Draw it on the inset hover pill instead. */
+:root[data-ui="v2"] .nav-item:focus-visible {
+  outline: none;
+}
+
+:root[data-ui="v2"] .nav-item:focus-visible::before {
+  outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  outline-offset: 0;
 }
 
 :root[data-ui="v2"] .nav-item.is-active {
@@ -108,8 +177,8 @@
 :root[data-ui="v2"] .nav-item.is-active::after {
   content: "";
   position: absolute;
-  left: 10px;
-  right: 10px;
+  left: var(--nav-pad);
+  right: var(--nav-pad);
   bottom: -1px;
   height: 2px;
   border-radius: 2px;
@@ -150,9 +219,49 @@
   font-size: 13px;
 }
 
+:root[data-ui="v2"] .profile-button {
+  border-radius: 999px;
+}
+
+/* Same height and hover as the header's other controls; no V1 lift. */
 :root[data-ui="v2"] .profile-ring {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
+  background: var(--bg-secondary);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+:root[data-ui="v2"] .profile-button:hover .profile-ring,
+:root[data-ui="v2"] .profile-button[aria-expanded="true"] .profile-ring {
+  transform: none;
+  box-shadow: none;
+  background: var(--bg-hover);
+  border-color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .profile-fallback {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Signed out, the avatar shows a person icon instead of a "?". */
+:root[data-ui="v2"] #auth-button[aria-label="Sign in"] .profile-fallback,
+:root[data-ui="v2"] #auth-button[aria-label="Sign in"] + .profile-dropdown .profile-card-fallback {
+  font-size: 0;
+}
+
+:root[data-ui="v2"] #auth-button[aria-label="Sign in"] .profile-fallback::before,
+:root[data-ui="v2"] #auth-button[aria-label="Sign in"] + .profile-dropdown .profile-card-fallback::before {
+  content: "\e46d"; /* Lucide user-round */
+  font-family: "lucide";
+  font-size: 16px;
+  font-weight: normal;
+  line-height: 1;
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] #auth-button[aria-label="Sign in"] + .profile-dropdown .profile-card-fallback::before {
+  font-size: 18px;
 }
 
 /* Profile menu: a popover like the Add mark and More menus. */

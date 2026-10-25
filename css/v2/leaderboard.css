@@ -217,11 +217,6 @@
   background: var(--bg-hover);
 }
 
-:root[data-ui="v2"] .leaderboard-entry--you,
-:root[data-ui="v2"] .leaderboard-entry--you:hover {
-  box-shadow: inset 2px 0 0 var(--accent);
-}
-
 :root[data-ui="v2"] .leaderboard-entry--you {
   background: color-mix(in srgb, var(--accent) 6%, var(--card-surface));
 }
@@ -479,9 +474,8 @@
 
 /* ── Friend detail popup ── */
 
-:root[data-ui="v2"] #lb-popup-overlay .modal-panel {
-  max-width: 560px;
-  width: min(560px, 92vw);
+:root[data-ui="v2"] #lb-popup-overlay {
+  --modal-width-small: 560px;
 }
 
 :root[data-ui="v2"] #lb-popup-overlay .modal-header {
@@ -802,10 +796,6 @@
   margin: 0;
 }
 
-:root[data-ui="v2"] #leaderboard-privacy-modal .lb-danger-wrap .form-message:empty {
-  display: none;
-}
-
 :root[data-ui="v2"] .lb-danger-text {
   display: grid;
   gap: 2px;
@@ -843,10 +833,6 @@
 
 :root[data-ui="v2"] #leaderboard-privacy-modal .form-message {
   grid-column: 1 / -1;
-}
-
-:root[data-ui="v2"] #leaderboard-privacy-modal .form-message:empty {
-  display: none;
 }
 
 /* ── Phones ── */
@@ -974,7 +960,7 @@
   width: 9px;
   height: 9px;
   background: var(--grade-a);
-  box-shadow: 0 0 0 2px var(--bg-secondary, var(--card-bg));
+  box-shadow: 0 0 0 2px var(--card-surface);
 }
 
 :root[data-ui="v2"] .lb-avatar--lg .lb-presence-dot:not([hidden]) {
