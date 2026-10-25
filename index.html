@@ -525,6 +525,10 @@
                     All
                   </button>
                 </div>
+                <button class="ghost-button ghost-button--small with-icon calendar-import-button" type="button" id="calendar-import" title="Import a school schedule" hidden>
+                  <i class="ph ph-clipboard-text button-icon" aria-hidden="true"></i>
+                  Import
+                </button>
                 <button class="ghost-button ghost-button--small calendar-v2-today v2-only" type="button" id="calendar-today">
                   Today
                 </button>
@@ -1104,6 +1108,58 @@
             ></span>
           </div>
         </form>
+      </div>
+    </div>
+
+    <div class="modal" id="schedule-import-modal" aria-hidden="true">
+      <div class="modal-backdrop" data-action="close-schedule-import"></div>
+      <div
+        class="modal-panel modal-panel--large"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="schedule-import-title"
+      >
+        <div class="modal-header">
+          <div>
+            <div class="section-eyebrow">Calendar</div>
+            <h2 class="section-title" id="schedule-import-title">Import school schedule</h2>
+            <div class="modal-meta">
+              Pick a schedule. Sapphire matches each event to your classes and periods from your timetable.
+            </div>
+          </div>
+          <button class="icon-button" type="button" data-action="close-schedule-import">
+            <i class="ph ph-x" aria-hidden="true"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="field">
+            <span>Schedule</span>
+            <div class="import-sources" id="schedule-import-list" role="group" aria-label="Available schedules">
+              <div class="import-summary">Loading schedules…</div>
+            </div>
+          </div>
+          <details class="import-paste" id="schedule-import-paste">
+            <summary>Paste JSON instead</summary>
+            <label class="field">
+              <textarea
+                id="schedule-import-input"
+                rows="5"
+                spellcheck="false"
+                placeholder='{ "subjects": [ ... ] }'
+              ></textarea>
+            </label>
+          </details>
+          <div class="form-message" id="schedule-import-message" aria-live="polite"></div>
+          <div class="import-preview" id="schedule-import-preview" hidden></div>
+          <div class="form-actions">
+            <button class="ghost-button v2-only" type="button" data-action="close-schedule-import">
+              Cancel
+            </button>
+            <button class="primary-button" id="schedule-import-submit" type="button" disabled>
+              Import
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
