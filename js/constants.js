@@ -17,6 +17,8 @@ const APPWRITE_SYNC_KEY = 'sapphire-last-sync';
 const LEADERBOARD_RANKS_KEY = 'sapphire-leaderboard-ranks';
 
 const UI_VERSION_KEY = 'sapphire-ui-version';
+const V2_TOUR_SNOOZE_KEY = 'sapphire-v2-tour-snoozed';
+const V2_TRIED_KEY = 'sapphire-v2-tried';
 
 const APPWRITE_ENDPOINT = 'https://auth.sapphire.neonxsl.dev/v1';
 

@@ -15,9 +15,21 @@
     />
     <title>Sapphire</title>
     <script>
-      // Apply the beta UI before first paint (see setUiVersion in js/theme.js).
+      // Apply the new look (V2) before first paint (see setUiVersion in js/theme.js). Someone with
+      // no saved choice and no saved data is new, and starts on V2. "?preview=v1|v2" is the
+      // read-only copy of the app that the new-look tour shows (js/v2-tour.js).
       try {
-        if (localStorage.getItem('sapphire-ui-version') === 'v2') {
+        var previewUi = new URLSearchParams(location.search).get('preview');
+        if (previewUi === 'v1' || previewUi === 'v2') {
+          window.SAPPHIRE_PREVIEW = previewUi;
+          document.documentElement.dataset.preview = previewUi;
+        }
+        var uiVersion = window.SAPPHIRE_PREVIEW || localStorage.getItem('sapphire-ui-version');
+        if (uiVersion === null && localStorage.getItem('nsw-grade-tracker-v1') === null) {
+          uiVersion = 'v2';
+          localStorage.setItem('sapphire-ui-version', 'v2');
+        }
+        if (uiVersion === 'v2') {
           document.documentElement.dataset.ui = 'v2';
         }
       } catch (error) {}
@@ -40,6 +52,7 @@
     <link rel="stylesheet" href="css/responsive.css" />
     <link rel="stylesheet" href="css/leaderboard.css" />
     <link rel="stylesheet" href="css/subject-targets.css" />
+    <link rel="stylesheet" href="css/v2-tour.css" />
     <link rel="stylesheet" href="css/leaderboard-privacy.css" />
     <link rel="stylesheet" href="css/v2/tokens.css" />
     <link rel="stylesheet" href="css/v2/base.css" />
@@ -68,6 +81,10 @@
     <link rel="stylesheet" href="css/v2/leaderboard.css" />
   </head>
   <body>
+    <button class="v2-banner" id="v2-banner" type="button">
+      <span><strong>Update to the new look (V2)</strong></span>
+      <span class="v2-banner-link">See what's new</span>
+    </button>
     <div class="layout">
       <header class="app-bar">
         <div class="app-brand">
@@ -2477,6 +2494,7 @@
     <script src="js/leaderboard.js"></script>
     <script src="js/presence.js"></script>
     <script src="js/onboarding.js"></script>
+    <script src="js/v2-tour.js"></script>
     <script src="js/share.js"></script>
     <script src="js/state.js"></script>
     <script src="js/main.js"></script>

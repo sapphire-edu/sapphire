@@ -13,7 +13,9 @@ function safeGetItem(key) {
   }
 }
 
+// The tour's preview copy of the app (?preview=) reads your data but never writes it.
 function safeSetItem(key, value) {
+  if (window.SAPPHIRE_PREVIEW) return;
   try {
     localStorage.setItem(key, value);
   } catch (error) {
@@ -27,6 +29,7 @@ function safeSetItem(key, value) {
 }
 
 function safeRemoveItem(key) {
+  if (window.SAPPHIRE_PREVIEW) return;
   try {
     localStorage.removeItem(key);
   } catch (error) {
@@ -82,6 +85,8 @@ function clearAllStoredData() {
     APPWRITE_SYNC_KEY,
     LEADERBOARD_RANKS_KEY,
     UI_VERSION_KEY,
+    V2_TOUR_SNOOZE_KEY,
+    V2_TRIED_KEY,
   ].forEach((key) => safeRemoveItem(key));
 }
 

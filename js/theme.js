@@ -14,6 +14,8 @@ function setUiVersion(version) {
     delete document.documentElement.dataset.ui;
   }
   safeSetItem(UI_VERSION_KEY, useV2 ? 'v2' : 'v1');
+  // Someone who has tried the new look and gone back is not nagged by the tour again.
+  if (useV2) safeSetItem(V2_TRIED_KEY, '1');
   if (elements.uiV2Toggle) {
     elements.uiV2Toggle.checked = useV2;
   }

@@ -1,18 +1,22 @@
 // Boot: initial render, then wire up every feature's event listeners.
 
+if (window.SAPPHIRE_PREVIEW) prepareV2Preview();
 setTheme(state.theme.mode, state.theme.variant);
 initTabs();
 renderElectiveGrid();
 renderExportSubjectFilters();
 updateExportFilterAvailability();
 updateGreeting();
-maybeStartOnboarding();
+if (!window.SAPPHIRE_PREVIEW) maybeStartOnboarding();
 render();
 updateGraphSmoothnessUI();
 renderOnboardingSmoothingPreview();
-initAppwrite();
-initScheduleImport();
-initNotifications();
+if (!window.SAPPHIRE_PREVIEW) {
+  initAppwrite();
+  initScheduleImport();
+  initNotifications();
+  initV2Tour();
+}
 
 bindUiEvents();
 bindSyncEvents();
