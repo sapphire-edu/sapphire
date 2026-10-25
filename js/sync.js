@@ -402,7 +402,13 @@ async function performCloudSync() {
       safeSetItem(APPWRITE_SYNC_KEY, String(appwriteState.lastSyncedAt));
     }
     appwriteState.syncing = false;
+    if (appwriteState.error) {
+      console.error(`Cloud sync failed (payload ${document.payload.length} chars):`, appwriteState.error);
+    }
     updateSyncStatus();
+    if (elements.syncStatus) {
+      elements.syncStatus.title = appwriteState.error?.message || '';
+    }
 
     if (appwriteState.pending) {
       appwriteState.pending = false;
