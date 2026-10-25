@@ -240,10 +240,6 @@ function buildScheduleImportPlan(data) {
         if (classes.length) {
           status = hits.length ? 'match' : 'other';
           if (hits.length) classLabel = hits.map((hit) => hit.cls.code).join(', ');
-        } else if (classIndex.size && info.groups.length) {
-          // Your timetable has classes but none for this subject, so you aren't taking it
-          // this term and an event for named classes can't be yours.
-          status = 'other';
         }
         const otherCodes = info.groups.flatMap((g) => Array.from(g.codes)).map((c) => c.toUpperCase());
         const notes = [classLabel, period ? `Period ${period}` : ''].filter(Boolean).join(' · ');
