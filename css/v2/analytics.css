@@ -765,25 +765,6 @@
   background: var(--text-secondary);
 }
 
-:root[data-ui="v2"] .an-spread-key-band {
-  position: relative;
-  width: 22px;
-  height: 6px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--text-tertiary) 40%, transparent);
-}
-
-:root[data-ui="v2"] .an-spread-key-band > span {
-  position: absolute;
-  top: -2px;
-  left: 50%;
-  width: 10px;
-  height: 10px;
-  margin-left: -5px;
-  border-radius: 50%;
-  background: var(--text-secondary);
-}
-
 :root[data-ui="v2"] .an-spread-key-box {
   position: relative;
   width: 18px;
@@ -872,22 +853,6 @@
   top: calc(var(--mid) - 4.5px);
 }
 
-/* Mean ± SD view: a tinted capsule from mean − SD to mean + SD, the mean as a ringed dot. */
-:root[data-ui="v2"] .an-spread-band {
-  top: calc(var(--mid) - 4px);
-  height: 8px;
-  min-width: 2px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--subject-color) 35%, var(--card-surface));
-}
-
-:root[data-ui="v2"] .an-spread-dot.is-mean {
-  width: 12px;
-  height: 12px;
-  margin-left: -6px;
-  top: calc(var(--mid) - 6px);
-}
-
 :root[data-ui="v2"] .an-spread-scale {
   position: relative;
   height: 16px;
@@ -935,6 +900,7 @@
 :root[data-ui="v2"] .an-overall-plot {
   --box-h: 44px;
   --mid: 30px;
+  --sd-y: 64px;
   height: 84px;
 }
 
@@ -943,14 +909,14 @@
   margin-left: -1.5px;
 }
 
-:root[data-ui="v2"] .an-overall-plot .an-spread-sd {
-  top: 64px;
+:root[data-ui="v2"] .an-spread-sd {
+  top: var(--sd-y);
   height: 11px;
   min-width: 1px;
   border-inline: 1px solid var(--text-tertiary);
 }
 
-:root[data-ui="v2"] .an-overall-plot .an-spread-sd::before {
+:root[data-ui="v2"] .an-spread-sd::before {
   content: "";
   position: absolute;
   inset: 5px 0 auto;
@@ -958,8 +924,9 @@
   background: var(--text-tertiary);
 }
 
+:root[data-ui="v2"] .an-spread-plot .an-spread-mean,
 :root[data-ui="v2"] .an-overall-plot .an-spread-mean {
-  top: 64.5px;
+  top: calc(var(--sd-y) + 0.5px);
   width: 10px;
   height: 10px;
   margin-left: -5px;
@@ -1022,10 +989,6 @@
   flex-wrap: wrap;
 }
 
-:root[data-ui="v2"] .an-spread-card > .an-spread-key {
-  margin-top: 12px;
-}
-
 :root[data-ui="v2"] .an-spread {
   margin: 16px -20px -20px;
   border-top: 1px solid var(--card-border);
@@ -1039,7 +1002,7 @@
 :root[data-ui="v2"] .an-spread-head,
 :root[data-ui="v2"] .an-spread-row {
   display: grid;
-  grid-template-columns: minmax(150px, 1fr) minmax(0, 3fr) 48px 48px 48px;
+  grid-template-columns: minmax(150px, 1fr) minmax(0, 3fr) 44px 44px 48px 44px;
   align-items: center;
   gap: 16px;
   width: 100%;
@@ -1105,8 +1068,9 @@
 
 :root[data-ui="v2"] .an-spread-plot {
   --box-h: 16px;
-  --mid: 16px;
-  height: 32px;
+  --mid: 13px;
+  --sd-y: 27px;
+  height: 42px;
 }
 
 :root[data-ui="v2"] .an-spread-num {
@@ -1122,7 +1086,7 @@
 @media (max-width: 960px) {
   :root[data-ui="v2"] .an-spread-head,
   :root[data-ui="v2"] .an-spread-row {
-    grid-template-columns: minmax(120px, 0.9fr) minmax(0, 2.4fr) 44px 44px 44px;
+    grid-template-columns: minmax(120px, 0.9fr) minmax(0, 2.4fr) 40px 40px 44px 40px;
     gap: 12px;
   }
 
@@ -1158,7 +1122,7 @@
   /* Phones: name and numbers on the first line, the plot full width beneath. */
   :root[data-ui="v2"] .an-spread-head,
   :root[data-ui="v2"] .an-spread-row {
-    grid-template-columns: minmax(0, 1fr) 40px 40px 40px;
+    grid-template-columns: minmax(0, 1fr) 36px 36px 40px 34px;
     gap: 4px 10px;
     padding: 10px 16px;
   }
@@ -1175,22 +1139,14 @@
   }
 
   :root[data-ui="v2"] .an-spread-plot {
-    height: 28px;
-    --mid: 14px;
+    height: 40px;
   }
 
   :root[data-ui="v2"] .an-overall-plot {
     --box-h: 36px;
     --mid: 24px;
+    --sd-y: 52px;
     height: 72px;
-  }
-
-  :root[data-ui="v2"] .an-overall-plot .an-spread-sd {
-    top: 52px;
-  }
-
-  :root[data-ui="v2"] .an-overall-plot .an-spread-mean {
-    top: 52.5px;
   }
 
   :root[data-ui="v2"] .an-overall-stats {
