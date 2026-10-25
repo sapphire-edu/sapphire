@@ -548,7 +548,7 @@
 }
 
 :root.is-morph-revealing .layout {
-  animation: v2-morph-reveal 0.4s ease both;
+  animation: v2-morph-reveal 0.7s ease both;
 }
 
 .v2-morph {
@@ -564,7 +564,7 @@
 }
 
 .v2-morph.is-done {
-  animation: v2-morph-out 0.4s ease both;
+  animation: v2-morph-out 0.7s ease both;
 }
 
 .v2-morph-box {

@@ -83,7 +83,7 @@ function runV2Morph(switchLayout) {
 
   const animations = [];
   const order = (a, b) => a.top - b.top || a.left - b.left;
-  const staggerOf = (rect) => Math.min(260, rect.top * 0.25 + rect.left * 0.05);
+  const staggerOf = (rect) => Math.min(420, rect.top * 0.4 + rect.left * 0.08);
   const addBox = (keyframes, delay, duration, extraClass = '') => {
     const box = document.createElement('div');
     box.className = `v2-morph-box${extraClass}`;
@@ -97,17 +97,19 @@ function runV2Morph(switchLayout) {
     if (from) moving.push({ from, to });
   });
   moving.sort((a, b) => order(a.from, b.from)).forEach(({ from, to }) => {
-    addBox(v2MorphKeyframes(from, to), 120 + staggerOf(from), 950);
+    addBox(v2MorphKeyframes(from, to), 350 + staggerOf(from), 1500);
   });
 
-  // Only in the old look: fold up into a line and fade.
+  // Only in the old look: hold a moment so it reads as leaving, fold up into a line, then fade.
   before.forEach((from, key) => {
     if (after.has(key)) return;
     const folded = { ...from, top: from.top + from.height / 2, height: 0 };
     addBox([
-      { ...v2MorphBox(from), opacity: 1 },
-      { ...v2MorphBox(folded), opacity: 0 },
-    ], 60 + staggerOf(from) * 0.5, 420, ' is-leaving');
+      { ...v2MorphBox(from), opacity: 1, offset: 0 },
+      { ...v2MorphBox(from), opacity: 1, offset: 0.3, easing: 'cubic-bezier(0.8, 0, 0.2, 1)' },
+      { ...v2MorphBox(folded), opacity: 1, offset: 0.8 },
+      { ...v2MorphBox(folded), opacity: 0, offset: 1 },
+    ], 250 + staggerOf(from) * 0.5, 1100, ' is-leaving');
   });
 
   // Only in the new look: drawn in from a line once the rest has arrived.
@@ -118,7 +120,7 @@ function runV2Morph(switchLayout) {
       { ...v2MorphBox(line), opacity: 0 },
       { ...v2MorphBox(line), opacity: 1, offset: 0.2 },
       { ...v2MorphBox(to), opacity: 1 },
-    ], 560 + staggerOf(to) * 0.6, 520, ' is-new');
+    ], 1100 + staggerOf(to) * 0.6, 850, ' is-new');
   });
 
   const finished = Promise.all(animations.map((a) => a.finished.catch(() => {})));
@@ -129,6 +131,6 @@ function runV2Morph(switchLayout) {
     setTimeout(() => {
       stage.remove();
       document.documentElement.classList.remove('is-morph-revealing');
-    }, 450);
+    }, 750);
   });
 }
