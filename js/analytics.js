@@ -73,7 +73,7 @@ function bindAnalyticsV2Controls() {
       renderOverallChart();
     });
   }
-  [document.getElementById('analytics-subjects'), elements.insightList].forEach((container) => {
+  [document.getElementById('analytics-subjects'), document.getElementById('analytics-spread'), elements.insightList].forEach((container) => {
     if (!container || container.dataset.openBound) return;
     container.dataset.openBound = 'true';
     container.addEventListener('click', (event) => {
@@ -242,6 +242,7 @@ function renderAnalyticsV2() {
   }
 
   renderAnalyticsGradesV2(allAssessments);
+  renderAnalyticsSpreadV2();
 
   const subjectsContainer = document.getElementById('analytics-subjects');
   if (subjectsContainer) {
@@ -254,6 +255,128 @@ function renderAnalyticsV2() {
       subjectsContainer.innerHTML = ordered.map((entry) => buildAnalyticsSubjectRowV2(entry.subject)).join('');
     }
   }
+}
+
+// Spread by subject: a box plot of each subject's marks, one row per subject, on a shared
+// percentage scale. Each mark counts once (weighting is ignored, it's about consistency).
+// Quartiles interpolate linearly (as Excel's QUARTILE.INC does); SD is the population SD.
+function quantileOfSorted(values, q) {
+  const position = (values.length - 1) * q;
+  const lower = Math.floor(position);
+  const upper = Math.ceil(position);
+  return values[lower] + (values[upper] - values[lower]) * (position - lower);
+}
+
+function markSpread(percents) {
+  const values = [...percents].sort((a, b) => a - b);
+  const n = values.length;
+  const mean = values.reduce((sum, value) => sum + value, 0) / n;
+  const sd = Math.sqrt(values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / n);
+  const q1 = quantileOfSorted(values, 0.25);
+  const q3 = quantileOfSorted(values, 0.75);
+  return { n, min: values[0], q1, median: quantileOfSorted(values, 0.5), q3, max: values[n - 1], iqr: q3 - q1, mean, sd };
+}
+
+function spreadTooltipText(name, spread) {
+  const f = (value) => value.toFixed(1);
+  if (spread.n === 1) return `${name}\n1 mark: ${f(spread.min)}%\nAdd another mark to see a spread.`;
+  return [
+    `${name} · ${spread.n} marks`,
+    `Min ${f(spread.min)}  ·  Max ${f(spread.max)}`,
+    `Q1 ${f(spread.q1)}  ·  Median ${f(spread.median)}  ·  Q3 ${f(spread.q3)}`,
+    `IQR ${f(spread.iqr)}  ·  Mean ${f(spread.mean)}  ·  SD ${f(spread.sd)}`,
+  ].join('\n');
+}
+
+function renderAnalyticsSpreadV2() {
+  const container = document.getElementById('analytics-spread');
+  if (!container) return;
+  bindAnalyticsSpreadV2(container);
+  const rows = state.data.subjects
+    .map((subject, index) => {
+      const percents = subject.assessments
+        .filter((assessment) => assessment.total > 0)
+        .map((assessment) => (assessment.score / assessment.total) * 100);
+      return { subject, index, average: subjectStats(subject).average, spread: percents.length ? markSpread(percents) : null };
+    })
+    .filter((row) => row.spread)
+    .sort((left, right) => compareNullableNumbers(left.average, right.average, 'desc') || left.index - right.index);
+
+  if (!rows.length) {
+    container.innerHTML = '<div class="empty-state">No marks yet. Once a subject has a few marks, its spread shows up here.</div>';
+    return;
+  }
+
+  // Shared scale: from the 10 below the lowest mark (or SD tail) up to 100.
+  const lowest = Math.min(...rows.map(({ spread }) => Math.min(spread.min, spread.mean - spread.sd)));
+  const low = clamp(Math.floor(lowest / 10) * 10, 0, 80);
+  const step = 100 - low > 50 ? 20 : 10;
+  const at = (value) => `${((clamp(value, low, 100) - low) / (100 - low)) * 100}%`;
+  const ticks = [];
+  for (let value = low; value <= 100; value += step) ticks.push(value);
+  const gridHtml = `<span class="an-spread-grid" aria-hidden="true">${ticks.map((value) => `<span style="left:${at(value)}"></span>`).join('')}</span>`;
+
+  const rowHtml = ({ subject, spread }) => {
+    const f = (value) => value.toFixed(1);
+    const marks = spread.n === 1
+      ? `<span class="an-spread-dot" style="left:${at(spread.min)}"></span>`
+      : `
+        <span class="an-spread-whisker" style="left:${at(spread.min)};width:calc(${at(spread.max)} - ${at(spread.min)})"></span>
+        <span class="an-spread-box" style="left:${at(spread.q1)};width:calc(${at(spread.q3)} - ${at(spread.q1)})"></span>
+        <span class="an-spread-median" style="left:${at(spread.median)}"></span>
+        <span class="an-spread-sd" style="left:${at(spread.mean - spread.sd)};width:calc(${at(spread.mean + spread.sd)} - ${at(spread.mean - spread.sd)})"></span>
+        <span class="an-spread-mean" style="left:${at(spread.mean)}"></span>
+      `;
+    const statsHtml = spread.n === 1
+      ? `<span class="an-spread-stat-main">${f(spread.min)}%</span><span class="an-spread-stat-sub">1 mark</span>`
+      : `<span class="an-spread-stat-main">IQR ${f(spread.iqr)}</span><span class="an-spread-stat-sub">SD ${f(spread.sd)} · ${spread.n} marks</span>`;
+    const label = spread.n === 1
+      ? `${subject.name}: 1 mark, ${f(spread.min)}%.`
+      : `${subject.name}: ${spread.n} marks. Minimum ${f(spread.min)}, Q1 ${f(spread.q1)}, median ${f(spread.median)}, Q3 ${f(spread.q3)}, maximum ${f(spread.max)}. IQR ${f(spread.iqr)}, mean ${f(spread.mean)}, SD ${f(spread.sd)}.`;
+    return `
+      <button class="an-spread-row" type="button" data-action="open-subject" data-id="${subject.id}"
+        style="--subject-color:${subject.color}" aria-label="${escapeHtml(label)} Open subject.">
+        <span class="an-spread-name">
+          ${subjectMarkHtml(subject.icon, subject.name, subject.color)}
+          <span class="an-spread-name-text">${escapeHtml(subject.name)}</span>
+        </span>
+        <span class="an-spread-plot" aria-hidden="true">${gridHtml}${marks}</span>
+        <span class="an-spread-stats" aria-hidden="true">${statsHtml}</span>
+      </button>
+    `;
+  };
+
+  const axisHtml = `
+    <div class="an-spread-axis" aria-hidden="true">
+      <span></span>
+      <span class="an-spread-axis-scale">${ticks.map((value) => `<span style="left:${at(value)}">${value}</span>`).join('')}</span>
+      <span></span>
+    </div>
+  `;
+  container.innerHTML = rows.map(rowHtml).join('') + axisHtml;
+  container._spreadText = new Map(rows.map(({ subject, spread }) => [subject.id, spreadTooltipText(subject.name, spread)]));
+}
+
+function bindAnalyticsSpreadV2(container) {
+  if (container.dataset.tooltipBound) return;
+  container.dataset.tooltipBound = 'true';
+  const show = (row, x) => {
+    const text = container._spreadText?.get(row.dataset.id);
+    if (!text) return;
+    const plot = row.querySelector('.an-spread-plot').getBoundingClientRect();
+    showChartTooltip(text, clamp(x ?? plot.left + plot.width / 2, plot.left, plot.right), plot.top);
+  };
+  container.addEventListener('pointermove', (event) => {
+    const row = event.target.closest('.an-spread-row');
+    if (row) show(row, event.clientX);
+    else hideChartTooltip();
+  });
+  container.addEventListener('pointerleave', hideChartTooltip);
+  container.addEventListener('focusin', (event) => {
+    const row = event.target.closest('.an-spread-row');
+    if (row) show(row);
+  });
+  container.addEventListener('focusout', hideChartTooltip);
 }
 
 // Grade breakdown: how many marks landed in each grade, A+ down to E. Clicking a
