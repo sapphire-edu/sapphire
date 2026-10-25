@@ -263,6 +263,25 @@
   align-content: start;
 }
 
+/* Today's column in the week you're viewing: its header stands out (V2 styles the whole column). */
+.timetable-day-column.is-today > .timetable-grid-head {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-soft));
+  color: var(--accent);
+}
+
+.tt-today-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  vertical-align: 1px;
+}
+
 .timetable-map-card {
   margin-top: 18px;
   display: grid;

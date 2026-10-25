@@ -4,10 +4,18 @@ let timetableTodayProgressInterval = null;
 
 let activeTimetableClassKey = null;
 
+// The today panel appears on the dashboard and at the top of the timetable tab.
 function isDashboardTabActive() {
   return Array.from(elements.views || []).some(
-    (view) => view.dataset.view === 'dashboard' && view.classList.contains('is-active')
+    (view) => ['dashboard', 'timetable'].includes(view.dataset.view) && view.classList.contains('is-active')
   );
+}
+
+function getTodayPanelTargets() {
+  return [
+    { list: elements.timetableTodayList, title: elements.timetableTodayTitle },
+    { list: elements.timetableTabTodayList, title: elements.timetableTabTodayTitle },
+  ].filter((target) => target.list && target.title);
 }
 
 function startTimetableTodayProgressTicker() {
@@ -730,6 +738,9 @@ function renderTimetable() {
     elements.settingsTimetableSourceMeta.textContent = sourceMeta;
   }
   updateTimetableImportPlacement(hasLessons);
+  if (elements.timetableTabTodayCard) {
+    elements.timetableTabTodayCard.hidden = !hasLessons;
+  }
   if (elements.timetableSwapWeeks) {
     elements.timetableSwapWeeks.hidden = !hasLessons;
   }
@@ -809,8 +820,11 @@ function renderTimetable() {
     return;
   }
 
+  const v1TodayKey = dateKeyFromParts(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate());
+  const v1IsThisWeek = selectedWeekMonday.getTime() === currentWeekMonday.getTime();
   const dayColumnsHtml = TIMETABLE_DAYS.map((dayName, dayIndex) => {
     const dayDate = selectedWeekDates[dayIndex];
+    const isToday = v1IsThisWeek && dayDate === v1TodayKey;
     const dayLessons = (weekLessons[dayIndex] || [])
       .slice()
       .sort((a, b) => {
@@ -821,9 +835,9 @@ function renderTimetable() {
       ? dayLessons.map((lesson) => buildLessonCardHtml(lesson, timetable)).join('')
       : '<div class="muted">No classes</div>';
     return `
-      <section class="timetable-day-column">
+      <section class="timetable-day-column${isToday ? ' is-today' : ''}">
         <div class="timetable-grid-head">
-          ${dayName}
+          ${dayName}${isToday ? ' <span class="tt-today-tag">Today</span>' : ''}
           <span class="sub">${formatShortDate(dayDate)}</span>
         </div>
         <div class="timetable-day-list">${listHtml}</div>
@@ -998,7 +1012,8 @@ function renderTodayTimetablePanel(
   nowDate = new Date(),
   templates = null
 ) {
-  if (!elements.timetableTodayList || !elements.timetableTodayTitle) return;
+  const targets = getTodayPanelTargets();
+  if (!targets.length) return;
   const nowMinutes = getTimeMinutesWithSeconds(nowDate);
   const showNextDay = nowMinutes >= (16 * 60);
   const panelDate = showNextDay
@@ -1023,13 +1038,15 @@ function renderTodayTimetablePanel(
   const activePanelLessons = panelLessons.length ? panelLessons : fallbackPanelLessons;
   const progressNowMinutes = showNextDay ? 0 : nowMinutes;
   const lessonWidthTracks = buildTodayLessonTrackTemplate(activePanelLessons);
-  elements.timetableTodayList.style.setProperty('--today-lesson-columns', String(Math.max(1, activePanelLessons.length)));
-  elements.timetableTodayList.style.setProperty('--today-lesson-widths', lessonWidthTracks);
-
-  elements.timetableTodayTitle.textContent = `${showNextDay ? 'Tomorrow' : 'Today'} · ${panelLabel}`;
+  targets.forEach(({ list, title }) => {
+    list.style.setProperty('--today-lesson-columns', String(Math.max(1, activePanelLessons.length)));
+    list.style.setProperty('--today-lesson-widths', lessonWidthTracks);
+    title.textContent = `${showNextDay ? 'Tomorrow' : 'Today'} · ${panelLabel}`;
+  });
 
   if (!activePanelLessons.length) {
-    elements.timetableTodayList.innerHTML = `<div class="empty-state">No classes for ${showNextDay ? 'tomorrow' : 'today'}.</div>`;
+    const emptyHtml = `<div class="empty-state">No classes for ${showNextDay ? 'tomorrow' : 'today'}.</div>`;
+    targets.forEach(({ list }) => { list.innerHTML = emptyHtml; });
     return;
   }
 
@@ -1050,11 +1067,12 @@ function renderTodayTimetablePanel(
   const fallbackText = panelLessons.length
     ? ''
     : `<div class="muted">No explicit event ${showNextDay ? 'tomorrow' : 'today'}. Showing Week ${displayWeekType} template.</div>`;
-  elements.timetableTodayList.innerHTML = `
+  const panelHtml = `
     ${fallbackText}
     ${lessonsHtml}
     ${progressHtml}
   `;
+  targets.forEach(({ list }) => { list.innerHTML = panelHtml; });
 }
 
 function buildLessonCardHtml(lesson, timetable = state.data.timetable, options = {}) {
