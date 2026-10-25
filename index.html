@@ -59,6 +59,7 @@
     <link rel="stylesheet" href="css/v2/controls.css" />
     <link rel="stylesheet" href="css/v2/responsive.css" />
     <link rel="stylesheet" href="css/v2/icons.css" />
+    <link rel="stylesheet" href="css/v2/lucide-icons.css" />
     <link rel="stylesheet" href="css/v2/shared-fixes.css" />
     <link rel="stylesheet" href="css/v2/schedule-import.css" />
     <link rel="stylesheet" href="css/v2/analytics.css" />
@@ -2367,7 +2368,7 @@
             <h2 class="section-title" id="icon-picker-title">
               Enter icon name
             </h2>
-            <div class="modal-meta">
+            <div class="modal-meta" id="icon-picker-hint">
               Use a Phosphor icon slug like <code>wave-sine</code>.
             </div>
           </div>
@@ -2390,7 +2391,7 @@
             </span>
           </div>
           <label class="field">
-            <span>Phosphor icon name</span>
+            <span id="icon-picker-label">Phosphor icon name</span>
             <input
               id="icon-picker-input"
               name="iconName"

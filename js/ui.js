@@ -191,7 +191,7 @@ function setSettingsMessage(message) {
 function normalizeSubjectIcon(value) {
   const icon = String(value || '').trim().toLowerCase();
   if (!icon) return '';
-  return /^[a-z0-9-]{1,64}$/.test(icon) ? icon : '';
+  return /^(lucide:)?[a-z0-9-]{1,64}$/.test(icon) ? icon : '';
 }
 
 function getSubjectPreset(name) {
@@ -208,7 +208,18 @@ function resolveSubjectIcon(icon, name) {
   return getSubjectPreset(name).icon;
 }
 
+// V2 custom icons are saved as "lucide:<name>". V1 has no Lucide font, so it falls back.
+const LUCIDE_ICON_PREFIX = 'lucide:';
+
 function iconHtml(name, className = 'button-icon', weight = 'regular') {
+  const raw = String(name || '').trim().toLowerCase();
+  if (raw.startsWith(LUCIDE_ICON_PREFIX)) {
+    const lucideName = raw.slice(LUCIDE_ICON_PREFIX.length);
+    if (!isUiV2() || !/^[a-z0-9-]+$/.test(lucideName)) {
+      return iconHtml(DEFAULT_SUBJECT_ICON, className, weight);
+    }
+    return `<i class="ph lu lu-${lucideName}${className ? ` ${className}` : ''}" aria-hidden="true"></i>`;
+  }
   const safeName = /^[a-z0-9-]+$/.test(String(name || '').trim().toLowerCase())
     ? String(name).trim().toLowerCase()
     : 'star';
@@ -317,7 +328,14 @@ function showCustomIconPicker(initialValue = '') {
 
   dismissIconPicker(null);
 
-  const initial = normalizeSubjectIcon(initialValue) || 'wave-sine';
+  const v2 = isUiV2();
+  syncIconPickerCopy(v2);
+  const saved = normalizeSubjectIcon(initialValue);
+  const savedIsLucide = saved.startsWith(LUCIDE_ICON_PREFIX);
+  // Phosphor slugs mean nothing to Lucide (and the other way round), so start from the default.
+  const initial = v2
+    ? (savedIsLucide ? saved.slice(LUCIDE_ICON_PREFIX.length) : 'audio-waveform')
+    : (saved && !savedIsLucide ? saved : 'wave-sine');
   elements.iconPickerInput.value = initial;
   updateIconPickerPreview(initial);
   setIconPickerMessage('');
@@ -335,17 +353,53 @@ function showCustomIconPicker(initialValue = '') {
 function applyIconPickerSelection() {
   if (!elements.iconPickerInput) return;
   const normalized = normalizeSubjectIcon(elements.iconPickerInput.value);
-  if (!normalized) {
-    setIconPickerMessage('Use lowercase letters, numbers, and hyphens (example: wave-sine).');
+  const example = isUiV2() ? 'audio-waveform' : 'wave-sine';
+  if (!normalized || normalized.startsWith(LUCIDE_ICON_PREFIX)) {
+    setIconPickerMessage(`Use lowercase letters, numbers, and hyphens (example: ${example}).`);
+    return;
+  }
+  if (isUiV2()) {
+    if (!isLucideIconName(normalized)) {
+      setIconPickerMessage(`There's no Lucide icon called "${normalized}". Browse names at lucide.dev/icons.`);
+      return;
+    }
+    dismissIconPicker(LUCIDE_ICON_PREFIX + normalized);
     return;
   }
   dismissIconPicker(normalized);
 }
 
+// The glyph stylesheet is the list of valid names: an unknown name has no ::before content.
+function isLucideIconName(name) {
+  if (!/^[a-z0-9-]+$/.test(name)) return false;
+  const probe = document.createElement('i');
+  probe.className = `lu lu-${name}`;
+  probe.hidden = true;
+  document.body.appendChild(probe);
+  const content = getComputedStyle(probe, '::before').content;
+  probe.remove();
+  return Boolean(content) && content !== 'none' && content !== 'normal';
+}
+
+function syncIconPickerCopy(v2) {
+  const hint = document.getElementById('icon-picker-hint');
+  const label = document.getElementById('icon-picker-label');
+  if (hint) {
+    hint.innerHTML = v2
+      ? 'Use a Lucide icon name like <code>audio-waveform</code>.'
+      : 'Use a Phosphor icon slug like <code>wave-sine</code>.';
+  }
+  if (label) label.textContent = v2 ? 'Lucide icon name' : 'Phosphor icon name';
+  if (elements.iconPickerInput) elements.iconPickerInput.placeholder = v2 ? 'audio-waveform' : 'wave-sine';
+}
+
 function updateIconPickerPreview(value) {
   if (!elements.iconPickerPreview) return;
   const normalized = normalizeSubjectIcon(value);
-  elements.iconPickerPreview.innerHTML = iconHtml(normalized || 'question', '');
+  const icon = isUiV2() && normalized && !normalized.startsWith(LUCIDE_ICON_PREFIX) && isLucideIconName(normalized)
+    ? LUCIDE_ICON_PREFIX + normalized
+    : (isUiV2() ? 'question' : normalized || 'question');
+  elements.iconPickerPreview.innerHTML = iconHtml(icon, '');
 }
 
 function setIconPickerMessage(message) {
