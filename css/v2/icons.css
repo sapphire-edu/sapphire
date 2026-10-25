@@ -151,7 +151,7 @@
 :root[data-ui="v2"] .ph-link-simple::before { content: "\e108"; }
 :root[data-ui="v2"] .ph-lock::before { content: "\e10f"; }
 :root[data-ui="v2"] .ph-map-trifold::before { content: "\e114"; }
-:root[data-ui="v2"] .ph-medal::before { content: "\e373"; }
+:root[data-ui="v2"] .ph-medal::before { content: "\e053"; } /* Lucide award: 2nd/3rd on the leaderboard */
 :root[data-ui="v2"] .ph-microphone::before { content: "\e11c"; }
 :root[data-ui="v2"] .ph-music-note::before { content: "\e126"; }
 :root[data-ui="v2"] .ph-music-notes::before { content: "\e34e"; }
