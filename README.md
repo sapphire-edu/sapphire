@@ -20,13 +20,25 @@ Access it here: https://sapphire.neonxsl.dev/
 
 **Preview**
 
-Dark theme:
-![](https://github.com/user-attachments/assets/ed13b8d2-1839-4e0a-8e85-30797e11e41a)
-![](https://github.com/user-attachments/assets/a6a9d867-6d5e-45bb-a278-98c767908325)
+Screenshots use a made-up demo student.
 
-Light theme:
-![](https://github.com/user-attachments/assets/4dd3fa11-3952-4852-922c-d3aee6185819)
-![](https://github.com/user-attachments/assets/e8bc77e9-9219-42ff-9bfd-ff93dc90d96b)
+Dashboard: your average, grade, today's classes, subjects and what's coming up.
+![Dashboard in the dark theme](docs/screenshots/dashboard-dark.webp)
+![Dashboard in the light theme](docs/screenshots/dashboard-light.webp)
+
+Analytics: weighted average over time, recent marks, and progress towards targets.
+![Analytics](docs/screenshots/analytics-dark.webp)
+
+Subject details: a subject's trend, its target and what you need next to hit it.
+![Subject details](docs/screenshots/subject-light.webp)
+
+Calendar and timetable: upcoming assessments and homework, and your Week A / Week B timetable.
+![Calendar](docs/screenshots/calendar-light.webp)
+![Timetable](docs/screenshots/timetable-dark.webp)
+
+On a phone:
+
+<img src="docs/screenshots/mobile-dark.webp" alt="Dashboard on a phone" width="320" />
 
 **How to use**
 
