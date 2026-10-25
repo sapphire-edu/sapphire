@@ -146,7 +146,7 @@ function v2TourHtml() {
           <iframe class="v2t-frame v2t-frame--new" title="Sapphire in the new look" tabindex="-1" aria-hidden="true"></iframe>
         </div>
         <div class="v2t-overlay" data-tour="overlay">
-          <div class="v2t-spot" data-tour="spot" hidden></div>
+          <div class="v2t-spot-layer"><div class="v2t-spot" data-tour="spot" hidden></div></div>
           <div class="v2t-markers" data-tour="markers"></div>
           <span class="v2t-side-tag v2t-side-tag--old">Old look</span>
           <span class="v2t-side-tag v2t-side-tag--new">New look</span>

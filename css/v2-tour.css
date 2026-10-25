@@ -455,7 +455,17 @@
   outline-offset: 3px;
 }
 
-/* Zoomed-in change: everything else dims. */
+/* Zoomed-in change: everything else on the new side dims. Clipped like the callouts, so the
+ * box and the dimming never cover the old look. */
+.v2t-spot-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+  clip-path: inset(0 0 0 var(--pos));
+}
+
 .v2t-spot {
   position: absolute;
   z-index: 2;
