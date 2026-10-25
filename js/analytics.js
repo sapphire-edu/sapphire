@@ -316,28 +316,8 @@ function renderAnalyticsSpreadV2() {
 
 function renderAnalyticsOverallSpreadV2() {
   const container = document.getElementById('analytics-overall-spread');
-  const card = document.getElementById('analytics-overall-card');
-  if (!container || !card) return;
-  const toggle = document.getElementById('analytics-spread-all');
-  const show = safeGetItem('sapphire-analytics-spread-all') !== 'off';
-  if (toggle) {
-    toggle.checked = show;
-    if (!toggle.dataset.bound) {
-      toggle.dataset.bound = 'true';
-      toggle.addEventListener('change', () => {
-        safeSetItem('sapphire-analytics-spread-all', toggle.checked ? 'on' : 'off');
-        renderAnalyticsOverallSpreadV2();
-      });
-    }
-  }
-  card.classList.toggle('is-collapsed', !show);
-  container.hidden = !show;
+  if (!container) return;
   const desc = document.getElementById('analytics-overall-desc');
-  if (!show) {
-    container.innerHTML = '';
-    if (desc) desc.textContent = 'Hidden. Turn it on to see every mark in one box plot.';
-    return;
-  }
 
   const percents = state.data.subjects.flatMap(subjectPercents);
   if (percents.length < 2) {
@@ -381,10 +361,31 @@ function renderAnalyticsOverallSpreadV2() {
   `;
 }
 
+const SPREAD_KEY_HTML = {
+  quartiles: `
+    <span class="an-spread-key-item"><span class="an-spread-key-whisker"></span>Min–max</span>
+    <span class="an-spread-key-item"><span class="an-spread-key-box"><span></span></span>Q1–Q3 · median</span>
+  `,
+  sd: '<span class="an-spread-key-item"><span class="an-spread-key-band"><span></span></span>Mean ± 1 SD</span>',
+};
+
+// Spread by subject shows either the box plot (quartiles) or the mean ± SD bar, one line a row.
+function getSpreadView() {
+  return safeGetItem('sapphire-analytics-spread-view') === 'sd' ? 'sd' : 'quartiles';
+}
+
 function renderAnalyticsSubjectSpreadV2() {
   const container = document.getElementById('analytics-spread');
   if (!container) return;
   bindAnalyticsSpreadV2(container);
+  const view = getSpreadView();
+  document.querySelectorAll('#analytics-spread-view [data-spread-view]').forEach((button) => {
+    const active = button.dataset.spreadView === view;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+  const key = document.getElementById('analytics-spread-key');
+  if (key) key.innerHTML = SPREAD_KEY_HTML[view];
   const rows = state.data.subjects
     .map((subject, index) => {
       const percents = subjectPercents(subject);
@@ -398,7 +399,7 @@ function renderAnalyticsSubjectSpreadV2() {
     return;
   }
 
-  const scale = spreadScale(Math.min(...rows.map(({ spread }) => spread.min)));
+  const scale = spreadScale(Math.min(...rows.map(({ spread }) => (view === 'sd' ? spread.mean - spread.sd : spread.min))));
   const gridHtml = spreadGridHtml(scale);
   const f = (value) => value.toFixed(1);
 
@@ -406,11 +407,17 @@ function renderAnalyticsSubjectSpreadV2() {
     const single = spread.n === 1;
     const marks = single
       ? `<span class="an-spread-dot" style="left:${scale.at(spread.min)}"></span>`
+      : view === 'sd'
+      ? `
+        <span class="an-spread-band" style="${scale.span(spread.mean - spread.sd, spread.mean + spread.sd)}"></span>
+        <span class="an-spread-dot is-mean" style="left:${scale.at(spread.mean)}"></span>
+      `
       : `
         <span class="an-spread-whisker" style="${scale.span(spread.min, spread.max)}"></span>
         <span class="an-spread-box" style="${scale.span(spread.q1, spread.q3)}"></span>
         <span class="an-spread-median" style="left:${scale.at(spread.median)}"></span>
       `;
+    const middle = single ? '—' : f(view === 'sd' ? spread.mean : spread.iqr);
     const label = single
       ? `${subject.name}: 1 mark, ${f(spread.min)}%.`
       : `${subject.name}: ${spread.n} marks. Minimum ${f(spread.min)}, Q1 ${f(spread.q1)}, median ${f(spread.median)}, Q3 ${f(spread.q3)}, maximum ${f(spread.max)}. IQR ${f(spread.iqr)}, mean ${f(spread.mean)}, SD ${f(spread.sd)}.`;
@@ -423,7 +430,7 @@ function renderAnalyticsSubjectSpreadV2() {
         </span>
         <span class="an-spread-plot" aria-hidden="true">${gridHtml}${marks}</span>
         <span class="an-spread-num is-count" aria-hidden="true">${spread.n}</span>
-        <span class="an-spread-num" aria-hidden="true">${single ? '—' : f(spread.iqr)}</span>
+        <span class="an-spread-num" aria-hidden="true">${middle}</span>
         <span class="an-spread-num" aria-hidden="true">${single ? '—' : f(spread.sd)}</span>
       </button>
     `;
@@ -434,7 +441,7 @@ function renderAnalyticsSubjectSpreadV2() {
       <span>Subject</span>
       <span class="an-spread-scale">${scale.ticks.map((value) => `<span style="left:${scale.at(value)}">${value}</span>`).join('')}</span>
       <span class="an-spread-num">Marks</span>
-      <span class="an-spread-num">IQR</span>
+      <span class="an-spread-num">${view === 'sd' ? 'Mean' : 'IQR'}</span>
       <span class="an-spread-num">SD</span>
     </div>
     ${rows.map(rowHtml).join('')}
@@ -445,6 +452,13 @@ function renderAnalyticsSubjectSpreadV2() {
 function bindAnalyticsSpreadV2(container) {
   if (container.dataset.tooltipBound) return;
   container.dataset.tooltipBound = 'true';
+  document.getElementById('analytics-spread-view')?.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-spread-view]');
+    if (!button) return;
+    safeSetItem('sapphire-analytics-spread-view', button.dataset.spreadView);
+    hideChartTooltip();
+    renderAnalyticsSubjectSpreadV2();
+  });
   const show = (row, x) => {
     const text = container._spreadText?.get(row.dataset.id);
     if (!text) return;

@@ -722,17 +722,6 @@
    Marks: a hairline whisker for min–max, a tinted box for Q1–Q3 with a solid median bar,
    and (overall card only) mean ± SD as a capped line with a ringed dot. */
 
-:root[data-ui="v2"] .an-spread-toggle {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  gap: 10px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-primary);
-  cursor: pointer;
-}
-
 :root[data-ui="v2"] .an-spread-key {
   display: flex;
   flex-wrap: wrap;
@@ -772,6 +761,25 @@
   width: 7px;
   height: 7px;
   margin-left: -3.5px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .an-spread-key-band {
+  position: relative;
+  width: 22px;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-tertiary) 40%, transparent);
+}
+
+:root[data-ui="v2"] .an-spread-key-band > span {
+  position: absolute;
+  top: -2px;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
   border-radius: 50%;
   background: var(--text-secondary);
 }
@@ -864,6 +872,22 @@
   top: calc(var(--mid) - 4.5px);
 }
 
+/* Mean ± SD view: a tinted capsule from mean − SD to mean + SD, the mean as a ringed dot. */
+:root[data-ui="v2"] .an-spread-band {
+  top: calc(var(--mid) - 4px);
+  height: 8px;
+  min-width: 2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--subject-color) 35%, var(--card-surface));
+}
+
+:root[data-ui="v2"] .an-spread-dot.is-mean {
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  top: calc(var(--mid) - 6px);
+}
+
 :root[data-ui="v2"] .an-spread-scale {
   position: relative;
   height: 16px;
@@ -894,10 +918,6 @@
 }
 
 /* ── Overall spread: one large plot, then every number labelled ── */
-
-:root[data-ui="v2"] .an-overall-card.is-collapsed .an-card-desc {
-  margin-bottom: 0;
-}
 
 :root[data-ui="v2"] .an-overall {
   margin-top: 20px;
@@ -1000,6 +1020,10 @@
 
 :root[data-ui="v2"] .an-spread-card .an-card-head {
   flex-wrap: wrap;
+}
+
+:root[data-ui="v2"] .an-spread-card > .an-spread-key {
+  margin-top: 12px;
 }
 
 :root[data-ui="v2"] .an-spread {

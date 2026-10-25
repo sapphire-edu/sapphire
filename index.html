@@ -410,13 +410,6 @@
                 <h2 class="an-card-title">Overall spread</h2>
                 <p class="an-card-desc" id="analytics-overall-desc">Every mark from every subject in one box plot.</p>
               </div>
-              <label class="an-spread-toggle">
-                <span class="ui-switch">
-                  <input type="checkbox" id="analytics-spread-all" role="switch" checked aria-controls="analytics-overall-spread" />
-                  <span class="ui-switch-track" aria-hidden="true"></span>
-                </span>
-                <span>Show</span>
-              </label>
             </div>
             <div class="an-overall" id="analytics-overall-spread"></div>
           </section>
@@ -427,11 +420,12 @@
                 <h2 class="an-card-title">Spread by subject</h2>
                 <p class="an-card-desc">How much your marks vary in each subject. Each mark counts once, whatever its weighting.</p>
               </div>
-              <div class="an-spread-key" aria-hidden="true">
-                <span class="an-spread-key-item"><span class="an-spread-key-whisker"></span>Min–max</span>
-                <span class="an-spread-key-item"><span class="an-spread-key-box"><span></span></span>Q1–Q3 · median</span>
+              <div class="an-range" id="analytics-spread-view" role="group" aria-label="Spread view">
+                <button type="button" data-spread-view="quartiles">Quartiles</button>
+                <button type="button" data-spread-view="sd">Mean ± SD</button>
               </div>
             </div>
+            <div class="an-spread-key" id="analytics-spread-key" aria-hidden="true"></div>
             <div class="an-spread" id="analytics-spread"></div>
           </section>
 
