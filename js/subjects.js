@@ -228,22 +228,20 @@ function openSubjectModal(subjectId) {
   const gradeText = stats.grade ?? '--';
 
   const countText = `${subject.assessments.length} assessment${subject.assessments.length === 1 ? '' : 's'}`;
-  const scoreEl = document.getElementById('subject-modal-score');
   if (isUiV2()) {
-    // V2: the subject's icon leads the title and the average + grade sit large on the right.
+    // V2: the subject's icon leads the title, and the average and grade sit large under it.
     elements.subjectModalTitle.innerHTML = `<span class="v2-subject-icon subject-modal-icon" style="--subject-color:${subject.color}" aria-hidden="true">${subjectIconHtml(resolveSubjectIcon(subject.icon, subject.name))}</span><span>${escapeHtml(subject.name)}</span>`;
-    if (elements.subjectModalMeta) elements.subjectModalMeta.textContent = countText;
-    if (scoreEl) {
-      scoreEl.innerHTML = stats.average === null
+    if (elements.subjectModalMeta) {
+      const scoreHtml = stats.average === null
         ? ''
         : `<span class="subject-modal-percent">${stats.average.toFixed(1)}<span class="subject-modal-unit">%</span></span>${v2GradeBadge(stats.grade, ' subject-modal-grade')}`;
+      elements.subjectModalMeta.innerHTML = `${scoreHtml}<span class="subject-modal-count">${countText}</span>`;
     }
   } else {
     elements.subjectModalTitle.textContent = subject.name;
     if (elements.subjectModalMeta) {
       elements.subjectModalMeta.textContent = `${averageText} · ${gradeText} · ${subject.assessments.length} assessments`;
     }
-    if (scoreEl) scoreEl.innerHTML = '';
   }
 
   const history = sortAssessments(subject.assessments).reverse();

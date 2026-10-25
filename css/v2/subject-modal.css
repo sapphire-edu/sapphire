@@ -170,20 +170,17 @@
   color: color-mix(in srgb, var(--grade-a) 72%, #000000);
 }
 
-/* ── Header: subject icon, name, and the average + grade shown large ── */
+/* ── Header: subject icon and name, then the average and grade large beneath ── */
 
-:root[data-ui="v2"] .subject-modal-header {
-  align-items: center;
-}
-
-:root[data-ui="v2"] .subject-modal-header .subject-modal-heading {
-  flex: 1 1 auto;
+:root[data-ui="v2"] .subject-modal-header .section-eyebrow {
+  display: none;
 }
 
 :root[data-ui="v2"] #subject-modal-title {
   display: flex;
   align-items: center;
   gap: 10px;
+  margin-top: 0;
   font-size: 20px;
 }
 
@@ -191,15 +188,12 @@
   flex: none;
 }
 
-:root[data-ui="v2"] .subject-modal-score {
+:root[data-ui="v2"] #subject-modal-meta {
   display: flex;
-  flex: none;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-}
-
-:root[data-ui="v2"] .subject-modal-score:empty {
-  display: none;
+  gap: 4px 12px;
+  margin-top: 14px;
 }
 
 :root[data-ui="v2"] .subject-modal-percent {
@@ -220,33 +214,11 @@
 }
 
 :root[data-ui="v2"] .subject-modal-grade {
-  height: 36px;
-  min-width: 52px;
-  padding: 0 10px;
-  border-radius: var(--radius);
-  font-size: 20px;
+  height: 28px;
+  min-width: 40px;
+  font-size: 15px;
 }
 
-/* The close button stays top-right; on phones the score wraps under the name. */
-:root[data-ui="v2"] .subject-modal-header .icon-button {
-  align-self: flex-start;
-}
-
-@media (max-width: 560px) {
-  :root[data-ui="v2"] .subject-modal-header {
-    flex-wrap: wrap;
-    row-gap: 12px;
-  }
-
-  :root[data-ui="v2"] .subject-modal-header .subject-modal-heading {
-    flex-basis: calc(100% - 48px);
-  }
-
-  :root[data-ui="v2"] .subject-modal-score {
-    order: 3;
-  }
-
-  :root[data-ui="v2"] .subject-modal-percent {
-    font-size: 26px;
-  }
+:root[data-ui="v2"] .subject-modal-count {
+  color: var(--text-tertiary);
 }
