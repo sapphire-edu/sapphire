@@ -292,6 +292,9 @@ function renderAnalyticsSpreadV2() {
   const container = document.getElementById('analytics-spread');
   if (!container) return;
   bindAnalyticsSpreadV2(container);
+  const showAll = safeGetItem('sapphire-analytics-spread-all') !== 'off';
+  const allToggle = document.getElementById('analytics-spread-all');
+  if (allToggle) allToggle.checked = showAll;
   const rows = state.data.subjects
     .map((subject, index) => {
       const percents = subject.assessments
@@ -307,8 +310,15 @@ function renderAnalyticsSpreadV2() {
     return;
   }
 
+  // Optional first row: every mark from every subject pooled together.
+  const allPercents = rows.flatMap(({ subject }) => subject.assessments
+    .filter((assessment) => assessment.total > 0)
+    .map((assessment) => (assessment.score / assessment.total) * 100));
+  const allRow = showAll ? { all: true, subject: { id: 'all', name: 'All subjects' }, spread: markSpread(allPercents) } : null;
+  const plotted = allRow ? [allRow, ...rows] : rows;
+
   // Shared scale: from the 10 below the lowest mark (or SD tail) up to 100.
-  const lowest = Math.min(...rows.map(({ spread }) => Math.min(spread.min, spread.mean - spread.sd)));
+  const lowest = Math.min(...plotted.map(({ spread }) => Math.min(spread.min, spread.mean - spread.sd)));
   const low = clamp(Math.floor(lowest / 10) * 10, 0, 80);
   const step = 100 - low > 50 ? 20 : 10;
   const at = (value) => `${((clamp(value, low, 100) - low) / (100 - low)) * 100}%`;
@@ -316,7 +326,7 @@ function renderAnalyticsSpreadV2() {
   for (let value = low; value <= 100; value += step) ticks.push(value);
   const gridHtml = `<span class="an-spread-grid" aria-hidden="true">${ticks.map((value) => `<span style="left:${at(value)}"></span>`).join('')}</span>`;
 
-  const rowHtml = ({ subject, spread }) => {
+  const rowHtml = ({ all, subject, spread }) => {
     const f = (value) => value.toFixed(1);
     const marks = spread.n === 1
       ? `<span class="an-spread-dot" style="left:${at(spread.min)}"></span>`
@@ -333,17 +343,21 @@ function renderAnalyticsSpreadV2() {
     const label = spread.n === 1
       ? `${subject.name}: 1 mark, ${f(spread.min)}%.`
       : `${subject.name}: ${spread.n} marks. Minimum ${f(spread.min)}, Q1 ${f(spread.q1)}, median ${f(spread.median)}, Q3 ${f(spread.q3)}, maximum ${f(spread.max)}. IQR ${f(spread.iqr)}, mean ${f(spread.mean)}, SD ${f(spread.sd)}.`;
-    return `
-      <button class="an-spread-row" type="button" data-action="open-subject" data-id="${subject.id}"
-        style="--subject-color:${subject.color}" aria-label="${escapeHtml(label)} Open subject.">
+    const inner = `
         <span class="an-spread-name">
-          ${subjectMarkHtml(subject.icon, subject.name, subject.color)}
+          ${all
+            ? `<span class="v2-subject-mark" aria-hidden="true">${iconHtml('squares-four', '')}</span>`
+            : subjectMarkHtml(subject.icon, subject.name, subject.color)}
           <span class="an-spread-name-text">${escapeHtml(subject.name)}</span>
         </span>
         <span class="an-spread-plot" aria-hidden="true">${gridHtml}${marks}</span>
         <span class="an-spread-stats" aria-hidden="true">${statsHtml}</span>
-      </button>
     `;
+    // The pooled row isn't a subject, so it has nothing to open; it still takes focus for its readout.
+    return all
+      ? `<div class="an-spread-row is-all" tabindex="0" role="group" data-id="all" style="--subject-color:var(--accent)" aria-label="${escapeHtml(label)}">${inner}</div>`
+      : `<button class="an-spread-row" type="button" data-action="open-subject" data-id="${subject.id}"
+          style="--subject-color:${subject.color}" aria-label="${escapeHtml(label)} Open subject.">${inner}</button>`;
   };
 
   const axisHtml = `
@@ -353,13 +367,18 @@ function renderAnalyticsSpreadV2() {
       <span></span>
     </div>
   `;
-  container.innerHTML = rows.map(rowHtml).join('') + axisHtml;
-  container._spreadText = new Map(rows.map(({ subject, spread }) => [subject.id, spreadTooltipText(subject.name, spread)]));
+  container.innerHTML = plotted.map(rowHtml).join('') + axisHtml;
+  container._spreadText = new Map(plotted.map(({ subject, spread }) => [subject.id, spreadTooltipText(subject.name, spread)]));
 }
 
 function bindAnalyticsSpreadV2(container) {
   if (container.dataset.tooltipBound) return;
   container.dataset.tooltipBound = 'true';
+  document.getElementById('analytics-spread-all')?.addEventListener('change', (event) => {
+    safeSetItem('sapphire-analytics-spread-all', event.target.checked ? 'on' : 'off');
+    hideChartTooltip();
+    renderAnalyticsSpreadV2();
+  });
   const show = (row, x) => {
     const text = container._spreadText?.get(row.dataset.id);
     if (!text) return;

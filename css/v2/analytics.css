@@ -723,12 +723,20 @@
    min–max, the tinted box Q1–Q3 with the median as a solid bar, and the line below it the
    mean ± one SD with the mean as a ringed dot. */
 
-:root[data-ui="v2"] .an-spread-card .an-card-head {
-  flex-wrap: wrap;
+:root[data-ui="v2"] .an-spread-toggle {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
 }
 
 :root[data-ui="v2"] .an-spread-key {
   display: flex;
+  margin-top: 12px;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px 16px;
@@ -798,7 +806,7 @@
 }
 
 :root[data-ui="v2"] .an-spread {
-  margin: 16px -20px -20px;
+  margin: 12px -20px -20px;
   border-top: 1px solid var(--card-border);
 }
 
@@ -837,6 +845,21 @@
 
 :root[data-ui="v2"] .an-spread-row:focus-visible {
   outline-offset: -2px;
+}
+
+/* The pooled row: a quiet tint and a slightly heavier name set it apart from the subjects. */
+:root[data-ui="v2"] .an-spread-row.is-all {
+  background: var(--bg-tertiary);
+  cursor: default;
+}
+
+:root[data-ui="v2"] .an-spread-row.is-all .an-spread-name {
+  font-weight: 600;
+}
+
+:root[data-ui="v2"] .an-spread-row.is-all .an-spread-mean,
+:root[data-ui="v2"] .an-spread-row.is-all .an-spread-dot {
+  box-shadow: 0 0 0 2px var(--bg-tertiary);
 }
 
 :root[data-ui="v2"] .an-spread-name {

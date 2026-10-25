@@ -410,11 +410,18 @@
                 <h2 class="an-card-title">Spread by subject</h2>
                 <p class="an-card-desc">How much your marks vary in each subject. Each mark counts once, whatever its weighting.</p>
               </div>
-              <div class="an-spread-key" aria-hidden="true">
-                <span class="an-spread-key-item"><span class="an-spread-key-whisker"></span>Min–max</span>
-                <span class="an-spread-key-item"><span class="an-spread-key-box"><span></span></span>Q1–Q3 · median</span>
-                <span class="an-spread-key-item"><span class="an-spread-key-sd"><span></span></span>Mean ± SD</span>
-              </div>
+              <label class="an-spread-toggle">
+                <span class="ui-switch">
+                  <input type="checkbox" id="analytics-spread-all" role="switch" checked />
+                  <span class="ui-switch-track" aria-hidden="true"></span>
+                </span>
+                <span>All subjects</span>
+              </label>
+            </div>
+            <div class="an-spread-key" aria-hidden="true">
+              <span class="an-spread-key-item"><span class="an-spread-key-whisker"></span>Min–max</span>
+              <span class="an-spread-key-item"><span class="an-spread-key-box"><span></span></span>Q1–Q3 · median</span>
+              <span class="an-spread-key-item"><span class="an-spread-key-sd"><span></span></span>Mean ± SD</span>
             </div>
             <div class="an-spread" id="analytics-spread"></div>
           </section>
