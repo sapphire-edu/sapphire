@@ -29,6 +29,10 @@ const V2_MORPH = {
   stagger: 22,
 };
 
+// Parts that don't morph in place: the old one slides out to the right, and the new one slides
+// in from the right into its spot (the Upcoming card changes too much to morph nicely).
+const V2_MORPH_SLIDE = '.upcoming-card';
+
 // Elements kept across the switch match themselves; re-rendered ones match by what they show.
 function v2MorphKey(el) {
   if (el.matches('.subject-card, .v2-subject-row')) return `subject:${el.dataset.id}`;
@@ -53,6 +57,7 @@ function captureV2MorphLayout() {
     parts.set(key, {
       left: r.left, top: r.top, width: r.width, height: r.height,
       radius: parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0,
+      slide: el.matches(V2_MORPH_SLIDE),
     });
   });
   return parts;
@@ -128,9 +133,12 @@ function runV2Morph(switchLayout) {
   // 2. In both: resize, then one axis, then the other. The ones travelling furthest pass over
   // the others, lifted, rather than through them.
   const moving = [];
+  const sliding = [];
   after.forEach((to, key) => {
     const from = before.get(key);
-    if (from) moving.push({ from, to, distance: Math.abs(to.left - from.left) + Math.abs(to.top - from.top) });
+    if (!from) return;
+    if (to.slide) sliding.push({ from, to });
+    else moving.push({ from, to, distance: Math.abs(to.left - from.left) + Math.abs(to.top - from.top) });
   });
   const byDistance = moving.slice().sort((a, b) => a.distance - b.distance);
   moving.sort((a, b) => byPosition(a.from, b.from)).forEach((move, i) => {
@@ -141,6 +149,22 @@ function runV2Morph(switchLayout) {
       '',
       2 + byDistance.indexOf(move)
     );
+  });
+
+  // Sliders: out to the right while the others resize and take their first axis, then the new
+  // one comes in from the right, at its new size, while the others take their second.
+  const offRight = window.innerWidth + 40;
+  const slideEase = 'cubic-bezier(0.7, 0, 0.3, 1)';
+  sliding.forEach(({ from, to }) => {
+    addBox([
+      { ...v2MorphBox(from), offset: 0, easing: slideEase },
+      { ...v2MorphBox({ ...from, left: offRight }, true), offset: 1 },
+    ], V2_MORPH.moveStart + V2_MORPH.phaseLength * 0.3, V2_MORPH.phaseLength * 1.4, '', 50);
+    addBox([
+      { ...v2MorphBox({ ...to, left: offRight }, true), offset: 0, easing: slideEase },
+      { ...v2MorphBox(to, true), offset: 0.92 },
+      { ...v2MorphBox(to), offset: 1 },
+    ], V2_MORPH.moveStart + V2_MORPH.phaseLength * 1.8, V2_MORPH.phaseLength * 1.2, '', 50);
   });
 
   // 3. Only in the new look: drawn in from a line once everything else has arrived.
