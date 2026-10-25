@@ -156,6 +156,7 @@ function normalizeData(parsed) {
           createdAt,
           ...(item.importKey ? { importKey: String(item.importKey) } : {}),
           ...(item.importedDate ? { importedDate: String(item.importedDate) } : {}),
+          ...(item.importedName ? { importedName: String(item.importedName) } : {}),
         };
       }),
     };

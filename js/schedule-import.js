@@ -199,6 +199,7 @@ function buildScheduleImportPlan(data) {
         const lookalike = !existing && existingItems.find(
           (u) => u.date === row.date && importTextKey(u.name) === importTextKey(row.name)
         );
+        if (existing) row.matchedId = existing.id;
         if (existing && existing.date === row.date) {
           row.status = 'duplicate';
         } else if (existing) {
@@ -474,6 +475,7 @@ function applyScheduleImport() {
       createdAt: Date.now(),
       importKey: row.key,
       importedDate: row.date,
+      importedName: row.name,
     });
     added += 1;
   });
@@ -495,10 +497,10 @@ function applyScheduleImport() {
 
 let importedScheduleUpdateDone = false;
 
-// Quietly moves exams you imported earlier when their date changes in the schedule. Only dates
-// change: nothing is added or removed, and an exam whose date you edited yourself is left alone
-// (importedDate remembers the date the import set). Runs once per load, after the cloud copy
-// has been pulled.
+// Quietly updates exams you imported earlier when their date or task name changes in the
+// schedule. Nothing is added or removed, and a date or name you edited yourself is left alone
+// (importedDate / importedName remember what the import set). Exams imported before those were
+// saved count as unedited. Runs once per load, after the cloud copy has been pulled.
 async function autoUpdateImportedSchedules() {
   if (importedScheduleUpdateDone || !isScheduleFriend()) return;
   const hasImported = state.data.subjects.some(
@@ -512,7 +514,8 @@ async function autoUpdateImportedSchedules() {
       Query.orderDesc('$createdAt'),
       Query.limit(50),
     ]);
-    const moved = new Set();
+    const handled = new Set();
+    let changed = false;
     res.documents.forEach((doc) => {
       let data;
       try {
@@ -520,18 +523,25 @@ async function autoUpdateImportedSchedules() {
       } catch (_) {
         return;
       }
-      // Newest schedule first; an exam already moved by a newer one isn't moved again.
-      buildScheduleImportPlan(data).rows.filter((row) => row.status === 'update').forEach((row) => {
+      // Newest schedule first; an exam a newer schedule already covers isn't touched by older ones.
+      buildScheduleImportPlan(data).rows.filter((row) => row.matchedId).forEach((row) => {
         const subject = state.data.subjects.find((s) => s.id === row.subjectId);
-        const item = subject?.upcoming?.find((u) => u.id === row.existingId);
-        if (!item || moved.has(item.id)) return;
-        if (item.importedDate && item.importedDate !== item.date) return;
-        item.date = row.date;
-        item.importedDate = row.date;
-        moved.add(item.id);
+        const item = subject?.upcoming?.find((u) => u.id === row.matchedId);
+        if (!item || handled.has(item.id)) return;
+        handled.add(item.id);
+        if (row.date !== item.date && (!item.importedDate || item.importedDate === item.date)) {
+          item.date = row.date;
+          item.importedDate = row.date;
+          changed = true;
+        }
+        if (row.name && row.name !== item.name && (!item.importedName || item.importedName === item.name)) {
+          item.name = row.name;
+          item.importedName = row.name;
+          changed = true;
+        }
       });
     });
-    if (moved.size) {
+    if (changed) {
       saveData(state.data);
       render();
     }
