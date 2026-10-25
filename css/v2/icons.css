@@ -183,3 +183,16 @@
 :root[data-ui="v2"] .ph-wave-sine::before { content: "\e038"; }
 :root[data-ui="v2"] .ph-wrench::before { content: "\e1b1"; }
 :root[data-ui="v2"] .ph-x::before { content: "\e1b2"; }
+
+/* A subject's icon in its own colour, standing in for V1's colour dots. */
+:root[data-ui="v2"] .v2-subject-mark {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--subject-color);
+}

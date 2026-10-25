@@ -67,6 +67,14 @@
   letter-spacing: 0;
 }
 
+:root[data-ui="v2"] .v2-stat-mark {
+  width: 18px;
+  height: 18px;
+  margin: 0 8px 0 0;
+  font-size: 18px;
+  vertical-align: -3px;
+}
+
 :root[data-ui="v2"] .v2-stat--text .v2-stat-value {
   display: block;
   font-size: 18px;
@@ -444,10 +452,9 @@
   color: var(--text-primary);
 }
 
-/* Keep the subject dot on the first line when a long name wraps. */
-:root[data-ui="v2"] .upcoming-dot {
-  flex: none;
-  margin-top: 6px;
+/* Keep the subject icon on the first line when a long name wraps. */
+:root[data-ui="v2"] .upcoming-mark {
+  margin-top: 2px;
 }
 
 :root[data-ui="v2"] .upcoming-meta {

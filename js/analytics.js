@@ -28,13 +28,17 @@ function renderV2Stats({ overallAverage, overallGrade, assessmentCount, topSubje
     ),
     tile(
       'Top subject',
-      topSubject ? escapeHtml(topSubject.name) : '—',
+      topSubject
+        ? `${subjectMarkHtml(topSubject.icon, topSubject.name, topSubject.color, 'v2-stat-mark')}${escapeHtml(topSubject.name)}`
+        : '—',
       topStats ? `${topStats.average.toFixed(1)}% · ${topStats.grade}` : 'No marks yet',
       ' v2-stat--text'
     ),
     tile(
       'Latest mark',
-      latest ? escapeHtml(latest.name) : '—',
+      latest
+        ? `${subjectMarkHtml(latest.subjectIcon, latest.subjectName, latest.subjectColor, 'v2-stat-mark')}${escapeHtml(latest.name)}`
+        : '—',
       latest ? `${latestPercent.toFixed(1)}% · ${escapeHtml(latest.subjectName)} · ${formatDate(latest.date)}` : 'Nothing logged yet',
       ' v2-stat--text'
     ),
@@ -178,7 +182,9 @@ function renderAnalyticsV2() {
     `;
     const subjectTile = (label, entry, empty) => tile(
       label,
-      entry ? `<span class="v2-an-stat-dot" style="--subject-color:${entry.subject.color}"></span>${escapeHtml(entry.subject.name)}` : '—',
+      entry
+        ? `${subjectMarkHtml(entry.subject.icon, entry.subject.name, entry.subject.color, 'v2-stat-mark')}${escapeHtml(entry.subject.name)}`
+        : '—',
       entry ? `${entry.stats.average.toFixed(1)}% · ${entry.stats.grade}` : empty,
       ' v2-stat--text'
     );
@@ -221,7 +227,7 @@ function renderAnalyticsV2() {
             const percent = assessment.total > 0 ? (assessment.score / assessment.total) * 100 : 0;
             return `
               <button class="v2-an-recent" type="button" data-action="open-subject" data-id="${assessment.subjectId}" style="--subject-color:${assessment.subjectColor}">
-                <span class="v2-an-dot" aria-hidden="true"></span>
+                ${subjectMarkHtml(assessment.subjectIcon, assessment.subjectName, assessment.subjectColor, 'v2-an-recent-mark')}
                 <span class="v2-an-recent-main">
                   <span class="v2-an-recent-name">${escapeHtml(assessment.name)}</span>
                   <span class="v2-an-recent-meta">${escapeHtml(assessment.subjectName)} · ${formatDate(assessment.date)}</span>

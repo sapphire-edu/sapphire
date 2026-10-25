@@ -420,7 +420,8 @@ function drawLineChart(canvas, points, options = {}) {
     gradient.addColorStop(0, withAlpha(stroke, 0.35));
     gradient.addColorStop(1, withAlpha(stroke, 0.05));
   }
-  if (!v2 && realPoints.length > 2) {
+  // V2 fills from two marks up (the subject popup uses this path); V1 keeps its three.
+  if (!v2 && realPoints.length > (isUiV2() ? 1 : 2)) {
     ctx.fillStyle = gradient;
     traceSmoothLine(ctx, realPoints, lineSmoothness, { clampY: options.v2 === true });
     ctx.lineTo(realPoints[realPoints.length - 1].x, height - paddingBottom);

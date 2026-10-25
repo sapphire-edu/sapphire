@@ -227,9 +227,23 @@ function openSubjectModal(subjectId) {
   const averageText = stats.average === null ? '--' : `${stats.average.toFixed(1)}%`;
   const gradeText = stats.grade ?? '--';
 
-  elements.subjectModalTitle.textContent = subject.name;
-  if (elements.subjectModalMeta) {
-    elements.subjectModalMeta.textContent = `${averageText} · ${gradeText} · ${subject.assessments.length} assessments`;
+  const countText = `${subject.assessments.length} assessment${subject.assessments.length === 1 ? '' : 's'}`;
+  const scoreEl = document.getElementById('subject-modal-score');
+  if (isUiV2()) {
+    // V2: the subject's icon leads the title and the average + grade sit large on the right.
+    elements.subjectModalTitle.innerHTML = `<span class="v2-subject-icon subject-modal-icon" style="--subject-color:${subject.color}" aria-hidden="true">${subjectIconHtml(resolveSubjectIcon(subject.icon, subject.name))}</span><span>${escapeHtml(subject.name)}</span>`;
+    if (elements.subjectModalMeta) elements.subjectModalMeta.textContent = countText;
+    if (scoreEl) {
+      scoreEl.innerHTML = stats.average === null
+        ? ''
+        : `<span class="subject-modal-percent">${stats.average.toFixed(1)}<span class="subject-modal-unit">%</span></span>${v2GradeBadge(stats.grade, ' subject-modal-grade')}`;
+    }
+  } else {
+    elements.subjectModalTitle.textContent = subject.name;
+    if (elements.subjectModalMeta) {
+      elements.subjectModalMeta.textContent = `${averageText} · ${gradeText} · ${subject.assessments.length} assessments`;
+    }
+    if (scoreEl) scoreEl.innerHTML = '';
   }
 
   const history = sortAssessments(subject.assessments).reverse();
@@ -1251,7 +1265,7 @@ function buildAssessmentRowV2(row) {
     <tr class="v2-an-row">
       <td class="v2-an-cell-subject">
         <span class="v2-an-subject-cell" style="--subject-color:${assessment.subjectColor}">
-          <span class="v2-an-dot" aria-hidden="true"></span>
+          ${subjectMarkHtml(assessment.subjectIcon, assessment.subjectName, assessment.subjectColor)}
           <span class="v2-an-subject-name">${escapeHtml(assessment.subjectName)}</span>
         </span>
       </td>

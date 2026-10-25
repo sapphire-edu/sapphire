@@ -249,6 +249,12 @@ function subjectIconHtml(name, className = 'button-icon') {
   return iconHtml(name, className, 'bold');
 }
 
+// V2: a subject's own icon in its colour, used wherever V1 shows a plain colour dot.
+function subjectMarkHtml(icon, subjectName, color, className = '') {
+  const classes = `v2-subject-mark${className ? ` ${className}` : ''}`;
+  return `<span class="${classes}" style="--subject-color:${color}" aria-hidden="true">${iconHtml(resolveSubjectIcon(icon, subjectName), '')}</span>`;
+}
+
 function buildIconCarouselItems(selectedIcon, action, otherAction, dataAttrs = '') {
   const selected = resolveSubjectIcon(selectedIcon);
   const selectedInCatalog = SUBJECT_ICON_VALUES.has(selected);

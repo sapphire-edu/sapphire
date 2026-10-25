@@ -169,3 +169,84 @@
 :root[data-ui="v2"]:not([data-theme="dark"]) .target-strip.is-met .target-strip-status {
   color: color-mix(in srgb, var(--grade-a) 72%, #000000);
 }
+
+/* ── Header: subject icon, name, and the average + grade shown large ── */
+
+:root[data-ui="v2"] .subject-modal-header {
+  align-items: center;
+}
+
+:root[data-ui="v2"] .subject-modal-header .subject-modal-heading {
+  flex: 1 1 auto;
+}
+
+:root[data-ui="v2"] #subject-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 20px;
+}
+
+:root[data-ui="v2"] .subject-modal-icon {
+  flex: none;
+}
+
+:root[data-ui="v2"] .subject-modal-score {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 12px;
+}
+
+:root[data-ui="v2"] .subject-modal-score:empty {
+  display: none;
+}
+
+:root[data-ui="v2"] .subject-modal-percent {
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+:root[data-ui="v2"] .subject-modal-unit {
+  margin-left: 2px;
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .subject-modal-grade {
+  height: 36px;
+  min-width: 52px;
+  padding: 0 10px;
+  border-radius: var(--radius);
+  font-size: 20px;
+}
+
+/* The close button stays top-right; on phones the score wraps under the name. */
+:root[data-ui="v2"] .subject-modal-header .icon-button {
+  align-self: flex-start;
+}
+
+@media (max-width: 560px) {
+  :root[data-ui="v2"] .subject-modal-header {
+    flex-wrap: wrap;
+    row-gap: 12px;
+  }
+
+  :root[data-ui="v2"] .subject-modal-header .subject-modal-heading {
+    flex-basis: calc(100% - 48px);
+  }
+
+  :root[data-ui="v2"] .subject-modal-score {
+    order: 3;
+  }
+
+  :root[data-ui="v2"] .subject-modal-percent {
+    font-size: 26px;
+  }
+}

@@ -253,9 +253,11 @@ function buildUpcomingList(items, options = {}) {
       const removeHtml = options.allowRemove
         ? `<button class="delete-button upcoming-remove" data-action="delete-upcoming" data-subject-id="${item.subjectId}" data-upcoming-id="${item.id}" aria-label="Remove ${escapeHtml(item.name)}"><i class="ph ph-x v2-only" aria-hidden="true"></i><span class="upcoming-remove-label">Remove</span></button>`
         : '';
-      const dotHtml = item.subjectColor
-        ? `<span class="upcoming-dot" style="--swatch:${item.subjectColor}"></span>`
-        : '';
+      const dotHtml = !item.subjectColor
+        ? ''
+        : isUiV2()
+        ? subjectMarkHtml(item.subjectIcon, item.subjectName, item.subjectColor, 'upcoming-mark')
+        : `<span class="upcoming-dot" style="--swatch:${item.subjectColor}"></span>`;
       return `
         <div
           class="upcoming-item"

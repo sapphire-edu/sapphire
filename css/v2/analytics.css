@@ -83,20 +83,6 @@
   margin-left: 12px;
 }
 
-:root[data-ui="v2"] .v2-an-stat-dot,
-:root[data-ui="v2"] .v2-an-dot {
-  display: inline-block;
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--subject-color);
-  vertical-align: middle;
-}
-
-:root[data-ui="v2"] .v2-an-stat-dot {
-  margin: -2px 8px 0 0;
-}
 
 /* ── Overall trend ── */
 
@@ -234,7 +220,7 @@
 :root[data-ui="v2"] .v2-an-recent {
   position: relative;
   display: grid;
-  grid-template-columns: 8px minmax(0, 1fr) auto 40px;
+  grid-template-columns: 16px minmax(0, 1fr) auto 40px;
   align-items: center;
   gap: 12px;
   width: 100%;
