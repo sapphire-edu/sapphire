@@ -15,7 +15,7 @@
     />
     <title>Sapphire</title>
     <script>
-      // Apply the beta UI before first paint (see setUiVersion in app.js).
+      // Apply the beta UI before first paint (see setUiVersion in js/theme.js).
       try {
         if (localStorage.getItem('sapphire-ui-version') === 'v2') {
           document.documentElement.dataset.ui = 'v2';
@@ -2416,6 +2416,23 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/appwrite@13.0.1/dist/iife/sdk.min.js"></script>
-    <script src="app.js"></script>
+    <script src="js/constants.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/theme.js"></script>
+    <script src="js/subjects.js"></script>
+    <script src="js/analytics.js"></script>
+    <script src="js/calendar.js"></script>
+    <script src="js/timetable.js"></script>
+    <script src="js/schedule-import.js"></script>
+    <script src="js/notifications.js"></script>
+    <script src="js/sync.js"></script>
+    <script src="js/leaderboard.js"></script>
+    <script src="js/onboarding.js"></script>
+    <script src="js/share.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/main.js"></script>
   </body>
 </html>
