@@ -201,24 +201,57 @@ function setV2TourPos(value) {
   stage.classList.toggle('is-all-old', pos >= 98);
 }
 
-function animateV2TourPos(to, duration = 900) {
+// One motion at a time drives the slider and, when zooming in, the preview's scroll, in the
+// same frames with the same easing. Starting another motion, dragging the line or changing step
+// cancels the one in progress, so a click mid-sweep is never undone by the sweep finishing.
+function stopV2TourMotion() {
   cancelAnimationFrame(v2Tour.frame);
+  v2Tour.motion += 1;
+  v2Tour.resolveMotion?.(false);
+  v2Tour.resolveMotion = null;
+}
+
+function v2TourEase(t) {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+// Resolves true when it ran to the end, false when something else cancelled it.
+function runV2TourMotion({ pos = null, scrollTo = null, duration = 900, delay = 0 }) {
+  stopV2TourMotion();
+  const id = v2Tour.motion;
+  const win = v2TourEls().newFrame.contentWindow;
+  const fromPos = v2Tour.pos;
+  const fromY = win?.scrollY ?? 0;
+  const apply = (e) => {
+    if (pos != null) setV2TourPos(fromPos + (pos - fromPos) * e);
+    if (scrollTo != null && win) win.scrollTo({ top: fromY + (scrollTo - fromY) * e, behavior: 'instant' });
+    placeV2TourSpot();
+  };
   if (v2TourReducedMotion()) {
-    setV2TourPos(to);
-    return Promise.resolve();
+    apply(1);
+    return Promise.resolve(true);
   }
-  const from = v2Tour.pos;
-  const start = performance.now();
   return new Promise((resolve) => {
+    v2Tour.resolveMotion = resolve;
+    const start = performance.now() + delay;
     const tick = (now) => {
-      const t = Math.min(1, (now - start) / duration);
-      const eased = 1 - Math.pow(1 - t, 3);
-      setV2TourPos(from + (to - from) * eased);
-      if (t < 1) v2Tour.frame = requestAnimationFrame(tick);
-      else resolve();
+      if (!v2Tour || v2Tour.motion !== id) return;
+      const t = Math.max(0, Math.min(1, (now - start) / duration));
+      apply(v2TourEase(t));
+      if (t < 1) {
+        v2Tour.frame = requestAnimationFrame(tick);
+      } else {
+        v2Tour.resolveMotion = null;
+        resolve(true);
+      }
     };
     v2Tour.frame = requestAnimationFrame(tick);
   });
+}
+
+// Longer trips take a little longer, so a big scroll doesn't whip past.
+function v2TourScrollDuration(distance) {
+  return Math.round(Math.min(1400, Math.max(800, 700 + Math.abs(distance) * 0.55)));
 }
 
 function v2TourFrameDoc(frame) {
@@ -292,25 +325,6 @@ function placeV2TourSpot() {
   spot.style.height = `${r.height * scale + pad * 2}px`;
 }
 
-// While the preview scrolls to a change, the spotlight follows it every frame, so it is on
-// the element from the first frame instead of appearing once the scroll has finished.
-function followV2TourSpot() {
-  cancelAnimationFrame(v2Tour.spotFrame);
-  const { newFrame } = v2TourEls();
-  let lastY = null;
-  let still = 0;
-  const tick = () => {
-    if (!v2Tour) return;
-    placeV2TourSpot();
-    const y = newFrame.contentWindow?.scrollY ?? 0;
-    still = y === lastY ? still + 1 : 0;
-    lastY = y;
-    if (still < 6) v2Tour.spotFrame = requestAnimationFrame(tick);
-    else placeV2TourMarkers();
-  };
-  v2Tour.spotFrame = requestAnimationFrame(tick);
-}
-
 function renderV2TourChanges() {
   const { changes, hint } = v2TourEls();
   const step = V2_TOUR_STEPS[v2Tour.step];
@@ -332,35 +346,35 @@ function renderV2TourChanges() {
     : 'Pick it again, or drag the line, to go back to comparing.';
 }
 
-function focusV2TourChange(index) {
+async function focusV2TourChange(index) {
   if (!v2Tour?.ready) return;
-  const { newFrame } = v2TourEls();
+  const { newFrame, markers } = v2TourEls();
+  const win = newFrame.contentWindow;
+  markers.innerHTML = '';
   if (v2Tour.focus === index || index == null) {
     v2Tour.focus = null;
     placeV2TourSpot();
-    v2TourEls().markers.innerHTML = '';
-    newFrame.contentWindow.scrollTo({ top: 0, behavior: v2TourReducedMotion() ? 'auto' : 'smooth' });
     renderV2TourChanges();
-    animateV2TourPos(50, 350);
-    followV2TourSpot();
+    const done = await runV2TourMotion({ pos: 50, scrollTo: 0, duration: v2TourScrollDuration(win.scrollY) });
+    if (done) placeV2TourMarkers();
     return;
   }
   v2Tour.focus = index;
   renderV2TourChanges();
-  v2TourEls().markers.innerHTML = '';
-  const doc = v2TourFrameDoc(newFrame);
-  const el = doc?.querySelector(v2Tour.changes[index].sel);
+  let target = win.scrollY;
+  const el = v2TourFrameDoc(newFrame)?.querySelector(v2Tour.changes[index].sel);
   if (el) {
     const r = el.getBoundingClientRect();
-    const viewHeight = newFrame.contentWindow.innerHeight;
-    const top = newFrame.contentWindow.scrollY + r.top;
-    // Centre it if it fits, otherwise show its top.
-    const target = r.height < viewHeight * 0.8 ? top - (viewHeight - r.height) / 2 : top - 40;
-    newFrame.contentWindow.scrollTo({ top: Math.max(0, target), behavior: v2TourReducedMotion() ? 'auto' : 'smooth' });
+    const viewHeight = win.innerHeight;
+    const top = win.scrollY + r.top;
+    // Centre it if it fits, otherwise show its top; never past the end of the page.
+    const wanted = r.height < viewHeight * 0.8 ? top - (viewHeight - r.height) / 2 : top - 40;
+    const maxScroll = Math.max(0, win.document.documentElement.scrollHeight - viewHeight);
+    target = Math.round(Math.max(0, Math.min(maxScroll, wanted)));
   }
-  setV2TourPos(0);
   placeV2TourSpot();
-  followV2TourSpot();
+  const done = await runV2TourMotion({ pos: 0, scrollTo: target, duration: v2TourScrollDuration(target - win.scrollY) });
+  if (done) placeV2TourMarkers();
 }
 
 function setV2TourCopy(step) {
@@ -384,9 +398,9 @@ async function goToV2TourStep(index) {
   next.textContent = step.final ? 'Switch to the new look' : 'Next';
   stage.classList.toggle('is-final', Boolean(step.final));
   setV2TourCopy(step);
+  stopV2TourMotion();
   v2Tour.focus = null;
   v2Tour.changes = [];
-  cancelAnimationFrame(v2Tour.spotFrame);
   v2TourEls().spot.hidden = true;
   renderV2TourChanges();
   if (!v2Tour.ready) return;
@@ -397,20 +411,18 @@ async function goToV2TourStep(index) {
   renderV2TourChanges();
   v2TourEls().markers.innerHTML = '';
   if (step.final) {
-    await animateV2TourPos(0, 600);
+    await runV2TourMotion({ pos: 0, duration: 600 });
     return;
   }
   // Each page opens on the old look, then the new look wipes in over it.
   setV2TourPos(100);
-  await new Promise((resolve) => setTimeout(resolve, 250));
-  await animateV2TourPos(50, 1100);
-  placeV2TourMarkers();
+  const done = await runV2TourMotion({ pos: 50, duration: 1100, delay: 250 });
+  if (done) placeV2TourMarkers();
 }
 
 function closeV2Tour({ snooze = true } = {}) {
   if (!v2Tour) return;
-  cancelAnimationFrame(v2Tour.frame);
-  cancelAnimationFrame(v2Tour.spotFrame);
+  stopV2TourMotion();
   if (snooze) safeSetItem(V2_TOUR_SNOOZE_KEY, String(Date.now()));
   window.removeEventListener('resize', v2Tour.onResize);
   document.removeEventListener('keydown', handleV2TourKeydown, true);
@@ -482,7 +494,7 @@ async function openV2Tour() {
   root.innerHTML = v2TourHtml();
   document.body.appendChild(root);
   document.body.style.overflow = 'hidden';
-  v2Tour = { root, step: 0, pos: 100, focus: null, changes: [], ready: false, scale: 1, frame: 0, spotFrame: 0, lastFocus: document.activeElement };
+  v2Tour = { root, step: 0, pos: 100, focus: null, changes: [], ready: false, scale: 1, frame: 0, motion: 0, resolveMotion: null, lastFocus: document.activeElement };
 
   root.addEventListener('click', (event) => {
     const target = event.target.closest('[data-tour], [data-step], [data-change]');
@@ -498,14 +510,14 @@ async function openV2Tour() {
   });
   const { range, oldFrame, newFrame, loading } = v2TourEls();
   range.addEventListener('input', () => {
-    cancelAnimationFrame(v2Tour.frame);
+    stopV2TourMotion();
     if (v2Tour.focus != null) {
       v2Tour.focus = null;
-      newFrame.contentWindow?.scrollTo(0, 0);
+      newFrame.contentWindow?.scrollTo({ top: 0, behavior: 'instant' });
       renderV2TourChanges();
-      setTimeout(placeV2TourMarkers, 50);
     }
     setV2TourPos(Number(range.value));
+    placeV2TourMarkers();
   });
   let resizeTimer = 0;
   v2Tour.onResize = () => {
