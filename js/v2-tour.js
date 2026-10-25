@@ -272,12 +272,17 @@ function placeV2TourMarkers() {
     marker.style.top = `${Math.max(6, top - 8)}px`;
     markers.appendChild(marker);
   });
-  if (v2Tour.focus == null) {
+  placeV2TourSpot();
+}
+
+function placeV2TourSpot() {
+  const { spot, newFrame } = v2TourEls();
+  const el = v2Tour.focus == null ? null : v2TourFrameDoc(newFrame)?.querySelector(v2Tour.changes[v2Tour.focus]?.sel);
+  if (!el) {
     spot.hidden = true;
     return;
   }
-  const el = doc.querySelector(v2Tour.changes[v2Tour.focus]?.sel);
-  if (!el) return;
+  const scale = v2Tour.scale;
   const r = el.getBoundingClientRect();
   const pad = 6;
   spot.hidden = false;
@@ -285,6 +290,25 @@ function placeV2TourMarkers() {
   spot.style.top = `${r.top * scale - pad}px`;
   spot.style.width = `${r.width * scale + pad * 2}px`;
   spot.style.height = `${r.height * scale + pad * 2}px`;
+}
+
+// While the preview scrolls to a change, the spotlight follows it every frame, so it is on
+// the element from the first frame instead of appearing once the scroll has finished.
+function followV2TourSpot() {
+  cancelAnimationFrame(v2Tour.spotFrame);
+  const { newFrame } = v2TourEls();
+  let lastY = null;
+  let still = 0;
+  const tick = () => {
+    if (!v2Tour) return;
+    placeV2TourSpot();
+    const y = newFrame.contentWindow?.scrollY ?? 0;
+    still = y === lastY ? still + 1 : 0;
+    lastY = y;
+    if (still < 6) v2Tour.spotFrame = requestAnimationFrame(tick);
+    else placeV2TourMarkers();
+  };
+  v2Tour.spotFrame = requestAnimationFrame(tick);
 }
 
 function renderV2TourChanges() {
@@ -308,19 +332,22 @@ function renderV2TourChanges() {
     : 'Pick it again, or drag the line, to go back to comparing.';
 }
 
-async function focusV2TourChange(index) {
+function focusV2TourChange(index) {
   if (!v2Tour?.ready) return;
   const { newFrame } = v2TourEls();
   if (v2Tour.focus === index || index == null) {
     v2Tour.focus = null;
+    placeV2TourSpot();
+    v2TourEls().markers.innerHTML = '';
     newFrame.contentWindow.scrollTo({ top: 0, behavior: v2TourReducedMotion() ? 'auto' : 'smooth' });
     renderV2TourChanges();
-    await animateV2TourPos(50, 500);
-    setTimeout(placeV2TourMarkers, 350);
+    animateV2TourPos(50, 350);
+    followV2TourSpot();
     return;
   }
   v2Tour.focus = index;
   renderV2TourChanges();
+  v2TourEls().markers.innerHTML = '';
   const doc = v2TourFrameDoc(newFrame);
   const el = doc?.querySelector(v2Tour.changes[index].sel);
   if (el) {
@@ -331,8 +358,9 @@ async function focusV2TourChange(index) {
     const target = r.height < viewHeight * 0.8 ? top - (viewHeight - r.height) / 2 : top - 40;
     newFrame.contentWindow.scrollTo({ top: Math.max(0, target), behavior: v2TourReducedMotion() ? 'auto' : 'smooth' });
   }
-  await animateV2TourPos(0, 500);
-  setTimeout(placeV2TourMarkers, v2TourReducedMotion() ? 0 : 380);
+  setV2TourPos(0);
+  placeV2TourSpot();
+  followV2TourSpot();
 }
 
 function setV2TourCopy(step) {
@@ -358,6 +386,7 @@ async function goToV2TourStep(index) {
   setV2TourCopy(step);
   v2Tour.focus = null;
   v2Tour.changes = [];
+  cancelAnimationFrame(v2Tour.spotFrame);
   v2TourEls().spot.hidden = true;
   renderV2TourChanges();
   if (!v2Tour.ready) return;
@@ -381,6 +410,7 @@ async function goToV2TourStep(index) {
 function closeV2Tour({ snooze = true } = {}) {
   if (!v2Tour) return;
   cancelAnimationFrame(v2Tour.frame);
+  cancelAnimationFrame(v2Tour.spotFrame);
   if (snooze) safeSetItem(V2_TOUR_SNOOZE_KEY, String(Date.now()));
   window.removeEventListener('resize', v2Tour.onResize);
   document.removeEventListener('keydown', handleV2TourKeydown, true);
@@ -452,7 +482,7 @@ async function openV2Tour() {
   root.innerHTML = v2TourHtml();
   document.body.appendChild(root);
   document.body.style.overflow = 'hidden';
-  v2Tour = { root, step: 0, pos: 100, focus: null, changes: [], ready: false, scale: 1, frame: 0, lastFocus: document.activeElement };
+  v2Tour = { root, step: 0, pos: 100, focus: null, changes: [], ready: false, scale: 1, frame: 0, spotFrame: 0, lastFocus: document.activeElement };
 
   root.addEventListener('click', (event) => {
     const target = event.target.closest('[data-tour], [data-step], [data-change]');

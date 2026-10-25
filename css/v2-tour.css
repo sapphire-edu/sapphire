@@ -462,7 +462,13 @@
   border-radius: 10px;
   box-shadow: 0 0 0 2px var(--accent), 0 0 0 9999px rgba(0, 0, 0, 0.45);
   pointer-events: none;
-  transition: left 0.3s ease, top 0.3s ease, width 0.3s ease, height 0.3s ease;
+  animation: v2t-spot-in 0.15s ease both;
+}
+
+@keyframes v2t-spot-in {
+  from {
+    opacity: 0;
+  }
 }
 
 .v2t-loading {
