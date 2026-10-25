@@ -161,6 +161,12 @@ function calendarEventTypeLabel(event) {
   return event.upcomingType === 'homework' ? 'Homework' : 'Assessment';
 }
 
+// The subject's own icon marks each event in the chips, agenda and "Coming up" list. The tiny
+// phone-grid dots stay dots, they're too small to hold an icon.
+function calendarSubjectIconHtml(event, className = 'calendar-v2-subject-icon') {
+  return iconHtml(resolveSubjectIcon(event.icon, event.subject), className);
+}
+
 function buildCalendarChipV2(event, dateKey) {
   const type = event.upcomingType === 'homework' ? 'homework' : 'assessment';
   const isCompleted = event.type === 'completed';
@@ -172,7 +178,7 @@ function buildCalendarChipV2(event, dateKey) {
   const title = `${event.name} · ${event.subject} · ${isCompleted ? 'Marked' : calendarEventTypeLabel(event)}`;
   return `
     <button class="${classes}" type="button" style="--event-color:${escapeHtml(event.color)}" data-calendar-date="${dateKey}" ${actionAttrs} title="${escapeHtml(title)}">
-      ${isCompleted ? iconHtml('check', 'calendar-v2-chip-icon') : '<span class="calendar-v2-chip-dot" aria-hidden="true"></span>'}
+      ${isCompleted ? iconHtml('check', 'calendar-v2-chip-icon') : calendarSubjectIconHtml(event)}
       <span class="calendar-v2-chip-name">${escapeHtml(event.name)}</span>
     </button>
   `;
@@ -198,7 +204,7 @@ function buildCalendarAgendaItemV2(event, dateKey) {
   return `
     <li class="calendar-v2-agenda-item is-${type}${isCompleted ? ' is-completed' : ''}" style="--event-color:${escapeHtml(event.color)}">
       <button class="calendar-v2-agenda-main" type="button" ${mainAttrs}>
-        <span class="calendar-v2-agenda-mark" aria-hidden="true"></span>
+        <span class="calendar-v2-agenda-mark" aria-hidden="true">${calendarSubjectIconHtml(event, '')}</span>
         <span class="calendar-v2-agenda-text">
           <span class="calendar-v2-agenda-name">${escapeHtml(event.name)}${badge}</span>
           <span class="calendar-v2-agenda-meta">${metaParts.join('<span aria-hidden="true"> · </span>')}</span>
@@ -253,7 +259,7 @@ function buildCalendarAgendaV2(selected, eventsByDate, filterEvents) {
                     <span>${d.toLocaleDateString('en-AU', { weekday: 'short' })}</span>
                     <strong>${d.getDate()}</strong>
                   </span>
-                  <span class="calendar-v2-chip-dot is-${event.upcomingType === 'homework' ? 'homework' : 'assessment'}" aria-hidden="true"></span>
+                  ${calendarSubjectIconHtml(event, `calendar-v2-subject-icon calendar-v2-next-icon${event.upcomingType === 'homework' ? ' is-homework' : ''}`)}
                   <span class="calendar-v2-next-text">
                     <span class="calendar-v2-next-name">${escapeHtml(event.name)}</span>
                     <span class="calendar-v2-next-meta">${escapeHtml(event.subject)} · ${calendarRelativeDayLabel(dateKey)}</span>
@@ -376,6 +382,7 @@ function buildCalendarEvents() {
       name: item.name,
       subject: item.subjectName,
       color: item.subjectColor || 'var(--accent)',
+      icon: item.subjectIcon,
       subjectId: item.subjectId,
       upcomingId: item.id,
       upcomingType: normalizeUpcomingType(item.type),
@@ -391,6 +398,7 @@ function buildCalendarEvents() {
       name: assessment.name,
       subject: assessment.subjectName,
       color: assessment.subjectColor || 'var(--accent)',
+      icon: assessment.subjectIcon,
       subjectId: assessment.subjectId,
       upcomingId: '',
       upcomingType: 'assessment',

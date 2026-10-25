@@ -321,6 +321,19 @@
   color: var(--event-color);
 }
 
+/* The subject's icon replaces the dot; homework is shown fainter than an assessment. */
+:root[data-ui="v2"] .calendar-v2-subject-icon {
+  flex: none;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--event-color);
+}
+
+:root[data-ui="v2"] .calendar-v2-chip.is-homework .calendar-v2-subject-icon,
+:root[data-ui="v2"] .calendar-v2-subject-icon.is-homework {
+  opacity: 0.6;
+}
+
 /* Dots: solid for assessments, hollow ring for homework (chips, phone grid, agenda). */
 :root[data-ui="v2"] .calendar-v2-chip-dot {
   flex: none;
@@ -452,16 +465,14 @@
 
 :root[data-ui="v2"] .calendar-v2-agenda-mark {
   flex: none;
-  width: 8px;
-  height: 8px;
-  margin-top: 6px;
-  border-radius: 999px;
-  background: var(--event-color);
+  margin-top: 2px;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--event-color);
 }
 
 :root[data-ui="v2"] .calendar-v2-agenda-item.is-homework .calendar-v2-agenda-mark {
-  background: transparent;
-  box-shadow: inset 0 0 0 1.5px var(--event-color);
+  opacity: 0.6;
 }
 
 :root[data-ui="v2"] .calendar-v2-agenda-item.is-completed .calendar-v2-agenda-mark {
@@ -605,9 +616,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-:root[data-ui="v2"] .calendar-v2-next-item .calendar-v2-chip-dot {
-  width: 8px;
-  height: 8px;
+:root[data-ui="v2"] .calendar-v2-next-icon {
+  font-size: 15px;
 }
 
 :root[data-ui="v2"] .calendar-v2-next-text {
