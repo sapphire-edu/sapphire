@@ -541,3 +541,91 @@
     animation: none;
   }
 }
+
+/* ── The switch: a blueprint of the page rearranges itself (js/v2-morph.js) ── */
+:root.is-morphing .layout {
+  opacity: 0;
+}
+
+:root.is-morph-revealing .layout {
+  animation: v2-morph-reveal 0.4s ease both;
+}
+
+.v2-morph {
+  position: fixed;
+  inset: 0;
+  z-index: 190;
+  pointer-events: none;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--accent) 9%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--accent) 9%, transparent) 1px, transparent 1px);
+  background-size: 24px 24px;
+  animation: v2-morph-grid 0.3s ease both;
+}
+
+.v2-morph.is-done {
+  animation: v2-morph-out 0.4s ease both;
+}
+
+.v2-morph-box {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1.5px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  background: color-mix(in srgb, var(--accent) 7%, var(--bg-primary));
+}
+
+/* Corner ticks, like a layout guide. */
+.v2-morph-box::before,
+.v2-morph-box::after {
+  content: "";
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-color: var(--accent);
+  border-style: solid;
+}
+
+.v2-morph-box::before {
+  top: -3px;
+  left: -3px;
+  border-width: 2px 0 0 2px;
+}
+
+.v2-morph-box::after {
+  right: -3px;
+  bottom: -3px;
+  border-width: 0 2px 2px 0;
+}
+
+.v2-morph-box.is-new {
+  border-style: dashed;
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg-primary));
+}
+
+.v2-morph-box.is-leaving {
+  border-color: color-mix(in srgb, var(--text-tertiary) 60%, transparent);
+  background: transparent;
+}
+
+.v2-morph-box.is-leaving::before,
+.v2-morph-box.is-leaving::after {
+  display: none;
+}
+
+@keyframes v2-morph-grid {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes v2-morph-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes v2-morph-reveal {
+  from {
+    opacity: 0;
+  }
+}

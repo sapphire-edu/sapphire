@@ -428,7 +428,7 @@ function switchFromTourToV2() {
   v2Tour.root.classList.add('is-leaving');
   setTimeout(() => {
     closeV2Tour({ snooze: false });
-    setUiVersion('v2');
+    runV2Morph(() => setUiVersion('v2'));
   }, v2TourReducedMotion() ? 0 : 320);
 }
 
