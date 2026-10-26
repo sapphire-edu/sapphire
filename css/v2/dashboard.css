@@ -717,14 +717,10 @@
   padding: 8px 0;
 }
 
-/* ── Exam countdown: top of the Upcoming panel (js/countdown.js) ── */
+/* ── Exam countdown: one row at the top of the Upcoming panel (js/countdown.js) ── */
 
 :root[data-ui="v2"] .exam-countdown {
-  display: grid;
-  gap: 10px;
-  margin: 8px 0 4px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--card-border);
+  margin: 8px 0 2px;
 }
 
 :root[data-ui="v2"] .exam-countdown[hidden] {
@@ -733,13 +729,13 @@
 
 :root[data-ui="v2"] .countdown-next {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
-  padding: 12px;
+  padding: 10px 12px;
   border: 1px solid var(--card-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius);
   background: var(--bg-tertiary);
   font: inherit;
   text-align: left;
@@ -755,25 +751,17 @@
   color: var(--accent);
 }
 
-:root[data-ui="v2"] .countdown-next:focus-visible,
-:root[data-ui="v2"] .countdown-then-item:focus-visible {
+:root[data-ui="v2"] .countdown-next:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
 
-:root[data-ui="v2"] .countdown-tile {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--subject-color) 14%, transparent);
-}
-
 :root[data-ui="v2"] .countdown-mark {
-  width: 20px;
-  height: 20px;
-  font-size: 19px;
+  align-self: start;
+  margin-top: 2px;
+  width: 18px;
+  height: 18px;
+  font-size: 17px;
 }
 
 :root[data-ui="v2"] .countdown-body {
@@ -781,27 +769,22 @@
   min-width: 0;
 }
 
-:root[data-ui="v2"] .countdown-label {
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--text-tertiary);
-}
-
 :root[data-ui="v2"] .countdown-name {
   display: -webkit-box;
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
-  line-height: 22px;
+  line-height: 20px;
   overflow-wrap: anywhere;
 }
 
+/* Wraps between parts only, so a date never splits. */
 :root[data-ui="v2"] .countdown-meta {
   font-size: 13px;
   line-height: 18px;
-  color: var(--text-secondary);
+  color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
 }
 
@@ -810,14 +793,13 @@
 }
 
 :root[data-ui="v2"] .countdown-when {
-  align-self: start;
   padding: 2px 8px;
+  border: 1px solid var(--card-border);
   border-radius: 999px;
   background: var(--bg-secondary);
-  border: 1px solid var(--card-border);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  line-height: 18px;
+  line-height: 16px;
   white-space: nowrap;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
@@ -829,109 +811,16 @@
   color: var(--accent);
 }
 
-/* The one or two after it: one compact line, wrapping only on very narrow widths. */
-:root[data-ui="v2"] .countdown-then {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 12px;
-  min-width: 0;
-  padding: 0 4px;
-  font-size: 13px;
-  line-height: 20px;
+/* The countdown already shows this item, so the list skips it. */
+:root[data-ui="v2"] .upcoming-list > .upcoming-item.is-in-countdown {
+  display: none;
 }
 
-:root[data-ui="v2"] .countdown-then-label {
-  color: var(--text-tertiary);
+:root[data-ui="v2"] .upcoming-list > .upcoming-item.is-in-countdown:first-child + .upcoming-item {
+  border-top: none;
 }
 
-:root[data-ui="v2"] .countdown-then-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  max-width: 100%;
-  margin: -2px -4px;
-  padding: 2px 4px;
-  border: none;
-  border-radius: 6px;
-  background: none;
-  font: inherit;
-  color: var(--text-primary);
-  cursor: pointer;
-}
-
-:root[data-ui="v2"] .countdown-then-item:hover {
-  background: var(--bg-hover);
-}
-
-:root[data-ui="v2"] .countdown-then-mark {
-  width: 14px;
-  height: 14px;
-  font-size: 13px;
-}
-
-:root[data-ui="v2"] .countdown-then-name {
-  min-width: 0;
-  max-width: 140px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-:root[data-ui="v2"] .countdown-then-when {
-  flex: none;
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
-}
-
-:root[data-ui="v2"] .countdown-cluster {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  padding: 0 4px;
-  font-size: 13px;
-  line-height: 20px;
-  color: var(--text-secondary);
-}
-
-:root[data-ui="v2"] .countdown-cluster-icon {
-  flex: none;
-  font-size: 14px;
-  color: var(--accent);
-}
-
-/* Date passed with no mark yet. The Upcoming list hides these, so say so here. */
-:root[data-ui="v2"] .countdown-overdue {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 8px 8px 12px;
-  border: 1px solid var(--danger-border);
-  border-radius: var(--radius-lg);
-  background: var(--danger-soft);
-  font-size: 13px;
-  line-height: 18px;
-  color: var(--text-primary);
-}
-
-:root[data-ui="v2"] .countdown-overdue-icon {
-  flex: none;
-  font-size: 16px;
-  color: var(--danger);
-}
-
-:root[data-ui="v2"] .countdown-overdue-text {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-:root[data-ui="v2"] .countdown-overdue-name {
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-
-:root[data-ui="v2"] .countdown-overdue .ghost-button {
-  flex: none;
+/* Only the countdown's item was in the list: no rule left to separate the footer from. */
+:root[data-ui="v2"] .upcoming-list:has(> .upcoming-item.is-in-countdown):not(:has(> .upcoming-item:not(.is-in-countdown))) + .upcoming-footer {
+  border-top: none;
 }

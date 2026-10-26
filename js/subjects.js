@@ -1473,7 +1473,8 @@ function renderAssessments() {
 function renderUpcomingDashboard() {
   if (!elements.upcomingList) return;
   const upcoming = sortUpcoming(getVisibleUpcomingItems());
-  const maxItems = 4;
+  // In V2 the next assessment's row is hidden under the exam countdown, so show one more.
+  const maxItems = isUiV2() && document.getElementById('exam-countdown') ? 5 : 4;
   const canExpand = upcoming.length > maxItems;
   const visible = state.upcomingExpanded ? upcoming : upcoming.slice(0, maxItems);
 
