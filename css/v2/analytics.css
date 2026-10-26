@@ -84,32 +84,6 @@
 }
 
 
-/* Relative performance in Recent marks: SDs from the subject's mean, and a subject-best flag. */
-:root[data-ui="v2"] .v2-an-rel {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-secondary);
-}
-
-:root[data-ui="v2"] .v2-an-rel.is-up {
-  color: color-mix(in srgb, var(--grade-a) 72%, var(--text-primary));
-}
-
-:root[data-ui="v2"] .v2-an-rel.is-down {
-  color: color-mix(in srgb, var(--grade-d) 72%, var(--text-primary));
-}
-
-:root[data-ui="v2"] .v2-an-rel.is-best {
-  color: color-mix(in srgb, var(--grade-c) 72%, var(--text-primary));
-}
-
-:root[data-ui="v2"] .v2-an-rel .ph {
-  font-size: 12px;
-}
-
 /* ── Overall trend ── */
 
 :root[data-ui="v2"] .an-trend-figure {
@@ -246,7 +220,7 @@
 :root[data-ui="v2"] .v2-an-recent {
   position: relative;
   display: grid;
-  grid-template-columns: 16px minmax(0, 1fr) auto 40px;
+  grid-template-columns: 16px minmax(0, 1fr) auto auto 40px;
   align-items: center;
   gap: 12px;
   width: 100%;
@@ -286,6 +260,18 @@
 
 :root[data-ui="v2"] .v2-an-recent-main {
   display: grid;
+  min-width: 0;
+}
+
+:root[data-ui="v2"] .v2-an-recent-title {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+:root[data-ui="v2"] .v2-an-recent-rel {
+  display: flex;
+  justify-content: flex-end;
   min-width: 0;
 }
 
@@ -872,11 +858,20 @@
   font-size: 12px;
 }
 
-:root[data-ui="v2"] .an-terms-cell .v2-an-delta {
+/* Under the value: how many tasks the period holds, then the change from the period before. */
+:root[data-ui="v2"] .an-terms-sub {
   display: flex;
   justify-content: flex-end;
-  gap: 3px;
+  align-items: center;
+  gap: 8px;
   margin-top: 3px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .an-terms-cell .v2-an-delta {
+  display: inline-flex;
+  gap: 3px;
   font-size: 11px;
 }
 
@@ -1072,31 +1067,27 @@
   border-radius: 50%;
 }
 
-:root[data-ui="v2"] .an-overall-outliers {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 16px;
-  margin: 16px 0 0;
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-:root[data-ui="v2"] .an-overall-outliers-label {
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-:root[data-ui="v2"] .an-overall-outlier {
+:root[data-ui="v2"] .an-spread-outlier-label {
+  top: 0;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-}
-
-:root[data-ui="v2"] .an-overall-outlier strong {
+  gap: 3px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  transform: translateX(-50%);
+  font-size: 11px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
   color: var(--text-primary);
+  background: var(--bg-tertiary);
+  cursor: default;
+}
+
+:root[data-ui="v2"] .an-spread-outlier-label .ph {
+  font-size: 11px;
+  color: var(--subject-color);
 }
 
 :root[data-ui="v2"] .an-spread-scale {
@@ -1145,9 +1136,9 @@
 
 :root[data-ui="v2"] .an-overall-plot {
   --box-h: 44px;
-  --mid: 30px;
-  --sd-y: 64px;
-  height: 84px;
+  --mid: 42px;
+  --sd-y: 76px;
+  height: 96px;
 }
 
 :root[data-ui="v2"] .an-overall-plot .an-spread-median {
@@ -1412,9 +1403,9 @@
 
   :root[data-ui="v2"] .an-overall-plot {
     --box-h: 36px;
-    --mid: 24px;
-    --sd-y: 52px;
-    height: 72px;
+    --mid: 36px;
+    --sd-y: 64px;
+    height: 84px;
   }
 
   :root[data-ui="v2"] .an-overall-stats {
@@ -1764,4 +1755,13 @@
 
 :root[data-ui="v2"] .v2-an-figure-value[data-dir="down"] {
   color: var(--grade-d);
+}
+
+:root[data-ui="v2"] .v2-an-cell-rel {
+  text-align: right;
+  white-space: nowrap;
+}
+
+:root[data-ui="v2"] .v2-an-head-rel {
+  text-align: right;
 }

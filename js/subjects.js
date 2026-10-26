@@ -245,6 +245,7 @@ function openSubjectModal(subjectId) {
   }
 
   const history = sortAssessments(subject.assessments).reverse();
+  const relative = isUiV2() ? buildRelativeMarks() : new Map();
   const historyHtml = history.length
     ? history
         .map((assessment) => {
@@ -252,11 +253,12 @@ function openSubjectModal(subjectId) {
           const grade = getLetterGrade(percent);
           const weight = assessment.weight === null ? '' : ` · W${assessment.weight}`;
           const canShare = canShareSubjectMarks(subject.id);
+          const rel = relativeMarkParts(relative, subject.id, percent);
           return `
             <div class="history-item">
               <div>
-                <div class="history-name">${assessment.name}</div>
-                <div class="history-meta">${assessment.score} / ${assessment.total} · ${percent.toFixed(1)}% · ${grade}${weight}</div>
+                <div class="history-name">${assessment.name}${rel.best}</div>
+                <div class="history-meta">${assessment.score} / ${assessment.total} · ${percent.toFixed(1)}% · ${grade}${weight}${rel.z ? ` ${rel.z}` : ''}</div>
               </div>
               <div class="history-right">
                 <div class="history-date">${formatDate(assessment.date)}</div>
@@ -1264,6 +1266,7 @@ function buildAssessmentRowV2(row) {
   const ids = `data-subject-id="${assessment.subjectId}" data-assessment-id="${assessment.id}"`;
   const shared = Boolean(assessment.leaderboardDocId);
   const name = escapeHtml(assessment.name);
+  const rel = relativeMarkParts(row.relative || new Map(), assessment.subjectId, percent);
   return `
     <tr class="v2-an-row">
       <td class="v2-an-cell-subject">
@@ -1272,10 +1275,11 @@ function buildAssessmentRowV2(row) {
           <span class="v2-an-subject-name">${escapeHtml(assessment.subjectName)}</span>
         </span>
       </td>
-      <td class="v2-an-cell-name">${name}</td>
+      <td class="v2-an-cell-name">${name}${rel.best}</td>
       <td class="v2-an-num v2-an-cell-score">${assessment.score}<span class="v2-an-of"> / ${assessment.total}</span></td>
       <td class="v2-an-num v2-an-cell-weight">${assessment.weight ?? '<span class="v2-an-none">—</span>'}</td>
       <td class="v2-an-num v2-an-cell-percent">${percent.toFixed(1)}%</td>
+      <td class="v2-an-cell-rel">${rel.z || '<span class="v2-an-none">—</span>'}</td>
       <td class="v2-an-cell-grade">${v2GradeBadge(grade)}</td>
       <td class="v2-an-cell-date">${formatDate(assessment.date)}</td>
       <td class="v2-an-cell-actions">
@@ -1306,7 +1310,7 @@ function renderAssessments() {
   const allAssessments = sortAssessments(getAllAssessments()).reverse();
   if (allAssessments.length === 0) {
     if (countLabel) countLabel.textContent = '';
-    elements.assessmentTable.innerHTML = '<tr><td colspan="8" class="empty-state">No assessments logged yet.</td></tr>';
+    elements.assessmentTable.innerHTML = '<tr><td colspan="9" class="empty-state">No assessments logged yet.</td></tr>';
     return;
   }
 
@@ -1333,7 +1337,7 @@ function renderAssessments() {
   }
 
   if (filteredRows.length === 0) {
-    elements.assessmentTable.innerHTML = `<tr><td colspan="8" class="empty-state">${gradeFilter && !searchQuery ? `No ${escapeHtml(gradeFilter)} marks.` : 'No assessments match your search.'}</td></tr>`;
+    elements.assessmentTable.innerHTML = `<tr><td colspan="9" class="empty-state">${gradeFilter && !searchQuery ? `No ${escapeHtml(gradeFilter)} marks.` : 'No assessments match your search.'}</td></tr>`;
     return;
   }
 
@@ -1344,7 +1348,8 @@ function renderAssessments() {
   );
 
   if (v2) {
-    elements.assessmentTable.innerHTML = orderedRows.map(buildAssessmentRowV2).join('');
+    const relative = buildRelativeMarks();
+    elements.assessmentTable.innerHTML = orderedRows.map((row) => buildAssessmentRowV2({ ...row, relative })).join('');
     return;
   }
 

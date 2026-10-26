@@ -226,13 +226,15 @@ function renderAnalyticsV2() {
       ? recent
           .map((assessment) => {
             const percent = assessment.total > 0 ? (assessment.score / assessment.total) * 100 : 0;
+            const rel = relativeMarkParts(relative, assessment.subjectId, percent);
             return `
               <button class="v2-an-recent" type="button" data-action="open-subject" data-id="${assessment.subjectId}" style="--subject-color:${assessment.subjectColor}">
                 ${subjectMarkHtml(assessment.subjectIcon, assessment.subjectName, assessment.subjectColor, 'v2-an-recent-mark')}
                 <span class="v2-an-recent-main">
-                  <span class="v2-an-recent-name">${escapeHtml(assessment.name)}</span>
-                  <span class="v2-an-recent-meta">${escapeHtml(assessment.subjectName)} · ${formatDate(assessment.date)}${relativeMarkHtml(relative, assessment, percent)}</span>
+                  <span class="v2-an-recent-title"><span class="v2-an-recent-name">${escapeHtml(assessment.name)}</span>${rel.best}</span>
+                  <span class="v2-an-recent-meta">${escapeHtml(assessment.subjectName)} · ${formatDate(assessment.date)}</span>
                 </span>
+                <span class="v2-an-recent-rel">${rel.z}</span>
                 <span class="v2-an-recent-percent">${percent.toFixed(1)}%</span>
                 ${v2GradeBadge(getLetterGrade(percent))}
               </button>
@@ -291,8 +293,8 @@ function schoolTermIndex(dateValue) {
 //   the timetable): seven tasks, 1 · 2 · 2 · 2;
 // - History and Geography: one semester each (one runs in Semester 1, the other in Semester 2),
 //   three tasks, two in its first term and one in its second.
-// A mark's own Term setting always wins. Dates are used as they are when they already fit the
-// pattern; otherwise the subject's marks fill its term slots in order.
+// A mark's own Term setting always wins. Everything else fills the subject's term slots in task
+// order (dates only decide that order), so a subject's marks never skip a term.
 const TERM_PLAN_DEFAULT = [0, 1, 2, 3];
 const TERM_PLAN_ACCELERATED = [0, 1, 1, 2, 2, 3, 3];
 
@@ -353,7 +355,7 @@ function termPlansBySubject(markedSubjects) {
 function assignMarksToTerms(subject, plan) {
   const placed = new Map();
   const marks = sortAssessments(subject.assessments.filter((assessment) => assessment.total > 0));
-  const slots = [...plan];
+  const slots = [...plan].sort((x, y) => x - y);
   const loose = [];
   marks.forEach((assessment) => {
     if (assessment.term) {
@@ -364,13 +366,11 @@ function assignMarksToTerms(subject, plan) {
       loose.push(assessment);
     }
   });
-  const byDate = loose.map((assessment) => schoolTermIndex(assessmentDateValue(assessment)));
-  const counts = (terms) => terms.reduce((map, term) => map.set(term, (map.get(term) || 0) + 1), new Map());
-  const room = counts(slots);
-  const datesFit = [...counts(byDate)].every(([term, count]) => count <= (room.get(term) || 0));
   loose.forEach((assessment, index) => {
-    if (datesFit || index >= slots.length) placed.set(assessment.id, { term: byDate[index], how: 'date' });
-    else placed.set(assessment.id, { term: slots[index], how: 'order' });
+    // More marks than the pattern has slots: the extras fall back to their dates.
+    const term = index < slots.length ? slots[index] : schoolTermIndex(assessmentDateValue(assessment));
+    const how = index < slots.length && term !== schoolTermIndex(assessmentDateValue(assessment)) ? 'order' : 'date';
+    placed.set(assessment.id, { term, how });
   });
   return placed;
 }
@@ -453,7 +453,10 @@ function renderAnalyticsTermsV2() {
           <span class="an-terms-value">${cell.average.toFixed(1)}<span class="an-terms-unit">%</span></span>
           ${v2GradeBadge(cell.grade, ' an-terms-grade')}
         </span>
-        ${delta === null || Math.abs(delta) < 0.05 ? '' : v2DeltaHtml(delta)}
+        <span class="an-terms-sub">
+          <span class="an-terms-count">${cell.count} ${cell.count === 1 ? 'task' : 'tasks'}</span>
+          ${delta === null || Math.abs(delta) < 0.05 ? '' : v2DeltaHtml(delta)}
+        </span>
       </td>
     `;
   };
@@ -496,9 +499,7 @@ function renderAnalyticsTermsV2() {
     </div>
     <p class="an-terms-note">
       ${iconHtml('lucide:info', '')}
-      <span>${reordered
-        ? `${reordered} mark${reordered === 1 ? '' : 's'} had dates that didn't fit the subject's usual tasks per term, so ${reordered === 1 ? 'it was' : 'they were'} placed in task order instead.`
-        : 'Marks are placed by date, checked against each subject\'s usual tasks per term.'} To move one, edit the mark and set its Term.</span>
+      <span>Marks fill each subject's usual tasks per term in order, because dates are often entered late${reordered ? ` (${reordered} mark${reordered === 1 ? '' : 's'} sit${reordered === 1 ? 's' : ''} in a different term from ${reordered === 1 ? 'its' : 'their'} date)` : ''}. To move one, edit the mark and set its Term.</span>
     </p>
   `;
 }
@@ -517,22 +518,31 @@ function buildRelativeMarks() {
   return bySubject;
 }
 
-function relativeMarkHtml(relative, assessment, percent) {
-  const entry = relative.get(assessment.subjectId);
-  if (!entry) return '';
+// Two small pills for one mark: how far it sits from the subject's average in SDs (from three
+// marks with some spread; with two, the gap in percentage points), and "Best" on the subject's
+// highest mark (from three marks).
+function relativeMarkParts(relative, subjectId, percent) {
+  const entry = relative.get(subjectId);
+  const parts = { z: '', best: '' };
+  if (!entry) return parts;
   const { spread, name } = entry;
-  const parts = [];
   if (spread.n >= 3 && spread.sd > 0) {
     const z = (percent - spread.mean) / spread.sd;
     const tone = z >= 1 ? ' is-up' : z <= -1 ? ' is-down' : '';
     const sign = z > 0.05 ? '+' : z < -0.05 ? '−' : '';
     const title = `${Math.abs(z).toFixed(1)} SD ${z >= 0 ? 'above' : 'below'} your ${name} average of ${spread.mean.toFixed(1)}%`;
-    parts.push(`<span class="v2-an-rel${tone}" title="${escapeHtml(title)}">${sign}${Math.abs(z).toFixed(1)} SD</span>`);
+    parts.z = `<span class="v2-rel-z${tone}" title="${escapeHtml(title)}">${sign}${Math.abs(z).toFixed(1)}<span class="v2-rel-unit"> SD</span></span>`;
+  } else if (spread.n === 2) {
+    // With two marks the z-score is always exactly ±1, so show the plain gap to the average instead.
+    const gap = percent - spread.mean;
+    const sign = gap > 0.05 ? '+' : gap < -0.05 ? '−' : '';
+    const title = `${Math.abs(gap).toFixed(1)} points ${gap >= 0 ? 'above' : 'below'} your ${name} average of ${spread.mean.toFixed(1)}% (SD needs three marks)`;
+    parts.z = `<span class="v2-rel-z" title="${escapeHtml(title)}">${sign}${Math.abs(gap).toFixed(1)}<span class="v2-rel-unit"> pts</span></span>`;
   }
   if (spread.n >= 3 && percent >= spread.max && spread.max > spread.min) {
-    parts.push(`<span class="v2-an-rel is-best" title="${escapeHtml(`Your highest ${name} mark`)}">${iconHtml('trophy', '')}Best</span>`);
+    parts.best = `<span class="v2-rel-best" title="${escapeHtml(`Your highest ${name} mark`)}">${iconHtml('trophy', '')}Best</span>`;
   }
-  return parts.length ? `<span aria-hidden="true"> · </span>${parts.join(' ')}` : '';
+  return parts;
 }
 
 // Spread charts: box plots of marks. Each mark counts once (weighting is ignored, these are
@@ -563,6 +573,19 @@ function markSpread(percents) {
     n, min: values[0], q1, median: quantileOfSorted(values, 0.5), q3, max: values[n - 1], iqr, mean, sd,
     low: inside[0], high: inside[inside.length - 1], outliers: values.filter(isOutlier), isOutlier,
   };
+}
+
+function allMarksWithSubjects() {
+  return state.data.subjects.flatMap((subject) => subject.assessments
+    .filter((assessment) => assessment.total > 0)
+    .map((assessment) => ({ subject, assessment, percent: (assessment.score / assessment.total) * 100 })));
+}
+
+// Marks that stand out across every subject (the Overall box plot's outliers), by assessment id.
+function overallOutlierIds(marks) {
+  if (marks.length < 4) return new Set();
+  const spread = markSpread(marks.map((mark) => mark.percent));
+  return new Set(marks.filter((mark) => spread.isOutlier(mark.percent)).map((mark) => mark.assessment.id));
 }
 
 function spreadOutliersHtml(scale, spread) {
@@ -614,9 +637,7 @@ function renderAnalyticsOverallSpreadV2() {
   if (!container) return;
   const desc = document.getElementById('analytics-overall-desc');
 
-  const marks = state.data.subjects.flatMap((subject) => subject.assessments
-    .filter((assessment) => assessment.total > 0)
-    .map((assessment) => ({ subject, assessment, percent: (assessment.score / assessment.total) * 100 })));
+  const marks = allMarksWithSubjects();
   const percents = marks.map((mark) => mark.percent);
   if (percents.length < 2) {
     container.innerHTML = `<div class="empty-state">${percents.length ? 'Add another mark' : 'Add a couple of marks'} to see how your results spread out.</div>`;
@@ -624,7 +645,10 @@ function renderAnalyticsOverallSpreadV2() {
     return;
   }
   const spread = markSpread(percents);
-  if (desc) desc.textContent = `All ${spread.n} marks from every subject in one box plot. Each mark counts once.`;
+  if (desc) {
+    const outlierCount = spread.outliers.length;
+    desc.textContent = `All ${spread.n} marks from every subject in one box plot. Each mark counts once.${outlierCount ? ` ${outlierCount} mark${outlierCount === 1 ? ' stands' : 's stand'} out from the rest.` : ''}`;
+  }
   const scale = spreadScale(Math.min(spread.min, spread.mean - spread.sd));
   const f = (value) => value.toFixed(1);
   const stat = (label, value, extra = '') => `<div class="an-overall-stat${extra}"><dt>${label}</dt><dd>${value}</dd></div>`;
@@ -642,6 +666,12 @@ function renderAnalyticsOverallSpreadV2() {
         ${spreadOutliersHtml(scale, spread)}
         <span class="an-spread-sd" style="${scale.span(spread.mean - spread.sd, spread.mean + spread.sd)}"></span>
         <span class="an-spread-mean" style="left:${scale.at(spread.mean)}"></span>
+        ${outlierMarks.map(({ subject, assessment, percent }) => `
+          <span class="an-spread-outlier-label" style="left:${scale.at(percent)};--subject-color:${subject.color}"
+            title="${escapeHtml(`${subject.name} · ${assessment.name}: ${f(percent)}%`)}">
+            ${iconHtml(resolveSubjectIcon(subject.icon, subject.name), '')}${f(percent)}
+          </span>
+        `).join('')}
       </div>
       <div class="an-spread-scale">${scale.ticks.map((value) => `<span style="left:${scale.at(value)}">${value}</span>`).join('')}</div>
     </div>
@@ -655,17 +685,7 @@ function renderAnalyticsOverallSpreadV2() {
       ${stat('Mean', f(spread.mean), ' is-measure')}
       ${stat('SD', f(spread.sd), ' is-measure')}
     </dl>
-    ${outlierMarks.length ? `
-      <p class="an-overall-outliers">
-        <span class="an-overall-outliers-label">${outlierMarks.length === 1 ? 'Outlier' : `${outlierMarks.length} outliers`}</span>
-        ${outlierMarks.map(({ subject, assessment, percent }) => `
-          <span class="an-overall-outlier">
-            ${subjectMarkHtml(subject.icon, subject.name, subject.color)}
-            <span>${escapeHtml(assessment.name)}</span>
-            <strong>${f(percent)}%</strong>
-          </span>
-        `).join('')}
-      </p>` : ''}
+
     <div class="an-spread-key an-overall-key" aria-hidden="true">
       <span class="an-spread-key-item"><span class="an-spread-key-whisker"></span>${spread.outliers.length ? 'Range' : 'Min–max'}</span>
       <span class="an-spread-key-item"><span class="an-spread-key-box"><span></span></span>Q1–Q3 · median</span>
@@ -694,6 +714,19 @@ function renderAnalyticsSubjectSpreadV2() {
 
   const scale = spreadScale(Math.min(...rows.map(({ spread }) => Math.min(spread.min, spread.mean - spread.sd))));
   const gridHtml = spreadGridHtml(scale);
+  const overallOutliers = overallOutlierIds(allMarksWithSubjects());
+  // A subject's ringed marks: its own outliers plus any mark that stands out across all subjects.
+  // The whisker stops at the furthest mark that isn't ringed.
+  rows.forEach((row) => {
+    const flagged = new Set(row.spread.outliers);
+    row.subject.assessments
+      .filter((assessment) => assessment.total > 0 && overallOutliers.has(assessment.id))
+      .forEach((assessment) => flagged.add((assessment.score / assessment.total) * 100));
+    if (row.spread.n < 2 || flagged.size === row.spread.outliers.length) return;
+    const percents = subjectPercents(row.subject).sort((x, y) => x - y);
+    const inside = percents.filter((value) => !flagged.has(value));
+    row.spread = { ...row.spread, outliers: [...flagged].sort((x, y) => x - y), low: inside[0] ?? row.spread.low, high: inside[inside.length - 1] ?? row.spread.high };
+  });
   const f = (value) => value.toFixed(1);
 
   const rowHtml = ({ subject, spread }) => {
