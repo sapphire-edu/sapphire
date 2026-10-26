@@ -218,12 +218,14 @@ function calendarBusyWeekTitle(week) {
   return `Busy week: ${calendarBusyWeekDetail(week)}${homework}`;
 }
 
-function buildCalendarBusyLabelV2(week) {
+// The grid's narrow first column: empty for an ordinary week, a small count for a busy one.
+function buildCalendarWeekGutterV2(week) {
+  if (!week) return '<div class="calendar-v2-week" aria-hidden="true"></div>';
+  const level = week.assessments >= 3 ? ' is-heavy' : '';
   return `
-    <span class="calendar-v2-busy" title="${escapeHtml(calendarBusyWeekTitle(week))}">
-      ${iconHtml('lucide:layers', 'calendar-v2-busy-icon')}
-      <span class="calendar-v2-busy-text">Busy<span class="calendar-v2-busy-week"> week</span> · ${week.assessments}<span class="calendar-v2-busy-long"> assessments</span></span>
-    </span>
+    <div class="calendar-v2-week is-busy" aria-hidden="true">
+      <span class="calendar-v2-week-count${level}" title="${escapeHtml(calendarBusyWeekTitle(week))}">${week.assessments}</span>
+    </div>
   `;
 }
 
@@ -385,6 +387,7 @@ function renderCalendarV2(year, month, activeFilter) {
     if (isWeekStart) {
       busyWeek = busyWeeks[dateKey] || null;
       if (busyWeek) busyWeekCount += 1;
+      cells.push(buildCalendarWeekGutterV2(busyWeek));
     }
     const isMuted = cellDate.getMonth() !== month;
     const isToday = dateKey === today;
@@ -407,9 +410,8 @@ function renderCalendarV2(year, month, activeFilter) {
     const ariaLabel = `${dayLabel}${isToday ? ', today' : ''}${events.length ? `, ${events.length} item${events.length === 1 ? '' : 's'}` : ''}${busyAria}`;
 
     cells.push(`
-      <div class="calendar-cell calendar-v2-cell${isMuted ? ' is-muted' : ''}${isToday ? ' is-today' : ''}${isSelected ? ' is-selected' : ''}${isWeekend ? ' is-weekend' : ''}${events.length ? ' has-events' : ''}${busyWeek ? ' is-busy-week' : ''}" data-calendar-date="${dateKey}">
+      <div class="calendar-cell calendar-v2-cell${isMuted ? ' is-muted' : ''}${isToday ? ' is-today' : ''}${isSelected ? ' is-selected' : ''}${isWeekend ? ' is-weekend' : ''}${events.length ? ' has-events' : ''}" data-calendar-date="${dateKey}">
         <button class="calendar-day calendar-v2-day" type="button" data-calendar-date="${dateKey}" aria-label="${ariaLabel}" aria-pressed="${isSelected ? 'true' : 'false'}" tabindex="${isSelected ? '0' : '-1'}">${cellDate.getDate()}</button>
-        ${busyWeek && isWeekStart ? buildCalendarBusyLabelV2(busyWeek) : ''}
         ${events.length ? `
           <div class="calendar-events calendar-v2-events">
             ${visible.map((event) => buildCalendarChipV2(event, dateKey)).join('')}

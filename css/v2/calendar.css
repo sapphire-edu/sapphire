@@ -395,67 +395,47 @@
 }
 
 /* ── Busy weeks: two or more assessments due Mon–Sun ──
-   The whole row gets a faint tint and a 1px accent edge along its top; the Monday cell
-   carries a small label beside the day number. Phones keep just the tint and edge. */
+   A narrow first column runs down the grid, like week numbers. It stays empty for an
+   ordinary week; a busy one shows its assessment count in a small amber chip (red from 3). */
 
-:root[data-ui="v2"] .calendar-cell.is-busy-week {
-  container-type: inline-size;
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--accent) 55%, transparent);
+:root[data-ui="v2"] .calendar-weekdays,
+:root[data-ui="v2"] .calendar-grid {
+  grid-template-columns: 30px repeat(7, minmax(0, 1fr));
 }
 
-:root[data-ui="v2"] .calendar-cell.is-busy-week:not(.is-selected) {
-  background: color-mix(in srgb, var(--accent) 3%, var(--card-surface));
+:root[data-ui="v2"] .calendar-weekdays .calendar-v2-week-head {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  font-size: 13px;
+  color: var(--text-tertiary);
 }
 
-:root[data-ui="v2"] .calendar-cell.is-busy-week:not(.is-selected):hover {
-  background: color-mix(in srgb, var(--bg-hover) 55%, color-mix(in srgb, var(--accent) 3%, var(--card-surface)));
+:root[data-ui="v2"] .calendar-v2-week {
+  display: flex;
+  justify-content: center;
+  padding-top: 9px;
+  background: var(--card-surface);
 }
 
-:root[data-ui="v2"] .calendar-v2-busy {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  max-width: calc(100% - 44px);
-  height: 24px;
+:root[data-ui="v2"] .calendar-v2-week-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
   font-size: 11px;
-  font-weight: 500;
-  line-height: 1;
-  color: var(--accent);
-  white-space: nowrap;
-  pointer-events: none;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--grade-c) 75%, var(--text-primary));
+  background: color-mix(in srgb, var(--grade-c) 16%, transparent);
+  cursor: default;
 }
 
-:root[data-ui="v2"] .calendar-v2-busy-icon {
-  flex: none;
-  font-size: 12px;
-  line-height: 1;
-}
-
-:root[data-ui="v2"] .calendar-v2-busy-text {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* "Busy week · 2" by default, "Busy week · 2 assessments" when the cell has room. */
-:root[data-ui="v2"] .calendar-v2-busy-long {
-  display: none;
-}
-
-@container (min-width: 200px) {
-  :root[data-ui="v2"] .calendar-v2-busy-long {
-    display: inline;
-  }
-}
-
-/* Narrow cells (the grid beside a tablet-width layout) drop to "Busy · 2". */
-@container (max-width: 139px) {
-  :root[data-ui="v2"] .calendar-v2-busy-week {
-    display: none;
-  }
+:root[data-ui="v2"] .calendar-v2-week-count.is-heavy {
+  color: color-mix(in srgb, var(--grade-d) 75%, var(--text-primary));
+  background: color-mix(in srgb, var(--grade-d) 16%, transparent);
 }
 
 /* Coming up: a quiet heading above the first item of a busy week. */
@@ -466,7 +446,13 @@
   margin: 6px 8px 2px;
   font-size: 12px;
   font-weight: 500;
-  color: var(--accent);
+  color: color-mix(in srgb, var(--grade-c) 75%, var(--text-primary));
+}
+
+:root[data-ui="v2"] .calendar-v2-next-busy .calendar-v2-busy-icon {
+  flex: none;
+  font-size: 12px;
+  line-height: 1;
 }
 
 :root[data-ui="v2"] .calendar-v2-next-busy:first-child {
@@ -825,6 +811,23 @@
     grid-auto-rows: 54px;
   }
 
+  :root[data-ui="v2"] .calendar-weekdays,
+  :root[data-ui="v2"] .calendar-grid {
+    grid-template-columns: 22px repeat(7, minmax(0, 1fr));
+  }
+
+  :root[data-ui="v2"] .calendar-v2-week {
+    align-items: center;
+    padding-top: 0;
+  }
+
+  :root[data-ui="v2"] .calendar-v2-week-count {
+    min-width: 16px;
+    height: 16px;
+    padding: 0 3px;
+    font-size: 10px;
+  }
+
   :root[data-ui="v2"] .calendar-cell {
     align-items: center;
     gap: 4px;
@@ -875,9 +878,6 @@
     padding: 14px;
   }
 
-  :root[data-ui="v2"] .calendar-v2-busy {
-    display: none;
-  }
 }
 
 /* On wide screens the panel under the grid splits in two: the selected day on the
