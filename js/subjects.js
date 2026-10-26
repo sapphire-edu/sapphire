@@ -1017,6 +1017,7 @@ function render() {
   renderCalendar();
   renderTimetable();
   syncTimetableTodayProgressTicker();
+  renderWeekSummary();
 }
 
 function renderOverview() {

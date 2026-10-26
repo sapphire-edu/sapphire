@@ -220,6 +220,7 @@ function renderAnalyticsV2() {
   }
 
   if (elements.insightList) {
+    const relative = buildRelativeMarks();
     const recent = sorted.slice(-6).reverse();
     elements.insightList.innerHTML = recent.length
       ? recent
@@ -230,7 +231,7 @@ function renderAnalyticsV2() {
                 ${subjectMarkHtml(assessment.subjectIcon, assessment.subjectName, assessment.subjectColor, 'v2-an-recent-mark')}
                 <span class="v2-an-recent-main">
                   <span class="v2-an-recent-name">${escapeHtml(assessment.name)}</span>
-                  <span class="v2-an-recent-meta">${escapeHtml(assessment.subjectName)} · ${formatDate(assessment.date)}</span>
+                  <span class="v2-an-recent-meta">${escapeHtml(assessment.subjectName)} · ${formatDate(assessment.date)}${relativeMarkHtml(relative, assessment, percent)}</span>
                 </span>
                 <span class="v2-an-recent-percent">${percent.toFixed(1)}%</span>
                 ${v2GradeBadge(getLetterGrade(percent))}
@@ -242,6 +243,7 @@ function renderAnalyticsV2() {
   }
 
   renderAnalyticsGradesV2(allAssessments);
+  renderAnalyticsTermsV2();
   renderAnalyticsSpreadV2();
 
   const subjectsContainer = document.getElementById('analytics-subjects');
@@ -255,6 +257,167 @@ function renderAnalyticsV2() {
       subjectsContainer.innerHTML = ordered.map((entry) => buildAnalyticsSubjectRowV2(entry.subject)).join('');
     }
   }
+}
+
+// By term / By semester: each subject's weighted average in each NSW school term (or semester)
+// of the latest year with marks, with the change from the period before. Terms are split at
+// the middle of each holiday break, so a mark dated in the holidays counts towards the term it
+// most likely belongs to. Semester 1 is Terms 1–2, Semester 2 is Terms 3–4.
+const TERM_PERIODS = [
+  { label: 'Term 1', short: 'T1', months: 'Feb–Apr' },
+  { label: 'Term 2', short: 'T2', months: 'Apr–Jul' },
+  { label: 'Term 3', short: 'T3', months: 'Jul–Sep' },
+  { label: 'Term 4', short: 'T4', months: 'Oct–Dec' },
+];
+const SEMESTER_PERIODS = [
+  { label: 'Semester 1', short: 'S1', months: 'Terms 1–2' },
+  { label: 'Semester 2', short: 'S2', months: 'Terms 3–4' },
+];
+
+function schoolTermIndex(dateValue) {
+  const date = new Date(dateValue);
+  const month = date.getUTCMonth();
+  const day = date.getUTCDate();
+  const before = (m, d) => month < m || (month === m && day < d);
+  if (before(3, 12)) return 0; // up to 11 April
+  if (before(6, 12)) return 1; // up to 11 July
+  if (before(9, 5)) return 2; // up to 4 October
+  return 3;
+}
+
+function getTermsView() {
+  return safeGetItem('sapphire-analytics-terms-view') === 'semester' ? 'semester' : 'term';
+}
+
+function renderAnalyticsTermsV2() {
+  const container = document.getElementById('analytics-terms');
+  if (!container) return;
+  const view = getTermsView();
+  const group = document.getElementById('analytics-terms-view');
+  if (group) {
+    group.querySelectorAll('[data-terms-view]').forEach((button) => {
+      const active = button.dataset.termsView === view;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+    if (!group.dataset.bound) {
+      group.dataset.bound = 'true';
+      group.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-terms-view]');
+        if (!button) return;
+        safeSetItem('sapphire-analytics-terms-view', button.dataset.termsView);
+        renderAnalyticsTermsV2();
+      });
+    }
+  }
+  const title = container.closest('.card')?.querySelector('.an-card-title');
+  if (title) title.textContent = view === 'semester' ? 'By semester' : 'By term';
+  const desc = document.getElementById('analytics-terms-desc');
+
+  const dated = getAllAssessments().filter((assessment) => assessment.total > 0 && assessmentDateValue(assessment));
+  if (!dated.length) {
+    container.innerHTML = '<div class="empty-state">No marks yet. Your term-by-term averages will show up here.</div>';
+    if (desc) desc.textContent = `Your weighted average in each ${view}.`;
+    return;
+  }
+  const year = Math.max(...dated.map((assessment) => new Date(assessmentDateValue(assessment)).getUTCFullYear()));
+  const inYear = dated.filter((assessment) => new Date(assessmentDateValue(assessment)).getUTCFullYear() === year);
+  const periods = view === 'semester' ? SEMESTER_PERIODS : TERM_PERIODS;
+  const periodOf = (assessment) => {
+    const term = schoolTermIndex(assessmentDateValue(assessment));
+    return view === 'semester' ? Math.floor(term / 2) : term;
+  };
+  const averagesFor = (items) => periods.map((_, index) => {
+    const inPeriod = items.filter((assessment) => periodOf(assessment) === index);
+    return inPeriod.length ? { average: weightedAverage(inPeriod), count: inPeriod.length } : null;
+  });
+
+  const rows = [
+    { overall: true, name: 'Overall', cells: averagesFor(inYear) },
+    ...state.data.subjects
+      .map((subject) => ({ subject, name: subject.name, cells: averagesFor(inYear.filter((assessment) => assessment.subjectId === subject.id)) }))
+      .filter((row) => row.cells.some(Boolean)),
+  ];
+  if (desc) {
+    desc.textContent = `Your weighted average in each ${view} of ${year}, and how it changed from the ${view} before.`;
+  }
+
+  const cellHtml = (cell, previous, row, period) => {
+    if (!cell) return '<td class="an-terms-cell is-empty"><span aria-label="No marks">—</span></td>';
+    const delta = previous ? cell.average - previous.average : null;
+    const label = `${row.name}, ${period.label}: ${cell.average.toFixed(1)}% from ${cell.count} mark${cell.count === 1 ? '' : 's'}`;
+    return `
+      <td class="an-terms-cell" title="${escapeHtml(label)}">
+        <span class="an-terms-value">${cell.average.toFixed(1)}<span class="an-terms-unit">%</span></span>
+        ${delta === null ? '' : v2DeltaHtml(delta)}
+      </td>
+    `;
+  };
+
+  container.innerHTML = `
+    <div class="an-terms-scroll">
+      <table class="an-terms-table">
+        <thead>
+          <tr>
+            <th scope="col" class="an-terms-subject-head">Subject</th>
+            ${periods.map((period) => `<th scope="col"><span class="an-terms-period">${period.label}</span><span class="an-terms-months">${period.months}</span></th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((row) => {
+            // A change is only shown against the nearest earlier period that has marks.
+            let previous = null;
+            const cells = row.cells.map((cell, index) => {
+              const html = cellHtml(cell, previous, row, periods[index]);
+              if (cell) previous = cell;
+              return html;
+            }).join('');
+            const nameHtml = row.overall
+              ? `<span class="v2-subject-mark" style="--subject-color:var(--accent)" aria-hidden="true">${iconHtml('squares-four', '')}</span>`
+              : subjectMarkHtml(row.subject.icon, row.subject.name, row.subject.color);
+            return `
+              <tr class="${row.overall ? 'is-overall' : ''}">
+                <th scope="row" class="an-terms-name">${nameHtml}<span>${escapeHtml(row.name)}</span></th>
+                ${cells}
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// Relative performance: how a mark sits against the rest of its subject, as a z-score (SDs from
+// the subject's mean, each mark counted once). It needs three marks with some variation to mean
+// anything. A subject's highest mark (from three marks up) is called out as its best.
+function buildRelativeMarks() {
+  const bySubject = new Map();
+  state.data.subjects.forEach((subject) => {
+    const percents = subjectPercents(subject);
+    if (percents.length < 2) return;
+    const spread = markSpread(percents);
+    bySubject.set(subject.id, { name: subject.name, spread });
+  });
+  return bySubject;
+}
+
+function relativeMarkHtml(relative, assessment, percent) {
+  const entry = relative.get(assessment.subjectId);
+  if (!entry) return '';
+  const { spread, name } = entry;
+  const parts = [];
+  if (spread.n >= 3 && spread.sd > 0) {
+    const z = (percent - spread.mean) / spread.sd;
+    const tone = z >= 1 ? ' is-up' : z <= -1 ? ' is-down' : '';
+    const sign = z > 0.05 ? '+' : z < -0.05 ? '−' : '';
+    const title = `${Math.abs(z).toFixed(1)} SD ${z >= 0 ? 'above' : 'below'} your ${name} average of ${spread.mean.toFixed(1)}%`;
+    parts.push(`<span class="v2-an-rel${tone}" title="${escapeHtml(title)}">${sign}${Math.abs(z).toFixed(1)} SD</span>`);
+  }
+  if (spread.n >= 3 && percent >= spread.max && spread.max > spread.min) {
+    parts.push(`<span class="v2-an-rel is-best" title="${escapeHtml(`Your highest ${name} mark`)}">${iconHtml('trophy', '')}Best</span>`);
+  }
+  return parts.length ? `<span aria-hidden="true"> · </span>${parts.join(' ')}` : '';
 }
 
 // Spread charts: box plots of marks. Each mark counts once (weighting is ignored, these are
@@ -274,8 +437,24 @@ function markSpread(percents) {
   const sd = Math.sqrt(values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / n);
   const q1 = quantileOfSorted(values, 0.25);
   const q3 = quantileOfSorted(values, 0.75);
-  return { n, min: values[0], q1, median: quantileOfSorted(values, 0.5), q3, max: values[n - 1], iqr: q3 - q1, mean, sd };
+  const iqr = q3 - q1;
+  // Outliers: marks more than 1.5 × IQR outside the box (Tukey's rule). With fewer than four
+  // marks the quartiles are too rough to call anything an outlier. Whiskers stop at the
+  // furthest mark that isn't one.
+  const flagOutliers = n >= 4 && iqr > 0;
+  const isOutlier = (value) => flagOutliers && (value < q1 - 1.5 * iqr || value > q3 + 1.5 * iqr);
+  const inside = values.filter((value) => !isOutlier(value));
+  return {
+    n, min: values[0], q1, median: quantileOfSorted(values, 0.5), q3, max: values[n - 1], iqr, mean, sd,
+    low: inside[0], high: inside[inside.length - 1], outliers: values.filter(isOutlier), isOutlier,
+  };
 }
+
+function spreadOutliersHtml(scale, spread) {
+  return spread.outliers.map((value) => `<span class="an-spread-outlier" style="left:${scale.at(value)}"></span>`).join('');
+}
+
+const SPREAD_KEY_OUTLIER = '<span class="an-spread-key-item"><span class="an-spread-key-outlier"></span>Outlier</span>';
 
 function subjectPercents(subject) {
   return subject.assessments
@@ -306,6 +485,7 @@ function spreadTooltipText(name, spread) {
     `Min ${f(spread.min)}  ·  Max ${f(spread.max)}`,
     `Q1 ${f(spread.q1)}  ·  Median ${f(spread.median)}  ·  Q3 ${f(spread.q3)}`,
     `IQR ${f(spread.iqr)}  ·  Mean ${f(spread.mean)}  ·  SD ${f(spread.sd)}`,
+    ...(spread.outliers.length ? [`Outlier${spread.outliers.length === 1 ? '' : 's'}: ${spread.outliers.map(f).join(', ')}`] : []),
   ].join('\n');
 }
 
@@ -319,7 +499,10 @@ function renderAnalyticsOverallSpreadV2() {
   if (!container) return;
   const desc = document.getElementById('analytics-overall-desc');
 
-  const percents = state.data.subjects.flatMap(subjectPercents);
+  const marks = state.data.subjects.flatMap((subject) => subject.assessments
+    .filter((assessment) => assessment.total > 0)
+    .map((assessment) => ({ subject, assessment, percent: (assessment.score / assessment.total) * 100 })));
+  const percents = marks.map((mark) => mark.percent);
   if (percents.length < 2) {
     container.innerHTML = `<div class="empty-state">${percents.length ? 'Add another mark' : 'Add a couple of marks'} to see how your results spread out.</div>`;
     if (desc) desc.textContent = 'Every mark from every subject in one box plot.';
@@ -330,14 +513,18 @@ function renderAnalyticsOverallSpreadV2() {
   const scale = spreadScale(Math.min(spread.min, spread.mean - spread.sd));
   const f = (value) => value.toFixed(1);
   const stat = (label, value, extra = '') => `<div class="an-overall-stat${extra}"><dt>${label}</dt><dd>${value}</dd></div>`;
+  const outlierMarks = marks
+    .filter((mark) => spread.isOutlier(mark.percent))
+    .sort((left, right) => left.percent - right.percent);
 
   container.innerHTML = `
     <div class="an-overall-chart" aria-hidden="true">
       <div class="an-overall-plot">
         ${spreadGridHtml(scale)}
-        <span class="an-spread-whisker" style="${scale.span(spread.min, spread.max)}"></span>
+        <span class="an-spread-whisker" style="${scale.span(spread.low, spread.high)}"></span>
         <span class="an-spread-box" style="${scale.span(spread.q1, spread.q3)}"></span>
         <span class="an-spread-median" style="left:${scale.at(spread.median)}"></span>
+        ${spreadOutliersHtml(scale, spread)}
         <span class="an-spread-sd" style="${scale.span(spread.mean - spread.sd, spread.mean + spread.sd)}"></span>
         <span class="an-spread-mean" style="left:${scale.at(spread.mean)}"></span>
       </div>
@@ -353,10 +540,22 @@ function renderAnalyticsOverallSpreadV2() {
       ${stat('Mean', f(spread.mean), ' is-measure')}
       ${stat('SD', f(spread.sd), ' is-measure')}
     </dl>
+    ${outlierMarks.length ? `
+      <p class="an-overall-outliers">
+        <span class="an-overall-outliers-label">${outlierMarks.length === 1 ? 'Outlier' : `${outlierMarks.length} outliers`}</span>
+        ${outlierMarks.map(({ subject, assessment, percent }) => `
+          <span class="an-overall-outlier">
+            ${subjectMarkHtml(subject.icon, subject.name, subject.color)}
+            <span>${escapeHtml(assessment.name)}</span>
+            <strong>${f(percent)}%</strong>
+          </span>
+        `).join('')}
+      </p>` : ''}
     <div class="an-spread-key an-overall-key" aria-hidden="true">
-      <span class="an-spread-key-item"><span class="an-spread-key-whisker"></span>Min–max</span>
+      <span class="an-spread-key-item"><span class="an-spread-key-whisker"></span>${spread.outliers.length ? 'Range' : 'Min–max'}</span>
       <span class="an-spread-key-item"><span class="an-spread-key-box"><span></span></span>Q1–Q3 · median</span>
       <span class="an-spread-key-item"><span class="an-spread-key-sd"><span></span></span>Mean ± SD</span>
+      ${spread.outliers.length ? SPREAD_KEY_OUTLIER : ''}
     </div>
   `;
 }
@@ -387,16 +586,17 @@ function renderAnalyticsSubjectSpreadV2() {
     const marks = single
       ? `<span class="an-spread-dot" style="left:${scale.at(spread.min)}"></span>`
       : `
-        <span class="an-spread-whisker" style="${scale.span(spread.min, spread.max)}"></span>
+        <span class="an-spread-whisker" style="${scale.span(spread.low, spread.high)}"></span>
         <span class="an-spread-box" style="${scale.span(spread.q1, spread.q3)}"></span>
         <span class="an-spread-median" style="left:${scale.at(spread.median)}"></span>
+        ${spreadOutliersHtml(scale, spread)}
         <span class="an-spread-sd" style="${scale.span(spread.mean - spread.sd, spread.mean + spread.sd)}"></span>
         <span class="an-spread-mean" style="left:${scale.at(spread.mean)}"></span>
       `;
     const value = (number) => (single ? '—' : f(number));
     const label = single
       ? `${subject.name}: 1 mark, ${f(spread.min)}%.`
-      : `${subject.name}: ${spread.n} marks. Minimum ${f(spread.min)}, Q1 ${f(spread.q1)}, median ${f(spread.median)}, Q3 ${f(spread.q3)}, maximum ${f(spread.max)}. IQR ${f(spread.iqr)}, mean ${f(spread.mean)}, SD ${f(spread.sd)}.`;
+      : `${subject.name}: ${spread.n} marks. Minimum ${f(spread.min)}, Q1 ${f(spread.q1)}, median ${f(spread.median)}, Q3 ${f(spread.q3)}, maximum ${f(spread.max)}. IQR ${f(spread.iqr)}, mean ${f(spread.mean)}, SD ${f(spread.sd)}.${spread.outliers.length ? ` Outliers: ${spread.outliers.map(f).join(', ')}.` : ''}`;
     return `
       <button class="an-spread-row" type="button" data-action="open-subject" data-id="${subject.id}"
         style="--subject-color:${subject.color}" aria-label="${escapeHtml(label)} Open subject.">
@@ -424,6 +624,16 @@ function renderAnalyticsSubjectSpreadV2() {
     </div>
     ${rows.map(rowHtml).join('')}
   `;
+  const key = document.querySelector('.an-spread-card .an-spread-key');
+  if (key) {
+    const hasOutliers = rows.some(({ spread }) => spread.outliers.length);
+    key.innerHTML = `
+      <span class="an-spread-key-item"><span class="an-spread-key-whisker"></span>${hasOutliers ? 'Range' : 'Min–max'}</span>
+      <span class="an-spread-key-item"><span class="an-spread-key-box"><span></span></span>Q1–Q3 · median</span>
+      <span class="an-spread-key-item"><span class="an-spread-key-sd"><span></span></span>Mean ± SD</span>
+      ${hasOutliers ? SPREAD_KEY_OUTLIER : ''}
+    `;
+  }
   container._spreadText = new Map(rows.map(({ subject, spread }) => [subject.id, spreadTooltipText(subject.name, spread)]));
 }
 

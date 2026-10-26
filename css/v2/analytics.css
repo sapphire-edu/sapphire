@@ -84,6 +84,32 @@
 }
 
 
+/* Relative performance in Recent marks: SDs from the subject's mean, and a subject-best flag. */
+:root[data-ui="v2"] .v2-an-rel {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .v2-an-rel.is-up {
+  color: color-mix(in srgb, var(--grade-a) 72%, var(--text-primary));
+}
+
+:root[data-ui="v2"] .v2-an-rel.is-down {
+  color: color-mix(in srgb, var(--grade-d) 72%, var(--text-primary));
+}
+
+:root[data-ui="v2"] .v2-an-rel.is-best {
+  color: color-mix(in srgb, var(--grade-c) 72%, var(--text-primary));
+}
+
+:root[data-ui="v2"] .v2-an-rel .ph {
+  font-size: 12px;
+}
+
 /* ── Overall trend ── */
 
 :root[data-ui="v2"] .an-trend-figure {
@@ -718,6 +744,120 @@
   }
 }
 
+/* ── By term / By semester: a plain table of averages ── */
+
+:root[data-ui="v2"] .an-terms {
+  margin: 16px -20px -20px;
+  border-top: 1px solid var(--card-border);
+}
+
+:root[data-ui="v2"] .an-terms > .empty-state {
+  padding: 24px 20px;
+  text-align: left;
+}
+
+:root[data-ui="v2"] .an-terms-scroll {
+  overflow-x: auto;
+}
+
+:root[data-ui="v2"] .an-terms-table {
+  width: 100%;
+  min-width: 520px;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-ui="v2"] .an-terms-table th,
+:root[data-ui="v2"] .an-terms-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--card-border);
+  text-align: right;
+  vertical-align: middle;
+}
+
+:root[data-ui="v2"] .an-terms-table th:first-child {
+  padding-left: 20px;
+  text-align: left;
+}
+
+:root[data-ui="v2"] .an-terms-table th:last-child,
+:root[data-ui="v2"] .an-terms-table td:last-child {
+  padding-right: 20px;
+}
+
+:root[data-ui="v2"] .an-terms-table tbody tr:last-child > * {
+  border-bottom: none;
+}
+
+:root[data-ui="v2"] .an-terms-table thead th {
+  padding-block: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .an-terms-period {
+  display: block;
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .an-terms-months {
+  display: block;
+  font-weight: 400;
+}
+
+:root[data-ui="v2"] .an-terms-name {
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+:root[data-ui="v2"] .an-terms-name > * {
+  vertical-align: middle;
+}
+
+:root[data-ui="v2"] .an-terms-name .v2-subject-mark {
+  margin-right: 10px;
+}
+
+:root[data-ui="v2"] .an-terms-cell {
+  white-space: nowrap;
+}
+
+:root[data-ui="v2"] .an-terms-value {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+:root[data-ui="v2"] .an-terms-unit {
+  margin-left: 1px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .an-terms-cell .v2-an-delta {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2px;
+  font-size: 12px;
+}
+
+:root[data-ui="v2"] .an-terms-cell.is-empty {
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .an-terms-table tr.is-overall > * {
+  background: var(--bg-tertiary);
+}
+
+:root[data-ui="v2"] .an-terms-table tr.is-overall .an-terms-name,
+:root[data-ui="v2"] .an-terms-table tr.is-overall .an-terms-value {
+  font-weight: 600;
+}
+
 /* ── Spread charts (box plots) ──
    Marks: a hairline whisker for min–max, a tinted box for Q1–Q3 with a solid median bar,
    and (overall card only) mean ± SD as a capped line with a ringed dot. */
@@ -851,6 +991,59 @@
 
 :root[data-ui="v2"] .an-spread-dot {
   top: calc(var(--mid) - 4.5px);
+}
+
+/* An outlier: a hollow ring on the box's line, past the end of the whisker. */
+:root[data-ui="v2"] .an-spread-outlier {
+  top: calc(var(--mid) - 4.5px);
+  width: 9px;
+  height: 9px;
+  margin-left: -4.5px;
+  border: 1.5px solid var(--subject-color);
+  border-radius: 50%;
+  background: var(--card-surface);
+}
+
+:root[data-ui="v2"] .an-overall-plot .an-spread-outlier {
+  top: calc(var(--mid) - 6px);
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  border-width: 2px;
+}
+
+:root[data-ui="v2"] .an-spread-key-outlier {
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid var(--text-secondary);
+  border-radius: 50%;
+}
+
+:root[data-ui="v2"] .an-overall-outliers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin: 16px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .an-overall-outliers-label {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+:root[data-ui="v2"] .an-overall-outlier {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+:root[data-ui="v2"] .an-overall-outlier strong {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
 }
 
 :root[data-ui="v2"] .an-spread-scale {
@@ -1113,6 +1306,22 @@
 @media (max-width: 700px) {
   :root[data-ui="v2"] .view[data-view="analytics"] .card {
     padding: 16px;
+  }
+
+  :root[data-ui="v2"] .an-terms {
+    margin: 16px -16px -16px;
+  }
+
+  :root[data-ui="v2"] .an-terms-table th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    padding-left: 16px;
+    background: var(--card-surface);
+  }
+
+  :root[data-ui="v2"] .an-terms-table tr.is-overall th:first-child {
+    background: var(--bg-tertiary);
   }
 
   :root[data-ui="v2"] .an-spread {

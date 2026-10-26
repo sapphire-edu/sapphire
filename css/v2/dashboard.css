@@ -7,10 +7,184 @@
   grid-template-columns: minmax(0, 1fr) 360px;
   grid-template-areas:
     "stats stats"
+    "week week"
     "today today"
     "subjects upcoming";
   gap: 24px;
   align-items: start;
+}
+
+/* responsive.css redefines the areas at 960px without the week row; this stronger selector
+   keeps it there too. */
+@media (max-width: 960px) {
+  :root[data-ui="v2"] .view.view[data-view="dashboard"].is-active {
+    grid-template-areas:
+      "stats"
+      "week"
+      "today"
+      "subjects"
+      "upcoming";
+  }
+}
+
+/* No subjects: the summary is hidden, so drop its row rather than leave a double gap. */
+:root[data-ui="v2"] .view.view[data-view="dashboard"].is-active:has(> .week-summary[hidden]) {
+  grid-template-areas:
+    "stats stats"
+    "today today"
+    "subjects upcoming";
+}
+
+@media (max-width: 960px) {
+  :root[data-ui="v2"] .view.view[data-view="dashboard"].is-active:has(> .week-summary[hidden]) {
+    grid-template-areas:
+      "stats"
+      "today"
+      "subjects"
+      "upcoming";
+  }
+}
+
+/* ── This week: one quiet line under the stat strip ── */
+
+:root[data-ui="v2"] .week-summary {
+  grid-area: week;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  margin: -10px 0;
+  padding: 0 4px;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .week-summary[hidden] {
+  display: none;
+}
+
+:root[data-ui="v2"] .week-summary-icon {
+  flex: none;
+  font-size: 16px;
+  line-height: 20px;
+  color: var(--accent);
+}
+
+:root[data-ui="v2"] .week-summary-label {
+  flex: none;
+  margin-left: -4px;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Each part carries its own leading dot; the strip is shifted left by one dot's width and
+   clipped there, so whichever part starts a wrapped line loses its dot instead of orphaning it. */
+:root[data-ui="v2"] .week-summary-parts {
+  display: flex;
+  flex: 1 1 0;
+  flex-wrap: wrap;
+  align-items: center;
+  row-gap: 4px;
+  min-width: 0;
+  margin-left: -20px;
+  clip-path: inset(-8px -8px -8px 20px);
+}
+
+:root[data-ui="v2"] .week-summary-part {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+}
+
+:root[data-ui="v2"] .week-summary-part::before {
+  content: "·";
+  flex: none;
+  width: 20px;
+  text-align: center;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .week-summary-counts {
+  color: var(--text-primary);
+}
+
+:root[data-ui="v2"] .week-summary-counts.is-calm {
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .week-summary-next {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+:root[data-ui="v2"] .week-summary-item,
+:root[data-ui="v2"] .week-summary-overdue {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  margin: -3px -6px;
+  padding: 3px 6px;
+  border: none;
+  border-radius: var(--radius);
+  background: none;
+  font: inherit;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+:root[data-ui="v2"] .week-summary-item:hover,
+:root[data-ui="v2"] .week-summary-overdue:hover {
+  background: var(--bg-hover);
+}
+
+:root[data-ui="v2"] .week-summary-item:focus-visible,
+:root[data-ui="v2"] .week-summary-overdue:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+:root[data-ui="v2"] .week-summary-name {
+  min-width: 0;
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:root[data-ui="v2"] .week-summary-subject {
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .week-summary-day {
+  flex: none;
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .week-summary-overdue {
+  font-weight: 500;
+  color: var(--danger);
+}
+
+:root[data-ui="v2"] .week-summary-marks {
+  color: var(--text-tertiary);
+}
+
+@media (max-width: 700px) {
+  :root[data-ui="v2"] .week-summary {
+    margin: -8px 0;
+    padding: 0 2px;
+  }
+
+  :root[data-ui="v2"] .week-summary-subject {
+    display: none;
+  }
 }
 
 :root[data-ui="v2"] .dashboard-stack {

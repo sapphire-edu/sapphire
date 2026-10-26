@@ -209,6 +209,7 @@
 
         <section class="view is-active" data-view="dashboard">
           <section class="v2-stats v2-only" id="v2-stats" aria-label="Overview"></section>
+          <section class="week-summary v2-only" id="week-summary" aria-label="This week" hidden></section>
           <div class="dashboard-stack">
             <section class="hero-grid">
               <div class="card overall-card glow-soft">
@@ -402,6 +403,20 @@
               </div>
             </div>
             <div class="an-subjects" id="analytics-subjects"></div>
+          </section>
+
+          <section class="card v2-only an-terms-card">
+            <div class="an-card-head">
+              <div>
+                <h2 class="an-card-title">By term</h2>
+                <p class="an-card-desc" id="analytics-terms-desc">Your weighted average in each term.</p>
+              </div>
+              <div class="an-range" id="analytics-terms-view" role="group" aria-label="Group marks by">
+                <button type="button" data-terms-view="term">Terms</button>
+                <button type="button" data-terms-view="semester">Semesters</button>
+              </div>
+            </div>
+            <div class="an-terms" id="analytics-terms"></div>
           </section>
 
           <section class="card v2-only an-overall-card" id="analytics-overall-card">
@@ -2508,6 +2523,7 @@
     <script src="js/utils.js"></script>
     <script src="js/charts.js"></script>
     <script src="js/ui.js"></script>
+    <script src="js/week-summary.js"></script>
     <script src="js/theme.js"></script>
     <script src="js/subjects.js"></script>
     <script src="js/analytics.js"></script>
