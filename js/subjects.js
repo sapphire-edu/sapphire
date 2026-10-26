@@ -360,30 +360,29 @@ function openSubjectModal(subjectId) {
           <div class="what-if-result" id="what-if-result" aria-live="polite"></div>
         </div>
       </details>
-      <div class="subject-upcoming-grid">
-        <div class="subject-upcoming">
-          <div class="history-title">Upcoming assessments</div>
-          <div class="upcoming-list">
-            ${upcomingAssessmentsHtml}
+      ${(() => {
+        // V2 leaves out any list with nothing in it; V1 keeps its empty states.
+        const v2 = isUiV2();
+        const section = (title, items, html) => (v2 && !items.length ? '' : `
+          <div class="subject-upcoming">
+            <div class="history-title">${title}</div>
+            <div class="upcoming-list">
+              ${html}
+            </div>
           </div>
-        </div>
-        <div class="subject-upcoming">
-          <div class="history-title">Homework</div>
-          <div class="upcoming-list">
-            ${upcomingHomeworkHtml}
-          </div>
-        </div>
-        <div class="subject-upcoming">
-          <div class="history-title">Assessments awaiting marks</div>
-          <div class="upcoming-list">
-            ${awaitingMarksHtml}
-          </div>
-        </div>
-      </div>
+        `);
+        const sections = [
+          section('Upcoming assessments', upcomingAssessmentItems, upcomingAssessmentsHtml),
+          section('Homework', upcomingHomeworkItems, upcomingHomeworkHtml),
+          section('Assessments awaiting marks', awaitingMarkAssessmentItems, awaitingMarksHtml),
+        ].join('');
+        return sections.trim() ? `<div class="subject-upcoming-grid">${sections}</div>` : '';
+      })()}
+      ${isUiV2() && !history.length ? '' : `
       <div class="subject-history">
         <div class="history-title">Assessment history</div>
         <div class="history-list">${historyHtml}</div>
-      </div>
+      </div>`}
     `;
   }
 
