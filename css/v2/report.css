@@ -1,5 +1,7 @@
-/* V2: term / semester report card (js/report.js), opened from the By term card on Analytics.
-   On screen it sits in a popup as a document sheet; in print only the sheet prints, on white A4. */
+/* V2: term / semester report (js/report.js), opened from the By term card on Analytics.
+   The popup shows the report as a stack of A4 sheets: an overview, then one page per subject.
+   "Download PDF" lays the same pages out offscreen in .report-capture (A4 at 96 dpi, light
+   palette) and renders each to a PDF page. @media print is the fallback: only the pages print. */
 
 /* ── Trigger in the By term card header ── */
 
@@ -14,10 +16,25 @@
   height: 34px;
 }
 
+/* ── Paper tokens: the sheet and the desk it sits on ── */
+
+:root[data-ui="v2"] #report-modal,
+:root[data-ui="v2"] .report-capture {
+  --report-paper: #ffffff;
+  --report-desk: var(--bg-depth);
+  --report-rule: var(--text-primary);
+}
+
+:root[data-ui="v2"][data-theme="dark"] #report-modal {
+  --report-paper: var(--bg-secondary);
+  --report-desk: var(--bg-primary);
+  --report-rule: color-mix(in srgb, var(--text-primary) 70%, transparent);
+}
+
 /* ── Popup ── */
 
 :root[data-ui="v2"] #report-modal {
-  --modal-width-large: 760px;
+  --modal-width-large: 820px;
 }
 
 :root[data-ui="v2"] #report-modal .modal-body {
@@ -44,6 +61,7 @@
 
 :root[data-ui="v2"] .report-picker .an-range button {
   min-width: 32px;
+  font-variant-numeric: tabular-nums;
 }
 
 :root[data-ui="v2"] .report-picker .an-range button:focus-visible {
@@ -51,20 +69,44 @@
   outline-offset: 1px;
 }
 
-/* ── The sheet ── */
-
-:root[data-ui="v2"] .report-sheet {
-  container-type: inline-size;
+:root[data-ui="v2"] .report-desk {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 24px;
+  gap: 20px;
+  margin: 0 calc(-1 * var(--modal-padding));
+  padding: 24px var(--modal-padding);
+  background: var(--report-desk);
+  border-block: 1px solid var(--card-border);
+}
+
+:root[data-ui="v2"] .report-download.is-busy {
+  cursor: progress;
+  opacity: 0.8;
+}
+
+:root[data-ui="v2"] #report-message.is-error {
+  color: var(--danger);
+}
+
+/* ── A page ── */
+
+:root[data-ui="v2"] .report-page {
+  /* Set here so it picks up the page's own --subject-color. */
+  --report-tint: color-mix(in srgb, var(--subject-color, var(--accent)) 9%, var(--report-paper));
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
   min-width: 0;
-  padding: 32px 36px 24px;
+  aspect-ratio: 210 / 297;
+  padding: 44px 48px 28px;
   border: 1px solid var(--card-border);
-  border-radius: var(--radius-lg);
-  background: var(--bg-primary);
+  border-radius: 4px;
+  background: var(--report-paper);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
   color: var(--text-primary);
   font-family: var(--font-sans);
+  font-size: 13px;
 }
 
 :root[data-ui="v2"] .report-masthead {
@@ -72,9 +114,9 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--text-primary);
-  font-size: 13px;
+  padding-bottom: 10px;
+  border-bottom: 1.5px solid var(--report-rule);
+  font-size: 12px;
 }
 
 :root[data-ui="v2"] .report-brand {
@@ -89,11 +131,66 @@
   color: var(--accent);
 }
 
-:root[data-ui="v2"] .report-kind {
+:root[data-ui="v2"] .report-masthead-meta {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--text-secondary);
 }
 
-:root[data-ui="v2"] .report-top {
+:root[data-ui="v2"] .report-foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 4px 24px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--card-border);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .report-foot-page {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-ui="v2"] .report-section {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+}
+
+:root[data-ui="v2"] .report-section-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+:root[data-ui="v2"] .report-section-note {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .report-note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* ── Overview page ── */
+
+:root[data-ui="v2"] .report-top,
+:root[data-ui="v2"] .report-subject-head {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
@@ -105,9 +202,15 @@
   min-width: 0;
 }
 
+:root[data-ui="v2"] .report-doc-title {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
 :root[data-ui="v2"] .report-name {
   margin: 0;
-  font-size: 32px;
+  font-size: 34px;
   font-weight: 600;
   line-height: 1.1;
   letter-spacing: -0.03em;
@@ -125,7 +228,7 @@
 }
 
 :root[data-ui="v2"] .report-period-months {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 400;
   color: var(--text-tertiary);
 }
@@ -136,7 +239,7 @@
   border-radius: 999px;
   background: var(--accent-soft);
   color: var(--accent);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
 }
 
@@ -148,7 +251,7 @@
 }
 
 :root[data-ui="v2"] .report-overall-label {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-secondary);
 }
 
@@ -170,8 +273,8 @@
   margin-left: 2px;
   font-size: 22px;
   font-weight: 500;
-  color: var(--text-secondary);
   letter-spacing: 0;
+  color: var(--text-secondary);
 }
 
 :root[data-ui="v2"] .report-overall-grade {
@@ -184,22 +287,56 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 12px;
 }
 
-:root[data-ui="v2"] .report-summary {
-  margin: -8px 0 0;
-  font-size: 14px;
+:root[data-ui="v2"] .report-facts {
+  display: grid;
+  grid-template-columns: repeat(var(--report-facts, 4), minmax(0, 1fr));
+  margin: 0;
+  border-block: 1px solid var(--card-border);
+}
+
+:root[data-ui="v2"] .report-facts > div {
+  padding: 8px 12px;
+  border-left: 1px solid var(--card-border);
+}
+
+:root[data-ui="v2"] .report-facts > div:first-child {
+  padding-left: 0;
+  border-left: none;
+}
+
+:root[data-ui="v2"] .report-facts dt {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .report-facts dd {
+  margin: 1px 0 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-ui="v2"] .report-fact-sub {
+  display: block;
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
   color: var(--text-secondary);
 }
 
-/* Subject table */
+/* ── Tables ── */
 
 :root[data-ui="v2"] .report-table {
   width: 100%;
   min-width: 0;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 :root[data-ui="v2"] .report-table tbody tr:hover {
@@ -208,12 +345,12 @@
 
 :root[data-ui="v2"] .report-table th,
 :root[data-ui="v2"] .report-table td {
-  padding: 11px 10px;
+  padding: 9px 8px;
   border-top: none;
   border-bottom: 1px solid var(--card-border);
-  color: var(--text-primary);
   text-align: left;
   vertical-align: middle;
+  color: var(--text-primary);
 }
 
 :root[data-ui="v2"] .report-table :is(th, td):first-child {
@@ -226,11 +363,13 @@
 
 :root[data-ui="v2"] .report-table thead th {
   padding-top: 0;
-  padding-bottom: 8px;
-  font-size: 12px;
+  padding-bottom: 6px;
+  border-bottom-color: var(--report-rule);
+  font-size: 11px;
   font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
+  white-space: nowrap;
   color: var(--text-tertiary);
 }
 
@@ -238,21 +377,46 @@
   font-weight: 500;
 }
 
-:root[data-ui="v2"] .report-table tbody tr:last-child :is(th, td) {
-  border-bottom-color: var(--text-primary);
-}
-
 :root[data-ui="v2"] .report-table .report-num {
   text-align: right;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-:root[data-ui="v2"] .report-avg {
+:root[data-ui="v2"] .report-table .v2-grade {
+  height: 22px;
+  min-width: 30px;
+  font-size: 12px;
+}
+
+:root[data-ui="v2"] .report-avg,
+:root[data-ui="v2"] .report-table .report-task-pct {
   font-weight: 600;
 }
 
-:root[data-ui="v2"] .report-table .report-count {
+:root[data-ui="v2"] .report-table :is(.report-count, .report-page-ref, .report-task-date, .report-task-weight) {
   color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .report-table .report-task-date {
+  white-space: nowrap;
+}
+
+:root[data-ui="v2"] .report-task-total {
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .report-table .report-task-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+:root[data-ui="v2"] .report-task-rel {
+  white-space: nowrap;
+}
+
+:root[data-ui="v2"] .report-task-rel .v2-rel-best {
+  margin-left: 4px;
 }
 
 :root[data-ui="v2"] .report-subject {
@@ -263,9 +427,9 @@
 }
 
 :root[data-ui="v2"] .report-subject-mark {
-  width: 18px;
-  height: 18px;
-  font-size: 17px;
+  width: 17px;
+  height: 17px;
+  font-size: 16px;
 }
 
 :root[data-ui="v2"] .report-change {
@@ -277,13 +441,13 @@
 
 :root[data-ui="v2"] .report-change-from,
 :root[data-ui="v2"] .report-change-none {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-tertiary);
   white-space: nowrap;
 }
 
-:root[data-ui="v2"] .report-best {
-  max-width: 220px;
+:root[data-ui="v2"] .report-table .report-best {
+  max-width: 180px;
 }
 
 :root[data-ui="v2"] .report-best-name {
@@ -294,35 +458,403 @@
 }
 
 :root[data-ui="v2"] .report-best-value {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
 }
 
 :root[data-ui="v2"] .report-missing {
-  margin: -8px 0 0;
-  font-size: 13px;
-  color: var(--text-tertiary);
-}
-
-:root[data-ui="v2"] .report-foot {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 4px 16px;
-  padding-top: 12px;
-  border-top: 1px solid var(--card-border);
+  margin: 4px 0 0;
   font-size: 12px;
   color: var(--text-tertiary);
 }
 
-/* Empty period */
+/* ── Subject page ── */
 
+:root[data-ui="v2"] .report-subject-head {
+  align-items: center;
+  padding: 14px 18px;
+  border-radius: 8px;
+  background: var(--report-tint);
+}
+
+:root[data-ui="v2"] .report-subject-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+:root[data-ui="v2"] .report-subject-mark--lg {
+  width: 30px;
+  height: 30px;
+  font-size: 28px;
+}
+
+:root[data-ui="v2"] .report-subject-heading {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
+}
+
+:root[data-ui="v2"] .report-subject-meta {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .report-overall--subject .report-overall-value {
+  font-size: 34px;
+}
+
+:root[data-ui="v2"] .report-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px 32px;
+}
+
+:root[data-ui="v2"] .report-pair.is-single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Summary: a few plain-language observations. */
+:root[data-ui="v2"] .report-highlights {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .report-highlights li {
+  position: relative;
+  padding-left: 16px;
+}
+
+:root[data-ui="v2"] .report-highlights li::before {
+  content: "";
+  position: absolute;
+  top: 0.62em;
+  left: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--subject-color, var(--accent));
+}
+
+/* Marks through the year: one band per term, a dot per task, the running average as a line. */
+:root[data-ui="v2"] .report-trend {
+  /* Room inside the box for the top axis label (it centres on the plot's top edge), and a
+     clear gap below the section title. */
+  padding-top: 14px;
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  grid-template-rows: 100px auto;
+  column-gap: 8px;
+}
+
+:root[data-ui="v2"] .report-trend-axis {
+  position: relative;
+}
+
+:root[data-ui="v2"] .report-trend-axis > span {
+  position: absolute;
+  right: 0;
+  transform: translateY(50%);
+  font-size: 10px;
+  line-height: 12px;
+  white-space: nowrap;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-ui="v2"] .report-trend-plot {
+  position: relative;
+  border-bottom: 1px solid var(--card-border);
+}
+
+:root[data-ui="v2"] .report-trend-bands {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--report-bands, 4), minmax(0, 1fr));
+}
+
+:root[data-ui="v2"] .report-trend-bands > span + span {
+  border-left: 1px dashed var(--card-border);
+}
+
+:root[data-ui="v2"] .report-trend-grid {
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: color-mix(in srgb, var(--card-border) 60%, transparent);
+}
+
+:root[data-ui="v2"] .report-trend-line {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+:root[data-ui="v2"] .report-trend-dot {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  margin: 0 0 -4.5px -4.5px;
+  border: 1.5px solid var(--subject-color);
+  border-radius: 50%;
+  background: var(--report-paper);
+}
+
+:root[data-ui="v2"] .report-trend-dot.is-active {
+  background: var(--subject-color);
+  box-shadow: 0 0 0 2px var(--report-paper);
+}
+
+:root[data-ui="v2"] .report-trend-terms {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: repeat(var(--report-bands, 4), minmax(0, 1fr));
+  padding-top: 6px;
+  font-size: 11px;
+  text-align: center;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .report-trend-terms .is-active {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+:root[data-ui="v2"] .report-trend-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  padding-left: 34px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .report-trend-key > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+:root[data-ui="v2"] .report-trend-key-dot {
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--subject-color);
+  border-radius: 50%;
+}
+
+:root[data-ui="v2"] .report-trend-key-dot.is-active {
+  background: var(--subject-color);
+}
+
+:root[data-ui="v2"] .report-trend-key-line {
+  width: 14px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--subject-color);
+  opacity: 0.55;
+}
+
+/* The subject across the year: one cell per term or semester. */
+:root[data-ui="v2"] .report-year-strip {
+  display: grid;
+  grid-template-columns: repeat(var(--report-cols, 4), minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+:root[data-ui="v2"] .report-year-cell {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent);
+  border-radius: 6px;
+}
+
+:root[data-ui="v2"] .report-year-label {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .report-year-value {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  max-width: 100%;
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-ui="v2"] .report-year-change {
+  max-width: 100%;
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+:root[data-ui="v2"] .report-year-value.is-none {
+  font-weight: 400;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .report-year-value.is-none {
+  font-size: 12px;
+}
+
+:root[data-ui="v2"] .report-year-cell .report-year-grade {
+  height: 20px;
+  min-width: 28px;
+  padding: 0 6px;
+  font-size: 11px;
+}
+
+/* Spread: the Analytics box plot, sized for the page. */
+:root[data-ui="v2"] .report-spread-plot {
+  --box-h: 34px;
+  --mid: 21px;
+  --sd-y: 50px;
+  --card-surface: var(--report-paper);
+  position: relative;
+  height: 64px;
+}
+
+:root[data-ui="v2"] .report-spread-plot > span {
+  position: absolute;
+}
+
+:root[data-ui="v2"] .report-spread-plot .an-spread-mean {
+  top: calc(var(--sd-y) + 0.5px);
+}
+
+:root[data-ui="v2"] .report-spread {
+  padding-top: 10px;
+}
+
+/* End labels stay inside the plot's width (no glyph hanging past the page edge). */
+:root[data-ui="v2"] .report-spread .an-spread-scale {
+  margin: 4px 2px 0;
+}
+
+:root[data-ui="v2"] .report-spread-stats {
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  justify-content: space-between;
+  gap: 8px;
+  margin: 10px 0 0;
+}
+
+:root[data-ui="v2"] .report-spread-stats dt {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .report-spread-stats dd {
+  margin: 1px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Where it stands now: target and next grade. */
+:root[data-ui="v2"] .report-standing {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+:root[data-ui="v2"] .report-standing-box {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  padding: 10px 14px;
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+}
+
+:root[data-ui="v2"] .report-standing-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .report-standing-label .ph {
+  font-size: 14px;
+  color: var(--subject-color);
+}
+
+:root[data-ui="v2"] .report-standing-value {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-ui="v2"] .report-standing-unit {
+  margin-left: -4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .report-standing-sub {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .report-standing-text {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .report-standing-text strong {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Empty period */
 :root[data-ui="v2"] .report-empty {
   display: grid;
   justify-items: center;
   gap: 6px;
-  padding: 48px 16px 40px;
+  margin: auto 0;
+  padding: 48px 16px;
   text-align: center;
 }
 
@@ -341,31 +873,81 @@
 :root[data-ui="v2"] .report-empty-text {
   max-width: 340px;
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-secondary);
 }
 
-/* ── Narrow sheets: each subject becomes a two-line entry ── */
+/* A long subject page in the PDF: tighter rows before it runs on to a second page. */
+:root[data-ui="v2"] .report-page.is-compact,
+:root[data-ui="v2"] .report-capture .report-page.is-compact {
+  gap: 12px;
+}
 
-@container (max-width: 560px) {
+:root[data-ui="v2"] .report-page.is-compact .report-table :is(th, td) {
+  padding-block: 5px;
+}
+
+:root[data-ui="v2"] .report-page.is-compact .report-subject-head {
+  padding-block: 12px;
+}
+
+:root[data-ui="v2"] .report-page.is-compact .report-trend {
+  grid-template-rows: 70px auto;
+}
+
+:root[data-ui="v2"] .report-page.is-compact .report-section {
+  gap: 6px;
+}
+
+:root[data-ui="v2"] .report-page.is-compact .report-facts > div {
+  padding-block: 5px;
+}
+
+:root[data-ui="v2"] .report-page.is-compact .report-year-cell {
+  padding-block: 5px;
+}
+
+:root[data-ui="v2"] .report-page.is-compact .report-highlights {
+  gap: 2px;
+  font-size: 12px;
+}
+
+:root[data-ui="v2"] .report-page.is-compact .report-standing-box {
+  padding-block: 8px;
+}
+
+:root[data-ui="v2"] .report-page.is-compact .report-spread-plot {
+  --box-h: 22px;
+  --mid: 15px;
+  --sd-y: 34px;
+  height: 46px;
+}
+
+:root[data-ui="v2"] .report-page.is-compact .report-spread-stats {
+  margin-top: 6px;
+}
+
+:root[data-ui="v2"] .report-page.is-compact .report-standing-value {
+  font-size: 18px;
+}
+
+/* ── Narrow pages: tables become two-line entries ── */
+
+@container (max-width: 600px) {
   :root[data-ui="v2"] .report-table thead {
     display: none;
   }
 
   :root[data-ui="v2"] .report-table tbody tr {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
-    grid-template-areas:
-      "subject avg grade"
-      "best best change";
     align-items: center;
-    gap: 6px 10px;
-    padding: 12px 0;
+    gap: 4px 10px;
+    padding: 10px 0;
     border-bottom: 1px solid var(--card-border);
   }
 
-  :root[data-ui="v2"] .report-table tbody tr:last-child {
-    border-bottom-color: var(--text-primary);
+  :root[data-ui="v2"] .report-table tbody tr:first-child {
+    border-top: 1px solid var(--report-rule);
   }
 
   :root[data-ui="v2"] .report-table :is(th, td) {
@@ -373,41 +955,111 @@
     border: none;
   }
 
-  :root[data-ui="v2"] .report-table tbody th { grid-area: subject; }
-  :root[data-ui="v2"] .report-avg { grid-area: avg; }
-  :root[data-ui="v2"] .report-grade-cell { grid-area: grade; }
-  :root[data-ui="v2"] .report-change-cell { grid-area: change; justify-self: end; }
-  :root[data-ui="v2"] .report-count { display: none; }
+  /* Overview: subject, average, grade / best task, change */
+  :root[data-ui="v2"] .report-table--overview tbody tr {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "subject avg grade"
+      "best best change";
+  }
 
-  :root[data-ui="v2"] .report-table .report-best {
+  :root[data-ui="v2"] .report-table--overview tbody th { grid-area: subject; }
+  :root[data-ui="v2"] .report-table--overview .report-avg { grid-area: avg; }
+  :root[data-ui="v2"] .report-table--overview .report-grade-cell { grid-area: grade; }
+  :root[data-ui="v2"] .report-table--overview .report-change-cell { grid-area: change; justify-self: end; }
+  :root[data-ui="v2"] .report-table--overview :is(.report-count, .report-page-ref) { display: none; }
+
+  :root[data-ui="v2"] .report-table--overview .report-best {
     grid-area: best;
     display: flex;
     align-items: baseline;
     gap: 6px;
     min-width: 0;
     max-width: none;
-    padding-left: 28px;
-    font-size: 13px;
+    padding-left: 27px;
+    font-size: 12px;
     color: var(--text-secondary);
   }
 
   :root[data-ui="v2"] .report-best-name {
     min-width: 0;
   }
+
+  /* Tasks: name, mark, grade / date, score, weight, vs average */
+  :root[data-ui="v2"] .report-table--tasks tbody tr {
+    grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "name name name pct grade"
+      "date score weight rel rel";
+  }
+
+  :root[data-ui="v2"] .report-table--tasks .report-task-name { grid-area: name; }
+  :root[data-ui="v2"] .report-table--tasks .report-task-pct { grid-area: pct; }
+  :root[data-ui="v2"] .report-table--tasks .report-grade-cell { grid-area: grade; }
+  :root[data-ui="v2"] .report-table--tasks .report-task-date { grid-area: date; }
+  :root[data-ui="v2"] .report-table--tasks .report-task-score { grid-area: score; text-align: left; }
+  :root[data-ui="v2"] .report-table--tasks .report-task-weight { grid-area: weight; text-align: left; }
+  :root[data-ui="v2"] .report-table--tasks .report-task-rel { grid-area: rel; justify-self: end; }
+
+  :root[data-ui="v2"] .report-table--tasks :is(.report-task-date, .report-task-score, .report-task-weight) {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  :root[data-ui="v2"] .report-table--tasks .report-task-weight:not(:empty)::before {
+    content: "Weight ";
+    color: var(--text-tertiary);
+  }
+
+  :root[data-ui="v2"] .report-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :root[data-ui="v2"] .report-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  :root[data-ui="v2"] .report-facts > div:nth-child(3) {
+    padding-left: 0;
+    border-left: none;
+  }
+
+  :root[data-ui="v2"] .report-facts > div:nth-child(n + 3) {
+    border-top: 1px solid var(--card-border);
+  }
+
+  :root[data-ui="v2"] .report-foot {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 @media (max-width: 640px) {
-  :root[data-ui="v2"] .report-sheet {
+  :root[data-ui="v2"] .report-desk {
+    gap: 12px;
+    padding: 12px;
+  }
+
+  :root[data-ui="v2"] .report-page {
+    aspect-ratio: auto;
     gap: 20px;
     padding: 20px 16px 16px;
   }
 
   :root[data-ui="v2"] .report-name {
-    font-size: 26px;
+    font-size: 28px;
   }
 
-  :root[data-ui="v2"] .report-top {
+  :root[data-ui="v2"] :is(.report-top, .report-subject-head) {
     align-items: flex-start;
+  }
+
+  :root[data-ui="v2"] .report-subject-head {
+    padding: 14px;
+  }
+
+  :root[data-ui="v2"] .report-subject-heading {
+    font-size: 22px;
   }
 
   :root[data-ui="v2"] .report-overall {
@@ -415,8 +1067,9 @@
     text-align: left;
   }
 
-  :root[data-ui="v2"] .report-overall-value {
-    font-size: 36px;
+  :root[data-ui="v2"] .report-overall-value,
+  :root[data-ui="v2"] .report-overall--subject .report-overall-value {
+    font-size: 34px;
   }
 
   :root[data-ui="v2"] .report-picker {
@@ -424,11 +1077,62 @@
   }
 }
 
-/* ── Print: only the sheet, black on white, A4 ── */
+/* ── Light palette for the PDF and for print, whatever the theme ── */
+
+:root[data-ui="v2"] .report-capture {
+  --bg-primary: #ffffff;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f2f2f2;
+  --bg-depth: #f0f0f0;
+  --text-primary: #111111;
+  --text-secondary: #4a4a4a;
+  --text-tertiary: #666666;
+  --card-border: #dedede;
+  --card-surface: #ffffff;
+  --accent-soft: color-mix(in srgb, var(--accent) 12%, #ffffff);
+  --grade-a: #15803d;
+  --grade-b: #1d4ed8;
+  --grade-c: #b45309;
+  --grade-d: #b91c1c;
+  --report-paper: #ffffff;
+  --report-rule: #111111;
+  color-scheme: light;
+}
+
+/* PDF capture: pages laid out offscreen at A4 size (96 dpi). */
+/* No transitions here: a colour mid-transition reads back as oklab(), which html2canvas can't parse. */
+:root[data-ui="v2"] .report-capture *,
+:root[data-ui="v2"] .report-capture *::before,
+:root[data-ui="v2"] .report-capture *::after {
+  transition: none !important;
+  animation: none !important;
+}
+
+:root[data-ui="v2"] .report-capture {
+  position: absolute;
+  top: 0;
+  left: -12000px;
+  width: 794px;
+  pointer-events: none;
+}
+
+:root[data-ui="v2"] .report-capture .report-page {
+  width: 794px;
+  min-height: 1123px;
+  gap: 18px;
+  aspect-ratio: auto;
+  padding: 44px 56px 28px;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: #ffffff;
+}
+
+/* ── Print fallback: only the pages, one per sheet ── */
 
 @page {
   size: A4;
-  margin: 16mm 14mm;
+  margin: 14mm;
 }
 
 @media print {
@@ -442,19 +1146,21 @@
   }
 
   :root[data-ui="v2"] #report-modal.is-open {
-    /* The light theme, whatever the screen uses. */
     --bg-primary: #ffffff;
     --bg-secondary: #ffffff;
     --bg-tertiary: #f2f2f2;
     --text-primary: #111111;
     --text-secondary: #4a4a4a;
     --text-tertiary: #666666;
-    --card-border: #d9d9d9;
+    --card-border: #dedede;
+    --card-surface: #ffffff;
     --accent-soft: color-mix(in srgb, var(--accent) 12%, #ffffff);
     --grade-a: #15803d;
     --grade-b: #1d4ed8;
     --grade-c: #b45309;
     --grade-d: #b91c1c;
+    --report-paper: #ffffff;
+    --report-rule: #111111;
     position: static;
     display: block;
     opacity: 1;
@@ -487,12 +1193,27 @@
     margin: 0;
   }
 
-  :root[data-ui="v2"] .report-sheet {
+  :root[data-ui="v2"] .report-desk {
+    display: block;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: none;
+  }
+
+  :root[data-ui="v2"] .report-page {
+    aspect-ratio: auto;
+    min-height: 268mm;
     padding: 0;
     border: none;
     border-radius: 0;
+    box-shadow: none;
     background: #ffffff;
-    color: var(--text-primary);
+    break-after: page;
+  }
+
+  :root[data-ui="v2"] .report-page:last-child {
+    break-after: auto;
   }
 
   :root[data-ui="v2"] .report-table tr {

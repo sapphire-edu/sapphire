@@ -2519,7 +2519,7 @@
           <div>
             <div class="section-eyebrow">Report</div>
             <h2 class="section-title" id="report-title">Term report</h2>
-            <div class="modal-meta">A one-page summary of your marks, ready to print or save as a PDF.</div>
+            <div class="modal-meta">An overview, then a page for each subject. Download it as a PDF to share or keep.</div>
           </div>
           <button
             class="icon-button"
@@ -2531,16 +2531,16 @@
         </div>
         <div class="modal-body">
           <div class="report-picker" id="report-picker"></div>
-          <article class="report-sheet" id="report-sheet" aria-live="polite"></article>
+          <div class="report-desk" id="report-pages" aria-live="polite"></div>
           <div class="form-actions report-actions">
             <span class="form-message" id="report-message" role="status"></span>
             <button class="ghost-button with-icon" type="button" data-action="copy-report">
               <i class="ph lu lu-copy button-icon" aria-hidden="true"></i>
               Copy summary
             </button>
-            <button class="primary-button with-icon" type="button" data-action="print-report">
-              <i class="ph lu lu-printer button-icon" aria-hidden="true"></i>
-              Print / Save PDF
+            <button class="primary-button with-icon report-download" type="button" data-action="download-report" id="report-download">
+              <i class="ph lu lu-download button-icon" aria-hidden="true"></i>
+              <span class="report-download-label">Download PDF</span>
             </button>
           </div>
         </div>
