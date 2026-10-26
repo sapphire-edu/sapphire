@@ -167,6 +167,66 @@ function calendarSubjectIconHtml(event, className = 'calendar-v2-subject-icon') 
   return iconHtml(resolveSubjectIcon(event.icon, event.subject), className);
 }
 
+// Busy weeks (V2): a Mon–Sun week with two or more upcoming assessments due. Homework and
+// marked results don't make a week busy; homework is only mentioned alongside.
+const CALENDAR_BUSY_WEEK_MIN = 2;
+
+function calendarWeekStartKey(dateKey) {
+  const date = calendarDateFromKey(dateKey);
+  date.setDate(date.getDate() - ((date.getDay() + 6) % 7));
+  return dateKeyFromParts(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+// Busy weeks keyed by their Monday. Weeks that ended before today are left out.
+function buildCalendarBusyWeeks(eventsByDate) {
+  const weeks = {};
+  Object.keys(eventsByDate).forEach((dateKey) => {
+    eventsByDate[dateKey].forEach((event) => {
+      if (event.type !== 'upcoming') return;
+      const startKey = calendarWeekStartKey(dateKey);
+      const week = weeks[startKey] || (weeks[startKey] = { assessments: 0, homework: 0, weight: 0, allWeighted: true });
+      if (event.upcomingType === 'homework') {
+        week.homework += 1;
+        return;
+      }
+      week.assessments += 1;
+      if (Number.isFinite(event.weight)) week.weight += event.weight;
+      else week.allWeighted = false;
+    });
+  });
+  const busy = {};
+  Object.keys(weeks).forEach((startKey) => {
+    const week = weeks[startKey];
+    if (week.assessments < CALENDAR_BUSY_WEEK_MIN) return;
+    const end = calendarDateFromKey(startKey);
+    end.setDate(end.getDate() + 6);
+    if (dateKeyFromParts(end.getFullYear(), end.getMonth(), end.getDate()) < today) return;
+    busy[startKey] = week;
+  });
+  return busy;
+}
+
+// "2 assessments · 45%": the weighting only shows when every assessment in the week has one.
+function calendarBusyWeekDetail(week) {
+  const parts = [`${week.assessments} assessments`];
+  if (week.allWeighted && week.weight > 0) parts.push(`${Math.round(week.weight * 10) / 10}% weighting`);
+  return parts.join(' · ');
+}
+
+function calendarBusyWeekTitle(week) {
+  const homework = week.homework ? `, plus ${week.homework} homework` : '';
+  return `Busy week: ${calendarBusyWeekDetail(week)}${homework}`;
+}
+
+function buildCalendarBusyLabelV2(week) {
+  return `
+    <span class="calendar-v2-busy" title="${escapeHtml(calendarBusyWeekTitle(week))}">
+      ${iconHtml('lucide:layers', 'calendar-v2-busy-icon')}
+      <span class="calendar-v2-busy-text">Busy<span class="calendar-v2-busy-week"> week</span> · ${week.assessments}<span class="calendar-v2-busy-long"> assessments</span></span>
+    </span>
+  `;
+}
+
 function buildCalendarChipV2(event, dateKey) {
   const type = event.upcomingType === 'homework' ? 'homework' : 'assessment';
   const isCompleted = event.type === 'completed';
@@ -216,7 +276,7 @@ function buildCalendarAgendaItemV2(event, dateKey) {
   `;
 }
 
-function buildCalendarAgendaV2(selected, eventsByDate, filterEvents) {
+function buildCalendarAgendaV2(selected, eventsByDate, filterEvents, busyWeeks = {}) {
   const date = calendarDateFromKey(selected);
   const heading = date.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
   const items = filterEvents(eventsByDate[selected] || []);
@@ -245,6 +305,7 @@ function buildCalendarAgendaV2(selected, eventsByDate, filterEvents) {
       </div>
     `;
 
+  const shownBusyWeeks = new Set();
   const nextHtml = nextUp.length
     ? `
       <div class="calendar-v2-next">
@@ -252,7 +313,14 @@ function buildCalendarAgendaV2(selected, eventsByDate, filterEvents) {
         <ul class="calendar-v2-next-list">
           ${nextUp.slice(0, 4).map(({ event, dateKey }) => {
             const d = calendarDateFromKey(dateKey);
+            const weekKey = calendarWeekStartKey(dateKey);
+            const busyWeek = busyWeeks[weekKey] && !shownBusyWeeks.has(weekKey) ? busyWeeks[weekKey] : null;
+            if (busyWeek) shownBusyWeeks.add(weekKey);
+            const busyHtml = busyWeek
+              ? `<li class="calendar-v2-next-busy" title="${escapeHtml(calendarBusyWeekTitle(busyWeek))}">${iconHtml('lucide:layers', 'calendar-v2-busy-icon')}<span>Busy week of ${calendarDateFromKey(weekKey).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })} · ${calendarBusyWeekDetail(busyWeek)}</span></li>`
+              : '';
             return `
+              ${busyHtml}
               <li>
                 <button class="calendar-v2-next-item" type="button" data-calendar-date="${dateKey}" style="--event-color:${escapeHtml(event.color)}">
                   <span class="calendar-v2-next-date">
@@ -305,10 +373,19 @@ function renderCalendarV2(year, month, activeFilter) {
   let dueHomework = 0;
   let marked = 0;
   const cells = [];
+  // Busy weeks are about assessments, so the Homework filter hides them.
+  const busyWeeks = activeFilter === 'homework' ? {} : buildCalendarBusyWeeks(eventsByDate);
+  let busyWeekCount = 0;
+  let busyWeek = null;
 
   for (let index = 0; index < weeks * 7; index += 1) {
     const cellDate = new Date(year, month, index - startOffset + 1);
     const dateKey = dateKeyFromParts(cellDate.getFullYear(), cellDate.getMonth(), cellDate.getDate());
+    const isWeekStart = index % 7 === 0;
+    if (isWeekStart) {
+      busyWeek = busyWeeks[dateKey] || null;
+      if (busyWeek) busyWeekCount += 1;
+    }
     const isMuted = cellDate.getMonth() !== month;
     const isToday = dateKey === today;
     const isSelected = dateKey === selected;
@@ -326,11 +403,13 @@ function renderCalendarV2(year, month, activeFilter) {
     const visible = events.length > 3 ? events.slice(0, 2) : events;
     const moreCount = events.length - visible.length;
     const dayLabel = cellDate.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
-    const ariaLabel = `${dayLabel}${isToday ? ', today' : ''}${events.length ? `, ${events.length} item${events.length === 1 ? '' : 's'}` : ''}`;
+    const busyAria = busyWeek && isWeekStart ? `, ${calendarBusyWeekTitle(busyWeek).replace(':', ',')}` : '';
+    const ariaLabel = `${dayLabel}${isToday ? ', today' : ''}${events.length ? `, ${events.length} item${events.length === 1 ? '' : 's'}` : ''}${busyAria}`;
 
     cells.push(`
-      <div class="calendar-cell calendar-v2-cell${isMuted ? ' is-muted' : ''}${isToday ? ' is-today' : ''}${isSelected ? ' is-selected' : ''}${isWeekend ? ' is-weekend' : ''}${events.length ? ' has-events' : ''}" data-calendar-date="${dateKey}">
+      <div class="calendar-cell calendar-v2-cell${isMuted ? ' is-muted' : ''}${isToday ? ' is-today' : ''}${isSelected ? ' is-selected' : ''}${isWeekend ? ' is-weekend' : ''}${events.length ? ' has-events' : ''}${busyWeek ? ' is-busy-week' : ''}" data-calendar-date="${dateKey}">
         <button class="calendar-day calendar-v2-day" type="button" data-calendar-date="${dateKey}" aria-label="${ariaLabel}" aria-pressed="${isSelected ? 'true' : 'false'}" tabindex="${isSelected ? '0' : '-1'}">${cellDate.getDate()}</button>
+        ${busyWeek && isWeekStart ? buildCalendarBusyLabelV2(busyWeek) : ''}
         ${events.length ? `
           <div class="calendar-events calendar-v2-events">
             ${visible.map((event) => buildCalendarChipV2(event, dateKey)).join('')}
@@ -354,11 +433,13 @@ function renderCalendarV2(year, month, activeFilter) {
     if (dueHomework) parts.push(`${dueHomework} homework`);
     let text = parts.length ? `${parts.join(' and ')} due` : 'Nothing due';
     if (marked) text += ` · ${marked} marked`;
-    summaryEl.textContent = `${text} this month`;
+    text += ' this month';
+    if (busyWeekCount) text += ` · ${busyWeekCount} busy week${busyWeekCount === 1 ? '' : 's'}`;
+    summaryEl.textContent = text;
   }
 
   const agendaEl = document.getElementById('calendar-agenda');
-  if (agendaEl) agendaEl.innerHTML = buildCalendarAgendaV2(selected, eventsByDate, filterEvents);
+  if (agendaEl) agendaEl.innerHTML = buildCalendarAgendaV2(selected, eventsByDate, filterEvents, busyWeeks);
 }
 
 function formatMonthYear(year, month) {
