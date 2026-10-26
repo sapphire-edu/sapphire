@@ -744,7 +744,9 @@
   }
 }
 
-/* ── By term / By semester: a plain table of averages ── */
+/* ── By term / By semester ──
+   A grid of averages: each cell is the percentage with its grade badge, and the change from the
+   period before underneath. Overall leads in bold above a slightly heavier rule, untinted. */
 
 :root[data-ui="v2"] .an-terms {
   margin: 16px -20px -20px;
@@ -762,26 +764,32 @@
 
 :root[data-ui="v2"] .an-terms-table {
   width: 100%;
-  min-width: 520px;
+  min-width: 600px;
   border-collapse: collapse;
+  table-layout: fixed;
   font-variant-numeric: tabular-nums;
+}
+
+:root[data-ui="v2"] .an-terms-table.is-semesters {
+  min-width: 420px;
 }
 
 :root[data-ui="v2"] .an-terms-table th,
 :root[data-ui="v2"] .an-terms-table td {
-  padding: 12px 16px;
+  height: 56px;
+  padding: 8px 16px;
   border-bottom: 1px solid var(--card-border);
   text-align: right;
   vertical-align: middle;
 }
 
-:root[data-ui="v2"] .an-terms-table th:first-child {
+:root[data-ui="v2"] .an-terms-table tr > :first-child {
+  width: 34%;
   padding-left: 20px;
   text-align: left;
 }
 
-:root[data-ui="v2"] .an-terms-table th:last-child,
-:root[data-ui="v2"] .an-terms-table td:last-child {
+:root[data-ui="v2"] .an-terms-table tr > :last-child {
   padding-right: 20px;
 }
 
@@ -790,6 +798,7 @@
 }
 
 :root[data-ui="v2"] .an-terms-table thead th {
+  height: auto;
   padding-block: 10px;
   font-size: 12px;
   font-weight: 500;
@@ -800,62 +809,106 @@
 }
 
 :root[data-ui="v2"] .an-terms-period {
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: var(--text-secondary);
 }
 
 :root[data-ui="v2"] .an-terms-months {
   display: block;
+  margin-top: 1px;
   font-weight: 400;
 }
 
+:root[data-ui="v2"] .an-terms-now {
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
 :root[data-ui="v2"] .an-terms-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
   font-size: 14px;
   font-weight: 500;
+  color: var(--text-primary);
+}
+
+:root[data-ui="v2"] .an-terms-name-text {
+  overflow: hidden;
   white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-:root[data-ui="v2"] .an-terms-name > * {
-  vertical-align: middle;
-}
-
-:root[data-ui="v2"] .an-terms-name .v2-subject-mark {
-  margin-right: 10px;
-}
-
-:root[data-ui="v2"] .an-terms-cell {
-  white-space: nowrap;
+:root[data-ui="v2"] .an-terms-main {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 :root[data-ui="v2"] .an-terms-value {
   font-size: 14px;
   font-weight: 500;
+  color: var(--text-primary);
 }
 
 :root[data-ui="v2"] .an-terms-unit {
   margin-left: 1px;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .an-terms-grade {
+  min-width: 34px;
+  height: 22px;
+  padding: 0 6px;
+  font-size: 12px;
 }
 
 :root[data-ui="v2"] .an-terms-cell .v2-an-delta {
   display: flex;
   justify-content: flex-end;
-  margin-top: 2px;
-  font-size: 12px;
+  gap: 3px;
+  margin-top: 3px;
+  font-size: 11px;
 }
 
-:root[data-ui="v2"] .an-terms-cell.is-empty {
-  color: var(--text-tertiary);
+:root[data-ui="v2"] .an-terms-none {
+  color: color-mix(in srgb, var(--text-tertiary) 60%, transparent);
 }
 
 :root[data-ui="v2"] .an-terms-table tr.is-overall > * {
-  background: var(--bg-tertiary);
+  border-bottom-color: color-mix(in srgb, var(--text-tertiary) 45%, transparent);
 }
 
 :root[data-ui="v2"] .an-terms-table tr.is-overall .an-terms-name,
 :root[data-ui="v2"] .an-terms-table tr.is-overall .an-terms-value {
   font-weight: 600;
+}
+
+:root[data-ui="v2"] .an-terms-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 12px 20px;
+  border-top: 1px solid var(--card-border);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .an-terms-note .ph {
+  flex: none;
+  margin-top: 1px;
+  font-size: 13px;
 }
 
 /* ── Spread charts (box plots) ──
@@ -1312,16 +1365,22 @@
     margin: 16px -16px -16px;
   }
 
-  :root[data-ui="v2"] .an-terms-table th:first-child {
+  /* Phones: the subject column stays put while the terms scroll sideways. */
+  :root[data-ui="v2"] .an-terms-table tr > :first-child {
     position: sticky;
     left: 0;
     z-index: 1;
+    width: 150px;
     padding-left: 16px;
     background: var(--card-surface);
   }
 
-  :root[data-ui="v2"] .an-terms-table tr.is-overall th:first-child {
-    background: var(--bg-tertiary);
+  :root[data-ui="v2"] .an-terms-table {
+    min-width: 560px;
+  }
+
+  :root[data-ui="v2"] .an-terms-note {
+    padding: 12px 16px;
   }
 
   :root[data-ui="v2"] .an-spread {

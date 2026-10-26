@@ -614,6 +614,7 @@ function openAssessmentModal(subjectId, options = {}) {
   const totalInput = elements.assessmentForm.querySelector('input[name="total"]');
   const weightInput = elements.assessmentForm.querySelector('input[name="weight"]');
   const dateInput = elements.assessmentForm.querySelector('input[name="date"]');
+  const termInput = elements.assessmentForm.querySelector('select[name="term"]');
   const editItem = options.edit || null;
   const prefill = options.prefill || null;
 
@@ -648,6 +649,9 @@ function openAssessmentModal(subjectId, options = {}) {
   }
   if (totalInput) {
     totalInput.value = editItem ? editItem.total : '';
+  }
+  if (termInput) {
+    termInput.value = editItem?.term ? String(editItem.term) : '';
   }
   if (weightInput) {
     if (editItem && Number.isFinite(editItem.weight)) {
@@ -2044,6 +2048,8 @@ function bindSubjectsEvents() {
       const weightInput = formData.get('weight');
       const weight = weightInput === '' ? null : parseFloat(weightInput);
       const date = String(formData.get('date') || today);
+      const termValue = Number(formData.get('term'));
+      const term = [1, 2, 3, 4].includes(termValue) ? termValue : null;
 
       const subject = state.data.subjects.find((item) => item.id === subjectId);
       if (!subject) {
@@ -2088,6 +2094,7 @@ function bindSubjectsEvents() {
           existing.total = total;
           existing.weight = weight;
           existing.date = date;
+          if (isUiV2()) existing.term = term;
           existing.components = [...assessmentComponents];
         }
       } else {
@@ -2098,6 +2105,7 @@ function bindSubjectsEvents() {
           total,
           weight,
           date,
+          term: isUiV2() ? term : null,
           createdAt: Date.now(),
           components: [...assessmentComponents],
         });

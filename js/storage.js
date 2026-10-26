@@ -138,6 +138,8 @@ function normalizeData(parsed) {
           total: Number.isFinite(assessment.total) ? assessment.total : 0,
           weight: assessment.weight === undefined ? null : assessment.weight,
           date,
+          // Optional school term (1–4) the student picked; null means Analytics works it out.
+          term: [1, 2, 3, 4].includes(assessment.term) ? assessment.term : null,
           createdAt,
           components: Array.isArray(assessment.components) ? assessment.components : [],
           leaderboardDocId: assessment.leaderboardDocId || null,

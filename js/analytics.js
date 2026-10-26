@@ -260,20 +260,19 @@ function renderAnalyticsV2() {
 }
 
 // By term / By semester: each subject's weighted average in each NSW school term (or semester)
-// of the latest year with marks, with the change from the period before. Terms are split at
-// the middle of each holiday break, so a mark dated in the holidays counts towards the term it
-// most likely belongs to. Semester 1 is Terms 1–2, Semester 2 is Terms 3–4.
+// of the latest year with marks, with its grade and the change from the period before.
 const TERM_PERIODS = [
-  { label: 'Term 1', short: 'T1', months: 'Feb–Apr' },
-  { label: 'Term 2', short: 'T2', months: 'Apr–Jul' },
-  { label: 'Term 3', short: 'T3', months: 'Jul–Sep' },
-  { label: 'Term 4', short: 'T4', months: 'Oct–Dec' },
+  { label: 'Term 1', months: 'Feb–Apr' },
+  { label: 'Term 2', months: 'Apr–Jul' },
+  { label: 'Term 3', months: 'Jul–Sep' },
+  { label: 'Term 4', months: 'Oct–Dec' },
 ];
 const SEMESTER_PERIODS = [
-  { label: 'Semester 1', short: 'S1', months: 'Terms 1–2' },
-  { label: 'Semester 2', short: 'S2', months: 'Terms 3–4' },
+  { label: 'Semester 1', months: 'Terms 1–2' },
+  { label: 'Semester 2', months: 'Terms 3–4' },
 ];
 
+// The term a date falls in, splitting at the middle of each holiday break.
 function schoolTermIndex(dateValue) {
   const date = new Date(dateValue);
   const month = date.getUTCMonth();
@@ -283,6 +282,97 @@ function schoolTermIndex(dateValue) {
   if (before(6, 12)) return 1; // up to 11 July
   if (before(9, 5)) return 2; // up to 4 October
   return 3;
+}
+
+// Which term each mark belongs to. Dates aren't reliable (marks often get entered in a batch,
+// long after the task), so each subject follows the school's usual pattern of tasks per term:
+// - most subjects: one task a term;
+// - Maths Accelerated (seen in the subject name, or a MACC / "Accelerated" class linked to it in
+//   the timetable): seven tasks, 1 · 2 · 2 · 2;
+// - History and Geography: one semester each (one runs in Semester 1, the other in Semester 2),
+//   three tasks, two in its first term and one in its second.
+// A mark's own Term setting always wins. Dates are used as they are when they already fit the
+// pattern; otherwise the subject's marks fill its term slots in order.
+const TERM_PLAN_DEFAULT = [0, 1, 2, 3];
+const TERM_PLAN_ACCELERATED = [0, 1, 1, 2, 2, 3, 3];
+
+function isSemesterSubject(subject) {
+  return /histor|geog/i.test(subject.name);
+}
+
+function acceleratedMathsSubjectIds() {
+  const ids = new Set();
+  const isMaths = (subject) => /math/i.test(subject.name);
+  state.data.subjects.forEach((subject) => {
+    if (isMaths(subject) && /\bacc(el(erated)?)?\b/i.test(subject.name)) ids.add(subject.id);
+  });
+  const timetable = normalizeTimetableData(state.data.timetable);
+  if (!timetable.lessons.length) return ids;
+  const acceleratedRows = getTimetableClassRows(timetable.lessons)
+    .filter((row) => /MACC/i.test(row.classCode || '') || /accel/i.test(`${row.subject || ''} ${row.label || ''}`));
+  let linked = false;
+  acceleratedRows.forEach((row) => {
+    const id = String(timetable.classProfiles[row.key]?.subjectId || timetable.subjectMap[row.key] || '');
+    if (id && id !== '__none__') {
+      ids.add(id);
+      linked = true;
+    }
+  });
+  // An accelerated class that isn't linked to a subject: it's the student's only maths subject.
+  if (acceleratedRows.length && !linked) {
+    const maths = state.data.subjects.filter(isMaths);
+    if (maths.length === 1) ids.add(maths[0].id);
+  }
+  return ids;
+}
+
+function termPlansBySubject(markedSubjects) {
+  const accelerated = acceleratedMathsSubjectIds();
+  const plans = new Map();
+  const medianTerm = (subject) => {
+    const terms = subject.assessments.map((assessment) => (assessment.term ? assessment.term - 1 : schoolTermIndex(assessmentDateValue(assessment)))).sort((x, y) => x - y);
+    return terms.length ? terms[Math.floor((terms.length - 1) / 2)] : 0;
+  };
+  // History and Geography always sit in opposite semesters. With both, the one whose marks lean
+  // earlier (by term, then by average date) gets Semester 1; on its own, its marks decide.
+  const meanDate = (subject) => subject.assessments.reduce((sum, assessment) => sum + assessmentDateValue(assessment), 0) / subject.assessments.length;
+  const semester = markedSubjects
+    .filter(isSemesterSubject)
+    .sort((left, right) => medianTerm(left) - medianTerm(right) || meanDate(left) - meanDate(right));
+  semester.forEach((subject, index) => {
+    const first = semester.length >= 2 ? index === 0 : medianTerm(subject) < 2;
+    const start = first ? 0 : 2;
+    plans.set(subject.id, [start, start, start + 1]);
+  });
+  markedSubjects.forEach((subject) => {
+    if (!plans.has(subject.id)) plans.set(subject.id, accelerated.has(subject.id) ? TERM_PLAN_ACCELERATED : TERM_PLAN_DEFAULT);
+  });
+  return plans;
+}
+
+function assignMarksToTerms(subject, plan) {
+  const placed = new Map();
+  const marks = sortAssessments(subject.assessments.filter((assessment) => assessment.total > 0));
+  const slots = [...plan];
+  const loose = [];
+  marks.forEach((assessment) => {
+    if (assessment.term) {
+      placed.set(assessment.id, { term: assessment.term - 1, how: 'set' });
+      const slot = slots.indexOf(assessment.term - 1);
+      if (slot !== -1) slots.splice(slot, 1);
+    } else {
+      loose.push(assessment);
+    }
+  });
+  const byDate = loose.map((assessment) => schoolTermIndex(assessmentDateValue(assessment)));
+  const counts = (terms) => terms.reduce((map, term) => map.set(term, (map.get(term) || 0) + 1), new Map());
+  const room = counts(slots);
+  const datesFit = [...counts(byDate)].every(([term, count]) => count <= (room.get(term) || 0));
+  loose.forEach((assessment, index) => {
+    if (datesFit || index >= slots.length) placed.set(assessment.id, { term: byDate[index], how: 'date' });
+    else placed.set(assessment.id, { term: slots[index], how: 'order' });
+  });
+  return placed;
 }
 
 function getTermsView() {
@@ -314,58 +404,77 @@ function renderAnalyticsTermsV2() {
   if (title) title.textContent = view === 'semester' ? 'By semester' : 'By term';
   const desc = document.getElementById('analytics-terms-desc');
 
+  const yearOf = (assessment) => new Date(assessmentDateValue(assessment)).getUTCFullYear();
   const dated = getAllAssessments().filter((assessment) => assessment.total > 0 && assessmentDateValue(assessment));
   if (!dated.length) {
     container.innerHTML = '<div class="empty-state">No marks yet. Your term-by-term averages will show up here.</div>';
     if (desc) desc.textContent = `Your weighted average in each ${view}.`;
     return;
   }
-  const year = Math.max(...dated.map((assessment) => new Date(assessmentDateValue(assessment)).getUTCFullYear()));
-  const inYear = dated.filter((assessment) => new Date(assessmentDateValue(assessment)).getUTCFullYear() === year);
+  const year = Math.max(...dated.map(yearOf));
+  const yearSubjects = state.data.subjects
+    .map((subject) => ({ ...subject, assessments: subject.assessments.filter((assessment) => assessment.total > 0 && assessmentDateValue(assessment) && yearOf(assessment) === year) }))
+    .filter((subject) => subject.assessments.length);
+  const plans = termPlansBySubject(yearSubjects);
   const periods = view === 'semester' ? SEMESTER_PERIODS : TERM_PERIODS;
-  const periodOf = (assessment) => {
-    const term = schoolTermIndex(assessmentDateValue(assessment));
-    return view === 'semester' ? Math.floor(term / 2) : term;
-  };
-  const averagesFor = (items) => periods.map((_, index) => {
-    const inPeriod = items.filter((assessment) => periodOf(assessment) === index);
-    return inPeriod.length ? { average: weightedAverage(inPeriod), count: inPeriod.length } : null;
-  });
+  const toPeriod = (term) => (view === 'semester' ? Math.floor(term / 2) : term);
 
+  // Every mark in the year with the period it was placed in.
+  const placedMarks = yearSubjects.flatMap((subject) => {
+    const placed = assignMarksToTerms(subject, plans.get(subject.id));
+    return subject.assessments.map((assessment) => ({ subject, assessment, period: toPeriod(placed.get(assessment.id).term), how: placed.get(assessment.id).how }));
+  });
+  const reordered = placedMarks.filter((mark) => mark.how === 'order').length;
+
+  const averagesFor = (marks) => periods.map((_, index) => {
+    const inPeriod = marks.filter((mark) => mark.period === index).map((mark) => mark.assessment);
+    if (!inPeriod.length) return null;
+    const average = weightedAverage(inPeriod);
+    return { average, grade: getLetterGrade(average), count: inPeriod.length };
+  });
   const rows = [
-    { overall: true, name: 'Overall', cells: averagesFor(inYear) },
-    ...state.data.subjects
-      .map((subject) => ({ subject, name: subject.name, cells: averagesFor(inYear.filter((assessment) => assessment.subjectId === subject.id)) }))
-      .filter((row) => row.cells.some(Boolean)),
+    { overall: true, name: 'Overall', cells: averagesFor(placedMarks) },
+    ...yearSubjects.map((subject) => ({ subject, name: subject.name, cells: averagesFor(placedMarks.filter((mark) => mark.subject.id === subject.id)) })),
   ];
+
+  const now = new Date();
+  const currentPeriod = now.getFullYear() === year ? toPeriod(schoolTermIndex(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()))) : -1;
   if (desc) {
-    desc.textContent = `Your weighted average in each ${view} of ${year}, and how it changed from the ${view} before.`;
+    desc.textContent = `Your weighted average and grade in each ${view} of ${year}, and how it changed from the ${view} before.`;
   }
 
   const cellHtml = (cell, previous, row, period) => {
-    if (!cell) return '<td class="an-terms-cell is-empty"><span aria-label="No marks">—</span></td>';
+    if (!cell) return '<td class="an-terms-cell is-empty"><span class="an-terms-none" aria-label="No marks">—</span></td>';
     const delta = previous ? cell.average - previous.average : null;
-    const label = `${row.name}, ${period.label}: ${cell.average.toFixed(1)}% from ${cell.count} mark${cell.count === 1 ? '' : 's'}`;
+    const label = `${row.name}, ${period.label}: ${cell.average.toFixed(1)}%, ${cell.grade}, from ${cell.count} mark${cell.count === 1 ? '' : 's'}`;
     return `
       <td class="an-terms-cell" title="${escapeHtml(label)}">
-        <span class="an-terms-value">${cell.average.toFixed(1)}<span class="an-terms-unit">%</span></span>
-        ${delta === null ? '' : v2DeltaHtml(delta)}
+        <span class="an-terms-main">
+          <span class="an-terms-value">${cell.average.toFixed(1)}<span class="an-terms-unit">%</span></span>
+          ${v2GradeBadge(cell.grade, ' an-terms-grade')}
+        </span>
+        ${delta === null || Math.abs(delta) < 0.05 ? '' : v2DeltaHtml(delta)}
       </td>
     `;
   };
 
   container.innerHTML = `
     <div class="an-terms-scroll">
-      <table class="an-terms-table">
+      <table class="an-terms-table${view === 'semester' ? ' is-semesters' : ''}">
         <thead>
           <tr>
-            <th scope="col" class="an-terms-subject-head">Subject</th>
-            ${periods.map((period) => `<th scope="col"><span class="an-terms-period">${period.label}</span><span class="an-terms-months">${period.months}</span></th>`).join('')}
+            <th scope="col">Subject</th>
+            ${periods.map((period, index) => `
+              <th scope="col"${index === currentPeriod ? ' class="is-current"' : ''}>
+                <span class="an-terms-period">${period.label}${index === currentPeriod ? '<span class="an-terms-now">Now</span>' : ''}</span>
+                <span class="an-terms-months">${period.months}</span>
+              </th>
+            `).join('')}
           </tr>
         </thead>
         <tbody>
           ${rows.map((row) => {
-            // A change is only shown against the nearest earlier period that has marks.
+            // A change is shown against the nearest earlier period that has marks.
             let previous = null;
             const cells = row.cells.map((cell, index) => {
               const html = cellHtml(cell, previous, row, periods[index]);
@@ -376,8 +485,8 @@ function renderAnalyticsTermsV2() {
               ? `<span class="v2-subject-mark" style="--subject-color:var(--accent)" aria-hidden="true">${iconHtml('squares-four', '')}</span>`
               : subjectMarkHtml(row.subject.icon, row.subject.name, row.subject.color);
             return `
-              <tr class="${row.overall ? 'is-overall' : ''}">
-                <th scope="row" class="an-terms-name">${nameHtml}<span>${escapeHtml(row.name)}</span></th>
+              <tr${row.overall ? ' class="is-overall"' : ''}>
+                <th scope="row"><span class="an-terms-name">${nameHtml}<span class="an-terms-name-text">${escapeHtml(row.name)}</span></span></th>
                 ${cells}
               </tr>
             `;
@@ -385,6 +494,12 @@ function renderAnalyticsTermsV2() {
         </tbody>
       </table>
     </div>
+    <p class="an-terms-note">
+      ${iconHtml('lucide:info', '')}
+      <span>${reordered
+        ? `${reordered} mark${reordered === 1 ? '' : 's'} had dates that didn't fit the subject's usual tasks per term, so ${reordered === 1 ? 'it was' : 'they were'} placed in task order instead.`
+        : 'Marks are placed by date, checked against each subject\'s usual tasks per term.'} To move one, edit the mark and set its Term.</span>
+    </p>
   `;
 }
 
