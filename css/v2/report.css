@@ -1,0 +1,501 @@
+/* V2: term / semester report card (js/report.js), opened from the By term card on Analytics.
+   On screen it sits in a popup as a document sheet; in print only the sheet prints, on white A4. */
+
+/* ── Trigger in the By term card header ── */
+
+:root[data-ui="v2"] .report-head-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+}
+
+:root[data-ui="v2"] .report-open {
+  height: 34px;
+}
+
+/* ── Popup ── */
+
+:root[data-ui="v2"] #report-modal {
+  --modal-width-large: 760px;
+}
+
+:root[data-ui="v2"] #report-modal .modal-body {
+  display: grid;
+}
+
+:root[data-ui="v2"] .report-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+}
+
+:root[data-ui="v2"] .report-picker-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+:root[data-ui="v2"] .report-picker-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .report-picker .an-range button {
+  min-width: 32px;
+}
+
+:root[data-ui="v2"] .report-picker .an-range button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ── The sheet ── */
+
+:root[data-ui="v2"] .report-sheet {
+  container-type: inline-size;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  min-width: 0;
+  padding: 32px 36px 24px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+}
+
+:root[data-ui="v2"] .report-masthead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--text-primary);
+  font-size: 13px;
+}
+
+:root[data-ui="v2"] .report-brand {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+:root[data-ui="v2"] .report-brand-mark {
+  color: var(--accent);
+}
+
+:root[data-ui="v2"] .report-kind {
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .report-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px 32px;
+}
+
+:root[data-ui="v2"] .report-identity {
+  min-width: 0;
+}
+
+:root[data-ui="v2"] .report-name {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  overflow-wrap: anywhere;
+}
+
+:root[data-ui="v2"] .report-period {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin: 8px 0 0;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+:root[data-ui="v2"] .report-period-months {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .report-period-now {
+  align-self: center;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+:root[data-ui="v2"] .report-overall {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+  text-align: right;
+}
+
+:root[data-ui="v2"] .report-overall-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .report-overall-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+:root[data-ui="v2"] .report-overall-value {
+  font-size: 44px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-ui="v2"] .report-overall-unit {
+  margin-left: 2px;
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  letter-spacing: 0;
+}
+
+:root[data-ui="v2"] .report-overall-grade {
+  height: 28px;
+  min-width: 40px;
+  font-size: 15px;
+}
+
+:root[data-ui="v2"] .report-overall-change {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+:root[data-ui="v2"] .report-summary {
+  margin: -8px 0 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+/* Subject table */
+
+:root[data-ui="v2"] .report-table {
+  width: 100%;
+  min-width: 0;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+:root[data-ui="v2"] .report-table tbody tr:hover {
+  background: none;
+}
+
+:root[data-ui="v2"] .report-table th,
+:root[data-ui="v2"] .report-table td {
+  padding: 11px 10px;
+  border-top: none;
+  border-bottom: 1px solid var(--card-border);
+  color: var(--text-primary);
+  text-align: left;
+  vertical-align: middle;
+}
+
+:root[data-ui="v2"] .report-table :is(th, td):first-child {
+  padding-left: 0;
+}
+
+:root[data-ui="v2"] .report-table :is(th, td):last-child {
+  padding-right: 0;
+}
+
+:root[data-ui="v2"] .report-table thead th {
+  padding-top: 0;
+  padding-bottom: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .report-table tbody th {
+  font-weight: 500;
+}
+
+:root[data-ui="v2"] .report-table tbody tr:last-child :is(th, td) {
+  border-bottom-color: var(--text-primary);
+}
+
+:root[data-ui="v2"] .report-table .report-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-ui="v2"] .report-avg {
+  font-weight: 600;
+}
+
+:root[data-ui="v2"] .report-table .report-count {
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .report-subject {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+:root[data-ui="v2"] .report-subject-mark {
+  width: 18px;
+  height: 18px;
+  font-size: 17px;
+}
+
+:root[data-ui="v2"] .report-change {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+}
+
+:root[data-ui="v2"] .report-change-from,
+:root[data-ui="v2"] .report-change-none {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+:root[data-ui="v2"] .report-best {
+  max-width: 220px;
+}
+
+:root[data-ui="v2"] .report-best-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:root[data-ui="v2"] .report-best-value {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-ui="v2"] .report-missing {
+  margin: -8px 0 0;
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .report-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--card-border);
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* Empty period */
+
+:root[data-ui="v2"] .report-empty {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 48px 16px 40px;
+  text-align: center;
+}
+
+:root[data-ui="v2"] .report-empty-icon {
+  margin-bottom: 6px;
+  font-size: 24px;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .report-empty-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+:root[data-ui="v2"] .report-empty-text {
+  max-width: 340px;
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+/* ── Narrow sheets: each subject becomes a two-line entry ── */
+
+@container (max-width: 560px) {
+  :root[data-ui="v2"] .report-table thead {
+    display: none;
+  }
+
+  :root[data-ui="v2"] .report-table tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "subject avg grade"
+      "best best change";
+    align-items: center;
+    gap: 6px 10px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--card-border);
+  }
+
+  :root[data-ui="v2"] .report-table tbody tr:last-child {
+    border-bottom-color: var(--text-primary);
+  }
+
+  :root[data-ui="v2"] .report-table :is(th, td) {
+    padding: 0;
+    border: none;
+  }
+
+  :root[data-ui="v2"] .report-table tbody th { grid-area: subject; }
+  :root[data-ui="v2"] .report-avg { grid-area: avg; }
+  :root[data-ui="v2"] .report-grade-cell { grid-area: grade; }
+  :root[data-ui="v2"] .report-change-cell { grid-area: change; justify-self: end; }
+  :root[data-ui="v2"] .report-count { display: none; }
+
+  :root[data-ui="v2"] .report-table .report-best {
+    grid-area: best;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 0;
+    max-width: none;
+    padding-left: 28px;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  :root[data-ui="v2"] .report-best-name {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  :root[data-ui="v2"] .report-sheet {
+    gap: 20px;
+    padding: 20px 16px 16px;
+  }
+
+  :root[data-ui="v2"] .report-name {
+    font-size: 26px;
+  }
+
+  :root[data-ui="v2"] .report-top {
+    align-items: flex-start;
+  }
+
+  :root[data-ui="v2"] .report-overall {
+    justify-items: start;
+    text-align: left;
+  }
+
+  :root[data-ui="v2"] .report-overall-value {
+    font-size: 36px;
+  }
+
+  :root[data-ui="v2"] .report-picker {
+    gap: 8px 16px;
+  }
+}
+
+/* ── Print: only the sheet, black on white, A4 ── */
+
+@page {
+  size: A4;
+  margin: 16mm 14mm;
+}
+
+@media print {
+  :root[data-ui="v2"]:has(#report-modal.is-open),
+  :root[data-ui="v2"]:has(#report-modal.is-open) body {
+    background: #ffffff !important;
+  }
+
+  :root[data-ui="v2"]:has(#report-modal.is-open) body > :not(#report-modal) {
+    display: none !important;
+  }
+
+  :root[data-ui="v2"] #report-modal.is-open {
+    /* The light theme, whatever the screen uses. */
+    --bg-primary: #ffffff;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #f2f2f2;
+    --text-primary: #111111;
+    --text-secondary: #4a4a4a;
+    --text-tertiary: #666666;
+    --card-border: #d9d9d9;
+    --accent-soft: color-mix(in srgb, var(--accent) 12%, #ffffff);
+    --grade-a: #15803d;
+    --grade-b: #1d4ed8;
+    --grade-c: #b45309;
+    --grade-d: #b91c1c;
+    position: static;
+    display: block;
+    opacity: 1;
+    visibility: visible;
+    transition: none;
+    color-scheme: light;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  :root[data-ui="v2"] #report-modal :is(.modal-backdrop, .modal-header, .report-picker, .report-actions) {
+    display: none !important;
+  }
+
+  :root[data-ui="v2"] #report-modal .modal-panel {
+    width: auto;
+    max-height: none;
+    overflow: visible;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: #ffffff;
+    box-shadow: none;
+    transform: none;
+    animation: none;
+  }
+
+  :root[data-ui="v2"] #report-modal .modal-body {
+    margin: 0;
+  }
+
+  :root[data-ui="v2"] .report-sheet {
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: #ffffff;
+    color: var(--text-primary);
+  }
+
+  :root[data-ui="v2"] .report-table tr {
+    break-inside: avoid;
+  }
+}

@@ -344,6 +344,7 @@ function openSubjectModal(subjectId) {
         </button>
       </div>`}
       ${buildTargetStripHtml(subject)}
+      ${isUiV2() ? buildNextGradeHtml(subject) + buildSubjectSpreadHtml(subject) : ''}
       <details class="what-if" id="what-if-panel"${whatIfState.open ? ' open' : ''}>
         <summary class="what-if-summary">
           ${iconHtml('flask')}
@@ -488,6 +489,95 @@ function requiredForTarget(subject) {
     pending,
     assumed,
   };
+}
+
+// The next grade up: how far the subject's average is below that cutoff, and what it would need on
+// its upcoming assessments to reach it (the same maths as a target). At A+ there's no next grade,
+// so it reports the margin above the A+ cutoff instead.
+const GRADE_CUTOFFS = [30, 35, 40, 50, 60, 65, 70, 75, 80, 85, 90, 95];
+
+function nextGradeStep(subject) {
+  const average = subjectStats(subject).average;
+  if (average === null) return null;
+  const cutoff = GRADE_CUTOFFS.find((value) => value > average + 1e-9);
+  if (!cutoff) return { top: true, average, margin: average - 95 };
+  const required = requiredForTarget({ ...subject, target: cutoff });
+  return { top: false, average, cutoff, grade: getLetterGrade(cutoff), gap: cutoff - average, ...required };
+}
+
+// Short form for list rows: "1.8% from A".
+function nextGradeShortText(step) {
+  if (!step) return '';
+  return step.top ? 'Top grade' : `${step.gap.toFixed(1)}% from ${step.grade}`;
+}
+
+function buildNextGradeHtml(subject) {
+  const step = nextGradeStep(subject);
+  if (!step) return '';
+  // The target strip already covers it when the target is the next grade's cutoff.
+  if (!step.top && Number.isFinite(subject.target) && Math.abs(subject.target - step.cutoff) < 0.01) return '';
+  let detail;
+  if (step.top) {
+    detail = `You're at the top grade, ${step.margin.toFixed(1)}% above the A+ cutoff.`;
+  } else {
+    const label = step.assumed
+      ? 'your next assessment'
+      : step.pending.length === 1
+      ? `“${escapeHtml(step.pending[0].name)}”`
+      : `your ${step.pending.length} upcoming assessments`;
+    detail = step.needed > 100
+      ? `More than 100% on ${label} wouldn't get there yet.`
+      : step.needed <= 0
+      ? `You'll reach it whatever you get on ${label}.`
+      : `${step.pending.length > 1 ? 'An average of ' : ''}${step.needed.toFixed(1)}% on ${label} gets you there.`;
+  }
+  const headline = step.top
+    ? `${v2GradeBadge('A+')}<span>Top grade</span>`
+    : `<span class="next-grade-gap">${step.gap.toFixed(1)}%</span><span>from ${v2GradeBadge(step.grade)}</span>`;
+  return `
+    <div class="next-grade">
+      <div class="next-grade-head">${iconHtml('lucide:trending-up', 'next-grade-icon')}${headline}</div>
+      <p class="next-grade-detail">${detail}</p>
+    </div>
+  `;
+}
+
+// This subject's spread: the same box plot as Analytics, sized for the popup. Needs two marks.
+function buildSubjectSpreadHtml(subject) {
+  const percents = subjectPercents(subject);
+  if (percents.length < 2) return '';
+  const spread = markSpread(percents);
+  const scale = spreadScale(Math.min(spread.min, spread.mean - spread.sd));
+  const f = (value) => value.toFixed(1);
+  const stat = (label, value, extra = '') => `<div class="subject-spread-stat${extra}"><dt>${label}</dt><dd>${value}</dd></div>`;
+  return `
+    <section class="subject-spread" style="--subject-color:${subject.color}" aria-label="${escapeHtml(`Spread of ${subject.name} marks: ${spreadTooltipText(subject.name, spread).replace(/\n/g, '. ')}`)}">
+      <div class="subject-spread-head">
+        <h3 class="subject-spread-title">Spread</h3>
+        <span class="subject-spread-desc">${spread.n} marks, each counted once</span>
+      </div>
+      <div class="subject-spread-plot" aria-hidden="true">
+        ${spreadGridHtml(scale)}
+        <span class="an-spread-whisker" style="${scale.span(spread.low, spread.high)}"></span>
+        <span class="an-spread-box" style="${scale.span(spread.q1, spread.q3)}"></span>
+        <span class="an-spread-median" style="left:${scale.at(spread.median)}"></span>
+        ${spreadOutliersHtml(scale, spread)}
+        <span class="an-spread-sd" style="${scale.span(spread.mean - spread.sd, spread.mean + spread.sd)}"></span>
+        <span class="an-spread-mean" style="left:${scale.at(spread.mean)}"></span>
+      </div>
+      <div class="an-spread-scale" aria-hidden="true">${scale.ticks.map((value) => `<span style="left:${scale.at(value)}">${value}</span>`).join('')}</div>
+      <dl class="subject-spread-stats" aria-hidden="true">
+        ${stat('Min', f(spread.min))}
+        ${stat('Q1', f(spread.q1))}
+        ${stat('Median', f(spread.median), ' is-key')}
+        ${stat('Q3', f(spread.q3))}
+        ${stat('Max', f(spread.max))}
+        ${stat('IQR', f(spread.iqr))}
+        ${stat('Mean', f(spread.mean))}
+        ${stat('SD', f(spread.sd))}
+      </dl>
+    </section>
+  `;
 }
 
 function describeRequiredForTarget(subject) {
@@ -1024,6 +1114,7 @@ function render() {
   renderTimetable();
   syncTimetableTodayProgressTicker();
   renderWeekSummary();
+  renderExamCountdown();
 }
 
 function renderOverview() {

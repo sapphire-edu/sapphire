@@ -222,3 +222,123 @@
 :root[data-ui="v2"] .subject-modal-count {
   color: var(--text-tertiary);
 }
+
+/* ── Next grade: distance to the next cutoff and what the next task needs ── */
+
+:root[data-ui="v2"] .next-grade {
+  padding: 14px 16px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+}
+
+:root[data-ui="v2"] .next-grade-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+:root[data-ui="v2"] .next-grade-head .v2-grade {
+  height: 22px;
+  min-width: 32px;
+  margin-left: 2px;
+  font-size: 12px;
+}
+
+:root[data-ui="v2"] .next-grade-icon {
+  font-size: 15px;
+  color: var(--accent);
+}
+
+:root[data-ui="v2"] .next-grade-gap {
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+:root[data-ui="v2"] .next-grade-detail {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+/* ── Spread: this subject's box plot, as on Analytics ── */
+
+:root[data-ui="v2"] .subject-spread {
+  padding: 14px 16px 16px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+}
+
+:root[data-ui="v2"] .subject-spread-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+:root[data-ui="v2"] .subject-spread-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+:root[data-ui="v2"] .subject-spread-desc {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .subject-spread-plot {
+  --box-h: 26px;
+  --mid: 18px;
+  --sd-y: 40px;
+  position: relative;
+  height: 56px;
+}
+
+:root[data-ui="v2"] .subject-spread-plot > span {
+  position: absolute;
+}
+
+:root[data-ui="v2"] .subject-spread-plot .an-spread-mean {
+  top: calc(var(--sd-y) + 0.5px);
+}
+
+:root[data-ui="v2"] .subject-spread .an-spread-scale {
+  margin-top: 4px;
+}
+
+:root[data-ui="v2"] .subject-spread-stats {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 8px;
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--card-border);
+}
+
+:root[data-ui="v2"] .subject-spread-stat dt {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+:root[data-ui="v2"] .subject-spread-stat dd {
+  margin: 1px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-ui="v2"] .subject-spread-stat.is-key dd {
+  color: color-mix(in srgb, var(--subject-color) 70%, var(--text-primary));
+}
+
+@media (max-width: 560px) {
+  :root[data-ui="v2"] .subject-spread-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    row-gap: 10px;
+  }
+}

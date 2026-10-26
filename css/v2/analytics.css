@@ -1765,3 +1765,9 @@
 :root[data-ui="v2"] .v2-an-head-rel {
   text-align: right;
 }
+
+/* By subject rows: distance to the next grade, in the meta line. */
+:root[data-ui="v2"] .v2-subject-next {
+  color: var(--text-secondary);
+  font-weight: 500;
+}

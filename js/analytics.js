@@ -106,6 +106,8 @@ function buildAnalyticsSubjectRowV2(subject) {
   const hasTarget = Number.isFinite(subject.target);
   const metaParts = [`${count} mark${count === 1 ? '' : 's'}`];
   if (latest) metaParts.push(`last ${formatDate(latest.date)}`);
+  const step = nextGradeStep(subject);
+  if (step && !step.top) metaParts.push(`<span class="v2-subject-next" title="${escapeHtml(`${step.gap.toFixed(1)}% below the ${step.grade} cutoff of ${step.cutoff}%`)}">${step.gap.toFixed(1)}% from ${step.grade}</span>`);
 
   let targetText = 'No target set';
   let targetClass = '';
